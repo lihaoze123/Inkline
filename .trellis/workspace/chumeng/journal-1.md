@@ -311,3 +311,38 @@ Added root README and CHANGELOG for English Coach v0.1.0, scoped to current impl
 ### Next Steps
 
 - None - task complete
+
+
+## Session 10: Complete MVP live review
+
+**Date**: 2026-04-30
+**Task**: Complete MVP live review
+**Branch**: `main`
+
+### Summary
+
+Completed the v0.1 MVP by adding OpenAI-compatible live review configuration, secure keychain-backed credential IPC, provider settings UI, contract tests, README setup notes, and updated Trellis specs for the live provider boundary.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `82d7b3b` | (see git log) |
+| `17efe21` | (see git log) |
+| `e7d7bdd` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
