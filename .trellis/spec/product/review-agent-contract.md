@@ -129,6 +129,7 @@ Validation failure must not write long-term statistics. Store validation errors 
 
 - Trigger: Any v0.1 task that replaces a mock/injected review agent with a live model call.
 - MVP v0.1 must not bind to pi-mono by default. The product needs structured language judgment, not a full coding-agent runtime.
+- v0.1 live review uses a minimal OpenAI-compatible direct adapter configured by base URL, model, and OS-keychain API key.
 - pi-mono is a v0.2+ optional runtime adapter only when the product needs multi-step agent workflows, controlled tool calls, reusable agent sessions, or transcript replay.
 
 ### 2. Signatures
@@ -140,7 +141,8 @@ type ReviewModelClientInput = {
   systemPrompt: string;
   userPrompt: string;
   reviewInput: ReviewInput;
-  provider: string;
+  provider: 'OpenAI-compatible';
+  baseUrl: string;
   model: string;
   timeoutMs: number;
 };
@@ -159,18 +161,34 @@ Main-process review flow:
 
 ```text
 ReviewService
-  -> ReviewModelClient provider adapter
+  -> disclosure + active revision checks
+  -> OpenAI-compatible provider adapter
+  -> Electron net.fetch POST {baseUrl}/chat/completions
   -> structured output / JSON schema
   -> validateReviewResult
   -> quote anchoring
   -> review_runs status update
 ```
 
+OpenAI-compatible request shape:
+
+```ts
+type OpenAiCompatibleRequest = {
+  model: string;
+  messages: Array<{ role: 'system' | 'user'; content: string }>;
+  temperature: number;
+  response_format: { type: 'json_object' };
+  max_tokens: number;
+};
+```
+
 ### 3. Contracts
 
 - Renderer never calls provider SDKs, pi-mono, keychain, database services, or prompt builders directly.
-- Electron main process owns provider/model settings, disclosure checks, OS keychain reads, prompt construction, model invocation, validation, and persistence.
-- The provider adapter must request structured output when the provider supports it; otherwise it must parse a bounded JSON response and still pass `unknown` through `validateReviewResult`.
+- Electron main process owns provider/base URL/model settings, disclosure checks, OS keychain reads, prompt construction, model invocation, validation, and persistence.
+- OpenAI-compatible calls must use Electron `net.fetch`, not Node/global `fetch`, so desktop system proxy behavior is respected.
+- The provider adapter must request structured JSON output with `response_format: { type: 'json_object' }` when supported; otherwise it must parse a bounded JSON response and still pass `unknown` through `validateReviewResult`.
+- The adapter may tolerate fenced JSON wrappers from compatible providers, but it must not trust parsed JSON until shared validation passes.
 - `output` remains untrusted `unknown` until the shared review contract validates it.
 - `rawOutput` is stored only when the raw-response setting allows it; production default is off.
 - Review model calls must not expose filesystem, shell, database, or generic tool access to the model.
@@ -180,8 +198,10 @@ ReviewService
 | Condition | Behavior |
 | --- | --- |
 | Disclosure not accepted | Do not call provider; return `disclosureRequired` |
-| Provider/model/key missing | Do not send journal content; transition/return review failure with configuration error |
+| Provider base URL/model/key missing | Do not send journal content; transition/return review failure with configuration error |
+| OS keychain unavailable | Do not send journal content; transition/return review failure with configuration error |
 | Provider network/auth error | Persist `review_failed`; store sanitized error details |
+| Provider returns no chat-completion message content | Persist `review_failed`; store validation errors; do not write learning history |
 | Provider returns malformed JSON or schema-invalid structured output | Persist `review_failed`; store validation errors; do not write learning history |
 | App validation is invalid after schema parse | Persist `review_failed`; do not write learning history |
 | App validation is `valid_with_warnings` | Persist `review_ready` with `valid_with_warnings`; preview is allowed |
@@ -190,16 +210,19 @@ ReviewService
 
 ### 5. Good/Base/Bad Cases
 
-- Good: Main process calls a direct provider adapter through `ReviewModelClient`, asks for structured output, validates through `validateReviewResult`, and persists only status/raw/error fields allowed by privacy settings.
-- Base: No live provider adapter exists yet; the app-side review boundary remains injectable and tests use mock model outputs.
-- Bad: v0.1 introduces pi-mono/coding-agent runtime complexity for a single-step review call, lets renderer touch provider SDKs or API keys, or trusts model JSON without shared validation.
+- Good: Main process calls the OpenAI-compatible adapter through the review seam, uses `net.fetch`, asks for JSON output, validates through `validateReviewResult`, and persists only status/raw/error fields allowed by privacy settings.
+- Base: Compatible provider wraps JSON in a fenced code block; adapter extracts the JSON string, then shared validation still decides whether preview is allowed.
+- Base: No key or keychain unavailable; review fails before journal content is sent.
+- Bad: v0.1 introduces pi-mono/coding-agent runtime complexity for a single-step review call, uses global `fetch` instead of Electron `net.fetch`, lets renderer touch provider SDKs/API keys, or trusts model JSON without shared validation.
 
 ### 6. Tests Required
 
 - Unit test: injected valid model output transitions to `review_ready` and preserves validation status.
 - Unit test: malformed or schema-invalid model output transitions to `review_failed`, stores validation errors, and does not update learning-history state.
 - Privacy test: raw output is stored only when the raw-response setting is enabled.
-- Boundary test: renderer uses `window.api.review.*` only and does not import provider SDKs, pi-mono, Electron main APIs, Node filesystem APIs, database modules, or keychain modules.
+- Adapter test: OpenAI-compatible adapter posts to `{baseUrl}/chat/completions`, includes JSON response format and a bounded `max_tokens`, and parses normal/fenced JSON content.
+- Configuration test: missing key, missing base URL/model, or unavailable keychain fails before sending journal content.
+- Boundary test: renderer uses `window.api.review.*`, `window.api.settings.*`, and `window.api.credentials.*` only and does not import provider SDKs, pi-mono, Electron main APIs, Node filesystem APIs, database modules, or keychain modules.
 - Live-provider task only: add a manual smoke test fixture proving the selected provider adapter returns one structured review result that passes `validateReviewResult`.
 
 ### 7. Wrong vs Correct
@@ -209,23 +232,32 @@ ReviewService
 ```ts
 // v0.1 does not need a full coding-agent runtime for one structured review call.
 const result = await runPiCodingAgentWithNoTools(reviewInput);
+
+// Node/global fetch can bypass Electron desktop networking expectations.
+const response = await fetch(`${baseUrl}/chat/completions`, requestInit);
 ```
 
 #### Correct
 
 ```ts
-const modelOutput = await reviewModelClient.runReview({
-  systemPrompt,
-  userPrompt,
-  reviewInput,
-  provider,
-  model,
-  timeoutMs,
+const response = await net.fetch(`${baseUrl}/chat/completions`, {
+  method: 'POST',
+  headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    model,
+    messages: [
+      { role: 'system', content: systemPrompt },
+      { role: 'user', content: userPrompt },
+    ],
+    response_format: { type: 'json_object' },
+    max_tokens: 2_500,
+  }),
 });
+const modelOutput = parseProviderJson(await response.json());
 const validation = validateReviewResult(reviewInput, modelOutput.output);
 ```
 
-The main process owns the runtime boundary, and the shared validation harness is the only boundary from raw model output to preview operations.
+The main process owns the runtime boundary, Electron networking, and key access; the shared validation harness is the only boundary from raw model output to preview operations.
 
 ## Rewrite-Check Contract
 

@@ -76,8 +76,8 @@ declare global {
 
 ### 1. Scope / Trigger
 
-- Trigger: Any task that adds or changes the foundation Settings shell, startup status, provider credential status, or raw-response storage toggle.
-- The renderer displays settings and startup state only through `window.api`; main process owns settings, database location, and credential/keychain access.
+- Trigger: Any task that adds or changes the foundation Settings shell, startup status, provider config, provider credential mutation/status, or raw-response storage toggle.
+- The renderer displays settings and startup state only through `window.api`; main process owns settings, database location, provider config persistence, and credential/keychain access.
 
 ### 2. Signatures
 
@@ -91,9 +91,12 @@ type Api = {
   settings: {
     get: () => Promise<SettingsSnapshot>;
     setRawResponseStorage: (input: SetRawResponseStorageInput) => Promise<boolean>;
+    setProviderConfig: (input: SetProviderConfigInput) => Promise<SettingsSnapshot>;
   };
   credentials: {
     getProviderKeyStatus: () => Promise<ProviderKeyStatus>;
+    setProviderApiKey: (input: SetProviderApiKeyInput) => Promise<ProviderCredentialMutationResult>;
+    deleteProviderApiKey: () => Promise<ProviderCredentialMutationResult>;
   };
 };
 ```
@@ -108,9 +111,12 @@ const IPC_CHANNELS = {
   SETTINGS: {
     GET: 'settings:get',
     SET_RAW_RESPONSE_STORAGE: 'settings:setRawResponseStorage',
+    SET_PROVIDER_CONFIG: 'settings:setProviderConfig',
   },
   CREDENTIALS: {
     GET_PROVIDER_KEY_STATUS: 'credentials:getProviderKeyStatus',
+    SET_PROVIDER_API_KEY: 'credentials:setProviderApiKey',
+    DELETE_PROVIDER_API_KEY: 'credentials:deleteProviderApiKey',
   },
 } as const;
 ```
@@ -129,9 +135,10 @@ const IPC_CHANNELS = {
 
 | Field | Type | Constraint |
 | --- | --- | --- |
-| `provider` | string | Non-empty; may be `Not configured` before integration |
-| `model` | string | Non-empty; may be `Not configured` before integration |
-| `isLocalModel` | boolean | `false` for cloud/unconfigured providers |
+| `provider` | string | Non-empty; v0.1 live review uses `OpenAI-compatible` |
+| `baseUrl` | string | Non-empty OpenAI-compatible endpoint base; stored in main-process settings, never inferred in renderer |
+| `model` | string | Non-empty configured model name |
+| `isLocalModel` | boolean | `false` for OpenAI-compatible cloud providers |
 | `reviewContextDescription` | string | Explains what review context will be sent |
 | `rawResponseStorageEnabled` | boolean | Production default is `false` |
 | `databaseLocation` | string | Non-empty app-data SQLite path |
@@ -145,29 +152,60 @@ const IPC_CHANNELS = {
 | --- | --- | --- |
 | `enabled` | boolean | Validate in main process with Zod before persistence |
 
+`SetProviderConfigInput` request fields:
+
+| Field | Type | Constraint |
+| --- | --- | --- |
+| `baseUrl` | string | Trimmed, non-empty OpenAI-compatible base URL |
+| `model` | string | Trimmed, non-empty model name |
+
+`SetProviderApiKeyInput` request fields:
+
+| Field | Type | Constraint |
+| --- | --- | --- |
+| `apiKey` | string | Trimmed, non-empty; write-only input, never returned to renderer |
+
+`ProviderCredentialMutationResult` response fields:
+
+| Field | Type | Constraint |
+| --- | --- | --- |
+| `success` | boolean | Indicates keychain mutation result |
+| `status` | `ProviderKeyStatus \| undefined` | Returned on successful mutation; contains only status/storage |
+| `error` | string \| undefined | Human-readable failure; must not include the submitted key |
+
 ### 4. Validation & Error Matrix
 
 | Condition | Behavior |
 | --- | --- |
 | Renderer requests settings | Main returns `settingsSnapshotSchema.parse(...)` output |
 | Renderer toggles raw response storage with non-boolean input | Main rejects via Zod parse error |
+| Renderer saves blank provider base URL/model | Main rejects via Zod parse error; do not mutate stored config |
+| Renderer saves provider API key | Main trims and writes it to OS keychain; response returns only status/storage |
+| Renderer deletes provider API key | Main deletes it from OS keychain; response returns only status/storage |
 | Keychain read succeeds with stored password | Return `{ status: 'configured', storage: 'os-keychain' }` |
 | Keychain read succeeds with no password | Return `{ status: 'not-configured', storage: 'os-keychain' }` |
 | Keychain read throws | Return `{ status: 'unavailable', storage: 'os-keychain' }` |
+| Keychain write/delete throws | Return `{ success: false, error }` without echoing the submitted key |
 | Migration startup failed | Startup status reports `databaseReady: false` and `migrationsApplied: false` |
 
 ### 5. Good/Base/Bad Cases
 
-- Good: Renderer calls `window.api.settings.get()` and renders provider/model/database/raw-response/keychain/pi-mono/Anki status from typed response data.
-- Base: Provider integration is not implemented yet, but Settings still displays non-empty `Not configured` provider/model values.
+- Good: Renderer calls `window.api.settings.get()` and renders provider/base URL/model/database/raw-response/keychain/pi-mono/Anki status from typed response data.
+- Good: Renderer submits a write-only API key through `window.api.credentials.setProviderApiKey({ apiKey })`, clears its local input after success, and only displays key status.
+- Base: Keychain is unavailable, so Settings displays `unavailable` and review fails with a configuration error before sending journal content.
 - Bad: Renderer imports `electron-store`, `keytar`, `fs`, or database modules to compute Settings rows.
+- Bad: Renderer stores, logs, displays, or receives a provider API key after the set operation.
 - Bad: Raw response storage defaults to `true` in production or is hidden from Settings.
 
 ### 6. Tests Required
 
 - Settings default test:
   - Assert `rawResponseStorageEnabled` is `false` by default.
-  - Assert provider/model/database/status fields are present and schema-valid.
+  - Assert provider/base URL/model/database/status fields are present and schema-valid.
+- Credential mutation test:
+  - Assert set-key input trims a non-empty key.
+  - Assert mutation responses never contain `apiKey`.
+  - Assert keychain unavailable/write/delete failures return a safe error.
 - IPC boundary test or static check:
   - Assert renderer files do not import `electron`, `node:*`, `fs`, `path`, `better-sqlite3`, or `keytar`.
 - Dev smoke test:
@@ -179,21 +217,24 @@ const IPC_CHANNELS = {
 
 ```tsx
 import Store from 'electron-store';
+import keytar from 'keytar';
 
 const store = new Store();
 const rawResponseStorageEnabled = store.get('rawResponseStorageEnabled');
+const apiKey = await keytar.getPassword('english-coach', 'provider-api-key');
 ```
 
-Renderer code must not access Node/Electron storage directly.
+Renderer code must not access Node/Electron storage or keychain APIs directly.
 
 #### Correct
 
 ```tsx
 const settings = await window.api.settings.get();
 const rawResponseStorageEnabled = settings.rawResponseStorageEnabled;
+const result = await window.api.credentials.setProviderApiKey({ apiKey: inputValue });
 ```
 
-The main process validates and owns settings; preload exposes only a typed, narrow API.
+The main process validates and owns settings/keychain access; preload exposes only typed, narrow APIs and never returns the stored API key.
 
 ---
 
