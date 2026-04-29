@@ -4,6 +4,10 @@ export default defineConfig({
   build: {
     rollupOptions: {
       external: ['electron'],
+      output: {
+        entryFileNames: '[name].cjs',
+        chunkFileNames: '[name].cjs',
+      },
     },
   },
   resolve: {

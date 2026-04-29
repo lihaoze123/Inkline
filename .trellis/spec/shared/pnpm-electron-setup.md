@@ -241,7 +241,7 @@ const config: ForgeConfig = {
     new VitePlugin({
       build: [
         { entry: 'src/main/index.ts', config: 'vite.main.config.ts' },
-        { entry: 'src/preload/index.ts', config: 'vite.preload.config.ts' },
+        { entry: { preload: 'src/preload/index.ts' }, config: 'vite.preload.config.ts', target: 'preload' },
       ],
       renderer: [{ name: 'main_window', config: 'vite.renderer.config.ts' }],
     }),
@@ -269,6 +269,11 @@ import { defineConfig } from 'vite';
 
 export default defineConfig({
   build: {
+    lib: {
+      entry: 'src/main/index.ts',
+      formats: ['cjs'],
+      fileName: () => '[name].cjs',
+    },
     rollupOptions: {
       external: [
         'electron',
@@ -282,6 +287,141 @@ export default defineConfig({
     conditions: ['node'],
     mainFields: ['module', 'jsnext:main', 'jsnext'],
   },
+});
+```
+
+```typescript
+// vite.preload.config.ts
+import { defineConfig } from 'vite';
+
+export default defineConfig({
+  build: {
+    rollupOptions: {
+      external: ['electron'],
+      output: {
+        entryFileNames: '[name].cjs',
+        chunkFileNames: '[name].cjs',
+      },
+    },
+  },
+  resolve: {
+    conditions: ['node'],
+    mainFields: ['module', 'jsnext:main', 'jsnext'],
+  },
+});
+```
+
+## Scenario: Electron Forge Vite CJS output in ESM packages
+
+### 1. Scope / Trigger
+
+- Trigger: Any Electron Forge + Vite app whose root `package.json` contains `"type": "module"` and whose main or preload bundles are loaded from `.vite/build`.
+- The Forge Vite plugin builds main/preload targets as CommonJS. If the output file extension is `.js` under a `type: module` package, Electron loads it as ESM and `require` fails at startup.
+
+### 2. Signatures
+
+`package.json`:
+
+```json
+{
+  "type": "module",
+  "main": ".vite/build/index.cjs"
+}
+```
+
+Main process preload path:
+
+```typescript
+preload: path.join(__dirname, 'preload.cjs')
+```
+
+Forge Vite build entries:
+
+```typescript
+new VitePlugin({
+  build: [
+    { entry: 'src/main/index.ts', config: 'vite.main.config.ts' },
+    { entry: { preload: 'src/preload/index.ts' }, config: 'vite.preload.config.ts', target: 'preload' },
+  ],
+  renderer: [{ name: 'main_window', config: 'vite.renderer.config.ts' }],
+});
+```
+
+### 3. Contracts
+
+| Field | Type | Constraint |
+| --- | --- | --- |
+| `package.json.main` | string | Must point to `.vite/build/index.cjs` when main output is CommonJS. |
+| Main output file | file path | Must be `.vite/build/index.cjs`; not `.js` under `type: module`. |
+| Preload output file | file path | Must be `.vite/build/preload.cjs` and match the `BrowserWindow` preload path. |
+| Preload Forge target | `'preload'` | Must be set so Forge uses preload config and reload behavior. |
+| Preload Rollup input name | object key | Must be named `preload` to avoid colliding with main `index.cjs`. |
+
+### 4. Validation & Error Matrix
+
+| Condition | Behavior |
+| --- | --- |
+| `type: module` + main points to `.vite/build/index.js` containing `require(...)` | Electron startup fails with `ReferenceError: require is not defined in ES module scope`. |
+| Main output uses `.cjs` but `package.json.main` still points to `.js` | Electron cannot load the generated app entry. |
+| Preload output uses `.cjs` but `BrowserWindow` points to `preload.js` | Renderer starts without the expected preload API. |
+| Main and preload entries are both named `index` with `[name].cjs` output | One output can overwrite or collide with the other; `.vite/build/preload.cjs` may be missing. |
+| Preload build omits `target: 'preload'` | Forge treats it as a main build target instead of a preload target. |
+
+### 5. Good/Base/Bad Cases
+
+- Good: `pnpm run package` generates both `.vite/build/index.cjs` and `.vite/build/preload.cjs`, and Electron launches without ESM/CJS startup errors.
+- Base: A package without `"type": "module"` may run `.js` CommonJS output, but `.cjs` remains explicit and safe.
+- Bad: Changing the whole package back to CommonJS just to fix Electron startup; this can break ESM config files and ESM-only dependencies.
+- Bad: Renaming only `package.json.main` without changing Vite output and preload references.
+
+### 6. Tests Required
+
+- Build smoke test:
+  - Run `pnpm run package`.
+  - Assert `.vite/build/index.cjs` exists.
+  - Assert `.vite/build/preload.cjs` exists.
+- Dev smoke test:
+  - Run `pnpm run dev` long enough to reach `Launched Electron app`.
+  - Assert there is no `ReferenceError: require is not defined in ES module scope`.
+- Static config check:
+  - Assert `package.json.main` ends in `.cjs`.
+  - Assert `BrowserWindow` preload path ends in `preload.cjs`.
+
+### 7. Wrong vs Correct
+
+#### Wrong
+
+```json
+{
+  "type": "module",
+  "main": ".vite/build/index.js"
+}
+```
+
+```typescript
+new VitePlugin({
+  build: [
+    { entry: 'src/main/index.ts', config: 'vite.main.config.ts' },
+    { entry: 'src/preload/index.ts', config: 'vite.preload.config.ts' },
+  ],
+});
+```
+
+#### Correct
+
+```json
+{
+  "type": "module",
+  "main": ".vite/build/index.cjs"
+}
+```
+
+```typescript
+new VitePlugin({
+  build: [
+    { entry: 'src/main/index.ts', config: 'vite.main.config.ts' },
+    { entry: { preload: 'src/preload/index.ts' }, config: 'vite.preload.config.ts', target: 'preload' },
+  ],
 });
 ```
 

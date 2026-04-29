@@ -4,7 +4,7 @@
   "description": "Local-first English journal coach desktop app.",
   "private": true,
   "type": "module",
-  "main": ".vite/build/index.js",
+  "main": ".vite/build/index.cjs",
   "scripts": {
     "dev": "electron-forge start",
     "lint": "eslint .",
