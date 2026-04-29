@@ -173,3 +173,38 @@ Implemented the Today journal editor and autosave flow with versioned journal re
 ### Next Steps
 
 - None - task complete
+
+
+## Session 6: Review agent boundary and runtime contract
+
+**Date**: 2026-04-29
+**Task**: Review agent boundary and runtime contract
+**Branch**: `main`
+
+### Summary
+
+Implemented the review-agent main-process boundary with disclosure gating, v0.1 review input caps, prompt safety, validation/status persistence, raw-output privacy handling, tests, and dev smoke verification. Updated the runtime direction to prefer a minimal direct ReviewModelClient provider adapter for v0.1, with pi-mono deferred as a v0.2+ optional adapter.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `3d84aa8` | (see git log) |
+| `80705e4` | (see git log) |
+| `c929538` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
