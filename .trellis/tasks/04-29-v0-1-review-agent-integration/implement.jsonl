@@ -7,4 +7,4 @@
 {"file": ".trellis/spec/frontend/ipc-electron.md", "reason": "Renderer-to-main review IPC"}
 {"file": ".trellis/spec/guides/cross-layer-thinking-guide.md", "reason": "Plan review request/response flow across UI, IPC, main process, provider, and database"}
 {"file": ".trellis/spec/guides/semantic-change-checklist.md", "reason": "Guard review status, validation status, and schema semantics across layers"}
-{"file": ".trellis/tasks/04-29-v0-1-review-agent-integration/research/pi-mono-integration.md", "reason": "pi-mono live invocation is deferred until a concrete project contract exists"}
+{"file": ".trellis/tasks/04-29-v0-1-review-agent-integration/research/pi-mono-integration.md", "reason": "MVP v0.1 uses minimal direct provider adapter; pi-mono is optional v0.2+ runtime adapter"}

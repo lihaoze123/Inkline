@@ -4,7 +4,7 @@
 
 Connect the journal review action to a main-process review-agent boundary while enforcing provider disclosure, bounded context, structured JSON output, and client-side validation before any learning history is saved.
 
-Live pi-mono runtime invocation is deferred until a concrete project contract exists for package/version, SDK or CLI/RPC mode, auth/model configuration, no-tool policy, and structured JSON extraction.
+MVP v0.1 does not bind to pi-mono. The client uses a minimal `ReviewModelClient` provider adapter for structured model output, then applies Zod validation, quote anchoring, and persistence in Electron main process. pi-mono remains a v0.2+ optional runtime adapter if the product later needs multi-step agent workflows or controlled tool calls.
 
 ## Requirements
 
@@ -13,7 +13,7 @@ Live pi-mono runtime invocation is deferred until a concrete project contract ex
 - Build `ReviewInput` with current date, journal content, content hash, selected existing patterns, and v0.1 caps.
 - Limit existing patterns to at most 30 and exclude spelling by default.
 - Call the review-agent boundary through the main process, not the renderer.
-- Keep live pi-mono invocation behind the `ReviewAgent` seam until the pi-mono integration contract is defined.
+- Keep live model invocation behind the `ReviewModelClient`/`ReviewAgent` seam; this task wires the app-side boundary, not a concrete provider SDK.
 - Delimit journal content as untrusted text in the agent prompt.
 - Require JSON output matching the review schema.
 - Persist review run status transitions: `reviewing`, `review_ready`, `review_failed`.
@@ -37,14 +37,14 @@ Live pi-mono runtime invocation is deferred until a concrete project contract ex
 
 ## Technical Approach
 
-Reuse the contract harness validation instead of creating a second validation path. Treat the future pi-mono runtime as a dependency behind a narrow `ReviewAgent` service interface so mock outputs remain testable.
+Reuse the contract harness validation instead of creating a second validation path. Treat the concrete model provider as a dependency behind a narrow `ReviewModelClient`/`ReviewAgent` service interface so mock outputs remain testable.
 
-Research in `research/pi-mono-integration.md` found no current local pi-mono invocation contract. Do not invent one in this task; define it separately before wiring the live runtime.
+The next runtime task should implement the minimal direct provider adapter first: provider/model settings, OS keychain auth, structured output or JSON schema enforcement, timeout/error mapping, raw response capture under the existing privacy setting, and live smoke tests. Do not introduce pi-mono in v0.1 unless a later PRD explicitly requires multi-step agent workflows or controlled tool calls.
 
 ## Out of Scope
 
 - Designing the full Review Result UI.
-- Choosing or wiring the concrete live pi-mono SDK/CLI/RPC integration.
+- Wiring a concrete live provider adapter, including provider SDK dependency, keychain auth injection, raw response capture, and live smoke tests.
 - Saving review results into learning history.
 - Rewrite-check agent.
 - Anki/CET/drill integrations.

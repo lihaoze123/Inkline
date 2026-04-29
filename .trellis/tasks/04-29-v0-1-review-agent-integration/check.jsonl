@@ -4,4 +4,4 @@
 {"file": ".trellis/spec/frontend/ipc-electron.md", "reason": "Check IPC boundary"}
 {"file": ".trellis/spec/shared/code-quality.md", "reason": "Check shared quality rules"}
 {"file": ".trellis/spec/guides/cross-layer-thinking-guide.md", "reason": "Check review data outlets across provider, main process, IPC, renderer, and database"}
-{"file": ".trellis/tasks/04-29-v0-1-review-agent-integration/research/pi-mono-integration.md", "reason": "Check that review-agent integration does not invent a live pi-mono contract"}
+{"file": ".trellis/tasks/04-29-v0-1-review-agent-integration/research/pi-mono-integration.md", "reason": "Check that v0.1 review integration stays provider-adapter first and does not add pi-mono by default"}

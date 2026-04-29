@@ -123,97 +123,109 @@ Before preview or save, validate:
 
 Validation failure must not write long-term statistics. Store validation errors with the review run. Raw output storage follows privacy settings.
 
-## Scenario: Live pi-mono Review Runtime Prerequisite
+## Scenario: MVP Review Model Runtime Contract
 
 ### 1. Scope / Trigger
 
-- Trigger: Any task that replaces a mock/injected review agent with a live pi-mono runtime call.
-- Live runtime wiring must not invent provider, auth, tool, or structured-output behavior inside feature code.
-- Until this scenario is fully specified by a task/spec update, implement only the app-side `ReviewAgent` seam and test it with injected agents.
+- Trigger: Any v0.1 task that replaces a mock/injected review agent with a live model call.
+- MVP v0.1 must not bind to pi-mono by default. The product needs structured language judgment, not a full coding-agent runtime.
+- pi-mono is a v0.2+ optional runtime adapter only when the product needs multi-step agent workflows, controlled tool calls, reusable agent sessions, or transcript replay.
 
 ### 2. Signatures
 
 Local app seam:
 
 ```ts
-type ReviewAgentRequest = {
+type ReviewModelClientInput = {
   systemPrompt: string;
   userPrompt: string;
-  input: ReviewInput;
+  reviewInput: ReviewInput;
+  provider: string;
+  model: string;
+  timeoutMs: number;
 };
 
-type ReviewAgentResponse = {
+type ReviewModelClientOutput = {
   output: unknown;
   rawOutput: unknown;
 };
 
-type ReviewAgent = (request: ReviewAgentRequest) => Promise<ReviewAgentResponse>;
+interface ReviewModelClient {
+  runReview(input: ReviewModelClientInput): Promise<ReviewModelClientOutput>;
+}
 ```
 
-A live pi-mono task must define one concrete invocation signature before code is written:
+Main-process review flow:
 
 ```text
-package/version: <npm package or bundled runtime>
-mode: <SDK | CLI JSON | CLI/RPC>
-entrypoint: <import path or executable command>
-auth source: <OS keychain | env keys | pi auth storage>
-provider/model source: <settings fields and mapping>
-structured-output source: <tool call details | stdout JSON extraction | SDK event extraction>
-tool policy: <no filesystem write tools for journal review>
+ReviewService
+  -> ReviewModelClient provider adapter
+  -> structured output / JSON schema
+  -> validateReviewResult
+  -> quote anchoring
+  -> review_runs status update
 ```
 
 ### 3. Contracts
 
-- The renderer never calls pi-mono directly; it calls a narrow preload IPC operation.
-- The main process constructs `ReviewInput`, builds prompts, invokes `ReviewAgent`, validates `output`, and persists status.
-- `output` remains `unknown` until `validateReviewResult` accepts it.
-- `rawOutput` is preserved only when the raw-response setting allows storage.
-- The live runtime contract must state how provider/model/auth settings are read without exposing secrets to the renderer.
-- The live runtime contract must state how generic filesystem write tools are disabled or unavailable for journal review agents.
+- Renderer never calls provider SDKs, pi-mono, keychain, database services, or prompt builders directly.
+- Electron main process owns provider/model settings, disclosure checks, OS keychain reads, prompt construction, model invocation, validation, and persistence.
+- The provider adapter must request structured output when the provider supports it; otherwise it must parse a bounded JSON response and still pass `unknown` through `validateReviewResult`.
+- `output` remains untrusted `unknown` until the shared review contract validates it.
+- `rawOutput` is stored only when the raw-response setting allows it; production default is off.
+- Review model calls must not expose filesystem, shell, database, or generic tool access to the model.
 
 ### 4. Validation & Error Matrix
 
 | Condition | Behavior |
 | --- | --- |
-| Live pi-mono contract is missing | Do not add runtime dependency or CLI call; keep/inject `ReviewAgent` seam and defer live wiring |
-| Runtime package/command unavailable | Return review failure and persist `review_failed` with validation/error details |
-| Auth/model configuration unavailable | Return review failure; do not send journal content |
-| Runtime returns non-JSON or malformed structured output | `validateReviewResult` yields `invalid`; persist `review_failed`; do not write learning history |
-| Runtime returns schema-valid output with warnings | Persist `review_ready` with `valid_with_warnings`; preview is allowed |
-| Runtime attempts tool/file/database writes | Treat as contract violation; review agent must not own persistence or filesystem writes |
+| Disclosure not accepted | Do not call provider; return `disclosureRequired` |
+| Provider/model/key missing | Do not send journal content; transition/return review failure with configuration error |
+| Provider network/auth error | Persist `review_failed`; store sanitized error details |
+| Provider returns malformed JSON or schema-invalid structured output | Persist `review_failed`; store validation errors; do not write learning history |
+| App validation is invalid after schema parse | Persist `review_failed`; do not write learning history |
+| App validation is `valid_with_warnings` | Persist `review_ready` with `valid_with_warnings`; preview is allowed |
+| App validation is `valid` | Persist `review_ready` with `valid`; preview is allowed |
+| Adapter attempts to expose generic tools or file/database writes | Treat as a contract violation; v0.1 review uses provider calls only |
 
 ### 5. Good/Base/Bad Cases
 
-- Good: A task specifies package/version, mode, auth/model mapping, structured-output extraction, and no-tool policy; main process calls it through `ReviewAgent` and validates `unknown` output.
-- Base: No live contract exists; app-side review flow is implemented with an injectable `ReviewAgent` seam and tests use mock outputs.
-- Bad: Feature code chooses a public pi-mono SDK/CLI mode ad hoc, reads provider secrets in the renderer, sends unbounded history, or trusts model JSON without `validateReviewResult`.
+- Good: Main process calls a direct provider adapter through `ReviewModelClient`, asks for structured output, validates through `validateReviewResult`, and persists only status/raw/error fields allowed by privacy settings.
+- Base: No live provider adapter exists yet; the app-side review boundary remains injectable and tests use mock model outputs.
+- Bad: v0.1 introduces pi-mono/coding-agent runtime complexity for a single-step review call, lets renderer touch provider SDKs or API keys, or trusts model JSON without shared validation.
 
 ### 6. Tests Required
 
-- Unit test: injected `ReviewAgent` valid output transitions to `review_ready` and preserves validation status.
-- Unit test: injected malformed output transitions to `review_failed`, stores validation errors, and does not update learning-history state.
+- Unit test: injected valid model output transitions to `review_ready` and preserves validation status.
+- Unit test: malformed or schema-invalid model output transitions to `review_failed`, stores validation errors, and does not update learning-history state.
 - Privacy test: raw output is stored only when the raw-response setting is enabled.
-- Boundary test: renderer uses `window.api.review.*` only and does not import Electron, Node, database, keychain, or pi-mono modules.
-- Live-runtime task only: add an integration test or documented smoke test proving the selected pi-mono invocation returns one structured JSON review result without generic filesystem/database write access.
+- Boundary test: renderer uses `window.api.review.*` only and does not import provider SDKs, pi-mono, Electron main APIs, Node filesystem APIs, database modules, or keychain modules.
+- Live-provider task only: add a manual smoke test fixture proving the selected provider adapter returns one structured review result that passes `validateReviewResult`.
 
 ### 7. Wrong vs Correct
 
 #### Wrong
 
 ```ts
-// Renderer or feature code picks an invocation mode without a project contract.
-const result = await fetchPiMonoFromRenderer(journalContent);
-const review = JSON.parse(result);
+// v0.1 does not need a full coding-agent runtime for one structured review call.
+const result = await runPiCodingAgentWithNoTools(reviewInput);
 ```
 
 #### Correct
 
 ```ts
-const agentResponse = await reviewAgent({ systemPrompt, userPrompt, input });
-const validation = validateReviewResult(input, agentResponse.output);
+const modelOutput = await reviewModelClient.runReview({
+  systemPrompt,
+  userPrompt,
+  reviewInput,
+  provider,
+  model,
+  timeoutMs,
+});
+const validation = validateReviewResult(reviewInput, modelOutput.output);
 ```
 
-The main process owns runtime invocation, and the shared validation harness is the only boundary from raw model output to preview operations.
+The main process owns the runtime boundary, and the shared validation harness is the only boundary from raw model output to preview operations.
 
 ## Rewrite-Check Contract
 

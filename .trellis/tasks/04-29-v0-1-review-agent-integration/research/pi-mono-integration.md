@@ -1,8 +1,25 @@
-# Research: pi-mono integration
+# Research: MVP review runtime integration
 
-- **Query**: Determine whether there is any local repo/workspace contract, package dependency, CLI command, SDK API, environment variable, or public documentation that defines how an Electron main process should invoke pi-mono for a review agent and receive structured JSON.
-- **Scope**: mixed internal/external
+- **Query**: Determine whether English Coach v0.1 should use pi-mono or a minimal direct provider adapter for live journal review.
+- **Scope**: internal architecture decision with prior pi-mono research context
 - **Date**: 2026-04-29
+
+## Updated Decision
+
+MVP v0.1 should not bind to pi-mono. English Coach needs a headless structured LLM call, schema validation, quote anchoring, privacy gating, and main-process persistence. It does not need coding-agent tools, file access, command execution, multi-step planning, or agent session management for the first review loop.
+
+Use a minimal `ReviewModelClient` provider adapter in v0.1:
+
+```text
+ReviewService
+  -> ReviewModelClient provider adapter
+  -> structured output / JSON schema
+  -> validateReviewResult
+  -> quote anchoring
+  -> review_runs status update
+```
+
+Keep pi-mono as a v0.2+ optional runtime adapter if the product later needs multi-step agent workflows, controlled tools, reusable prompt/session management, or transcript replay.
 
 ## Findings
 
@@ -15,7 +32,7 @@
 | `/home/chumeng/Documents/Frontend/english-coach/src/main/services/review/lib/pi-mono-agent.ts` | Current local integration seam; `callPiMonoReviewAgent` is a stub that throws, and `parseReviewAgentJson` only parses raw JSON into the local response shape. |
 | `/home/chumeng/Documents/Frontend/english-coach/src/main/services/review/types.ts` | Local review-agent service contract: `ReviewAgentRequest` has `systemPrompt`, `userPrompt`, and validated `input`; `ReviewAgentResponse` has `output: unknown` and `rawOutput: unknown`. |
 | `/home/chumeng/Documents/Frontend/english-coach/src/main/services/review/procedures/start.ts` | Main-process review flow calls `options.agent ?? callPiMonoReviewAgent`, validates `agentResponse.output`, and stores `agentResponse.rawOutput` depending on settings. |
-| `/home/chumeng/Documents/Frontend/english-coach/test/review-integration.test.ts` | Contract tests cover bounded input and prompt delimiting; no live pi-mono invocation contract. |
+| `/home/chumeng/Documents/Frontend/english-coach/test/review-integration.test.ts` | Contract tests cover bounded input and prompt delimiting; no live provider adapter yet. |
 | `/home/chumeng/Documents/Frontend/english-coach/src/shared/types/settings.ts` | Settings type includes display-only `piMonoAuthStatus`. |
 | `/home/chumeng/Documents/Frontend/english-coach/src/main/services/settings/service.ts` | Settings service currently reports `piMonoAuthStatus: 'not-configured'`. |
 | `/home/chumeng/Documents/Frontend/english-coach/.trellis/tasks/04-29-v0-1-review-agent-integration/prd.md` | Active task PRD requires main-process pi-mono call, bounded context, structured JSON, raw-output setting, and validation. |
@@ -240,4 +257,4 @@ No local contract maps Electron settings/keychain/provider selection to pi's aut
 
 ## Concise Recommendation
 
-Block or adjust the PRD for the live pi-mono call. The project has a solid app-side `ReviewAgent` seam and validation contract, but no local/workspace pi-mono invocation contract exists. The safest implementable scope now is to keep the narrow `ReviewAgent` interface and validation/status/raw-output flow testable with injected/mock agents, while adding a PRD/spec prerequisite that defines the concrete pi package/version, SDK or CLI/RPC mode, auth/config mapping, no-tool policy, and structured JSON extraction contract before wiring a real pi-mono runtime.
+For MVP v0.1, implement live review through a minimal direct provider adapter behind `ReviewModelClient`/`ReviewAgent`, not pi-mono. Keep the app-side seam, validation/status/raw-output flow, disclosure gate, and keychain-owned provider settings. Add pi-mono only as a later optional adapter if the product needs multi-step agent workflows or controlled tool calls.
