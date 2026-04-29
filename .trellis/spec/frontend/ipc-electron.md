@@ -197,6 +197,117 @@ The main process validates and owns settings; preload exposes only a typed, narr
 
 ---
 
+## Scenario: Today Journal IPC + Autosave Contract
+
+### 1. Scope / Trigger
+
+- Trigger: Any task that adds or changes Today journal loading, autosave, content revisions, stale review state, or editor-to-main persistence.
+- The renderer owns transient editor text only. The main process owns journal identity, revision creation, content hashing, and review stale-state transitions.
+
+### 2. Signatures
+
+Preload API:
+
+```typescript
+type Api = {
+  journal: {
+    getToday: () => Promise<TodayJournalSnapshot>;
+    saveToday: (input: SaveTodayJournalInput) => Promise<SaveTodayJournalResult>;
+  };
+};
+```
+
+IPC channels:
+
+```typescript
+const IPC_CHANNELS = {
+  JOURNAL: {
+    GET_TODAY: 'journal:getToday',
+    SAVE_TODAY: 'journal:saveToday',
+  },
+} as const;
+```
+
+### 3. Contracts
+
+`SaveTodayJournalInput` request fields:
+
+| Field | Type | Constraint |
+| --- | --- | --- |
+| `content` | string | Raw editor text from renderer; normalize to LF in the main process before hashing or persistence |
+
+`TodayJournalSnapshot` response fields:
+
+| Field | Type | Constraint |
+| --- | --- | --- |
+| `entryId` | string | Non-empty `journal_entries.id` |
+| `dateKey` | string | Local date key for today's journal identity |
+| `activeRevision` | `JournalRevisionSnapshot \| null` | Current active saved revision, or null before first save |
+| `lastAutosaveAt` | `number \| null` | Unix milliseconds from active revision creation time |
+| `lastReviewRunId` | `string \| null` | Active saved review pointer; null after stale transition |
+| `staleReview` | `StaleReviewSnapshot \| null` | Most recent stale review history signal for UI copy |
+
+`JournalRevisionSnapshot` fields:
+
+| Field | Type | Constraint |
+| --- | --- | --- |
+| `id` | string | Non-empty `journal_revisions.id` |
+| `journalEntryId` | string | Matches `entryId` |
+| `content` | string | LF-normalized text; never mutated by corrections |
+| `contentHash` | string | SHA-256 of LF-normalized content |
+| `createdAt` | number | Unix milliseconds |
+
+### 4. Validation & Error Matrix
+
+| Condition | Behavior |
+| --- | --- |
+| Renderer loads Today with no journal entry | Main creates or returns today's `journal_entries` identity and returns `activeRevision: null` |
+| Renderer saves text with CRLF/CR line endings | Main normalizes to LF before storing and hashing |
+| Saved content hash equals active revision hash | Return current snapshot with `saved: false`; do not create a duplicate revision |
+| Saved content hash differs | Create a new `journal_revisions` row and update `journal_entries.active_revision_id` |
+| Existing `last_review_run_id` points to `review_saved` with different hash | Mark that run `stale`, clear `last_review_run_id` and `reviewed_at`, preserve review history |
+| IPC payload or response shape is invalid | Main rejects via Zod parse error at the IPC boundary |
+
+### 5. Good/Base/Bad Cases
+
+- Good: Renderer autosaves through `window.api.journal.saveToday({ content })`; main normalizes, hashes, creates a revision, and returns a timestamp-ms snapshot.
+- Base: Empty editor loads today's identity with no active revision and shows a before-writing state.
+- Bad: Renderer computes `content_hash`, imports `node:crypto`, or imports database/schema modules.
+- Bad: Autosave mutates correction text, review artifacts, or historical revision content.
+
+### 6. Tests Required
+
+- Content utility tests:
+  - Assert CRLF and CR normalize to LF.
+  - Assert equivalent line endings produce the same content hash.
+- Revision contract tests:
+  - Assert new content creates an active LF-normalized revision.
+  - Assert changed content after a saved review marks the review stale and clears the active review pointer.
+- Database contract tests:
+  - Assert `journal_entries` and `journal_revisions` exist in migration SQL.
+  - Assert timestamp defaults use Unix milliseconds.
+
+### 7. Wrong vs Correct
+
+#### Wrong
+
+```tsx
+const hash = crypto.subtle.digest('SHA-256', new TextEncoder().encode(content));
+await window.api.journal.saveToday({ content, hash });
+```
+
+Renderer-side hashing splits the contract and can diverge from persisted LF normalization.
+
+#### Correct
+
+```tsx
+await window.api.journal.saveToday({ content });
+```
+
+The main process validates, normalizes, hashes, persists a new revision only when needed, and returns the typed snapshot.
+
+---
+
 ## Data Refresh Subscription Pattern
 
 All hooks that fetch data from the backend via IPC **should** subscribe to data change events. This ensures UI updates when data changes from external sources (sync, background refresh, etc.).

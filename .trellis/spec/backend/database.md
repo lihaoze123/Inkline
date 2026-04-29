@@ -184,8 +184,11 @@ type MigrationResult =
 
 - Required v0.1 foundation tables:
   - `journal_entries`
+  - `journal_revisions`
   - `review_runs`
   - `corrections`
+  - `self_repair_attempts`
+  - `reference_rewrites`
   - `rewrite_tasks`
 
 ### 3. Contracts
