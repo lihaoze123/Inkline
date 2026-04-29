@@ -71,3 +71,37 @@ Completed the English Journal Coach MVP framework scaffolding by curating child 
 ### Next Steps
 
 - None - task complete
+
+
+## Session 3: v0.1 project foundation
+
+**Date**: 2026-04-29
+**Task**: v0.1 project foundation
+**Branch**: `main`
+
+### Summary
+
+Scaffolded the Electron/Vite/React foundation with secure IPC boundaries, SQLite migrations, Settings defaults, keychain credential path, verification tests, and foundation code-spec contracts.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `f24a0a8` | (see git log) |
+| `694ca98` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
