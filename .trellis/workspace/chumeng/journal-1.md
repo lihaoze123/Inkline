@@ -278,3 +278,36 @@ Implemented one D+1 rewrite-original practice from saved reviews, surfaced it on
 ### Next Steps
 
 - None - task complete
+
+
+## Session 9: Write README and changelog
+
+**Date**: 2026-04-29
+**Task**: Write README and changelog
+**Branch**: `main`
+
+### Summary
+
+Added root README and CHANGELOG for English Coach v0.1.0, scoped to current implemented functionality for users and developers. Verified with lint, typecheck, tests, and review harness.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `239c37e` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
