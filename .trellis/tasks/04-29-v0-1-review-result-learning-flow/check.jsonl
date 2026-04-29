@@ -3,3 +3,4 @@
 {"file": ".trellis/spec/product/review-agent-contract.md", "reason": "Check focus and validation constraints"}
 {"file": ".trellis/spec/frontend/quality.md", "reason": "Check frontend quality"}
 {"file": ".trellis/spec/shared/code-quality.md", "reason": "Check shared quality rules"}
+{"file": ".trellis/spec/guides/transaction-consistency-guide.md", "reason": "Check review save transaction consistency, rollback, and idempotency"}

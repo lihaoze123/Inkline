@@ -1,2 +1,4 @@
 {"file": ".trellis/spec/product/mvp-scope.md", "reason": "Check backlog does not leak into v0.1"}
 {"file": ".trellis/spec/product/data-model-contract.md", "reason": "Check future model consistency"}
+{"file": ".trellis/spec/shared/code-quality.md", "reason": "Check shared quality baseline for future split tasks"}
+{"file": ".trellis/spec/guides/semantic-change-checklist.md", "reason": "Check future backlog notes preserve semantic boundaries for later split tasks"}

@@ -5,3 +5,5 @@
 {"file": ".trellis/spec/frontend/components.md", "reason": "Review UI component conventions"}
 {"file": ".trellis/spec/backend/database.md", "reason": "Save transaction persistence"}
 {"file": ".trellis/spec/backend/error-handling.md", "reason": "Atomic transaction failures"}
+{"file": ".trellis/spec/guides/cross-layer-thinking-guide.md", "reason": "Plan review preview/save flow across UI, state, IPC, main process, and database"}
+{"file": ".trellis/spec/guides/transaction-consistency-guide.md", "reason": "Ensure saveReviewRun writes all related records atomically and idempotently"}

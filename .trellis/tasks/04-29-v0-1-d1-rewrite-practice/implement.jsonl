@@ -4,3 +4,4 @@
 {"file": ".trellis/spec/frontend/components.md", "reason": "Today panel card conventions"}
 {"file": ".trellis/spec/backend/database.md", "reason": "Rewrite task persistence"}
 {"file": ".trellis/spec/shared/timestamp.md", "reason": "Due date and expiration timestamp handling"}
+{"file": ".trellis/spec/guides/cross-layer-thinking-guide.md", "reason": "Plan due rewrite task flow across Today UI, IPC, main process, and database"}

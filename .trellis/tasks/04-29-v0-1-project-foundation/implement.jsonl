@@ -7,3 +7,5 @@
 {"file": ".trellis/spec/backend/database.md", "reason": "SQLite and migration conventions"}
 {"file": ".trellis/spec/shared/pnpm-electron-setup.md", "reason": "Electron project setup conventions"}
 {"file": ".trellis/spec/shared/typescript.md", "reason": "Strict TypeScript conventions"}
+{"file": ".trellis/spec/guides/pre-implementation-checklist.md", "reason": "Plan shared constants, cross-layer types, and reusable setup patterns before scaffolding"}
+{"file": ".trellis/spec/guides/cross-layer-thinking-guide.md", "reason": "Plan UI, IPC, main-process, database, settings, and provider-boundary data flow"}

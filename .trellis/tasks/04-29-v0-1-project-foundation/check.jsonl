@@ -3,3 +3,4 @@
 {"file": ".trellis/spec/backend/environment.md", "reason": "Check environment isolation"}
 {"file": ".trellis/spec/backend/database.md", "reason": "Check database setup"}
 {"file": ".trellis/spec/shared/code-quality.md", "reason": "Check shared quality rules"}
+{"file": ".trellis/spec/guides/cross-layer-thinking-guide.md", "reason": "Check impact radius across settings, IPC, main process, database, and renderer shell"}

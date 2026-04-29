@@ -2,3 +2,4 @@
 {"file": ".trellis/spec/product/data-model-contract.md", "reason": "Check rewrite task status semantics"}
 {"file": ".trellis/spec/frontend/quality.md", "reason": "Check frontend quality"}
 {"file": ".trellis/spec/shared/code-quality.md", "reason": "Check shared quality rules"}
+{"file": ".trellis/spec/guides/cross-layer-thinking-guide.md", "reason": "Check impact radius across due task query, Today UI, state updates, and persistence"}

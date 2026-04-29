@@ -1,3 +1,5 @@
 {"file": ".trellis/spec/product/mvp-scope.md", "reason": "v0.2 backlog boundaries"}
 {"file": ".trellis/spec/product/data-model-contract.md", "reason": "Pattern and future data model notes"}
 {"file": ".trellis/spec/product/learning-flow.md", "reason": "Longer-term learning flow context"}
+{"file": ".trellis/spec/shared/code-quality.md", "reason": "Shared quality baseline for future split tasks"}
+{"file": ".trellis/spec/guides/semantic-change-checklist.md", "reason": "Use when splitting future v0.2 changes that alter pattern, rewrite, or revision semantics"}

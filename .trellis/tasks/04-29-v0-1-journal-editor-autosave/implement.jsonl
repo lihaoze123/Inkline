@@ -5,3 +5,5 @@
 {"file": ".trellis/spec/frontend/state-management.md", "reason": "Renderer state conventions"}
 {"file": ".trellis/spec/backend/database.md", "reason": "Revision persistence conventions"}
 {"file": ".trellis/spec/shared/timestamp.md", "reason": "Timestamp handling"}
+{"file": ".trellis/spec/guides/cross-layer-thinking-guide.md", "reason": "Plan autosave flow across renderer state, IPC, main process, and SQLite"}
+{"file": ".trellis/spec/guides/pre-implementation-checklist.md", "reason": "Plan reusable autosave constants, hooks, and shared revision types"}

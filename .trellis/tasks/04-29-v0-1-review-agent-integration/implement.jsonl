@@ -5,3 +5,5 @@
 {"file": ".trellis/spec/backend/error-handling.md", "reason": "Agent failure and validation error handling"}
 {"file": ".trellis/spec/backend/type-safety.md", "reason": "Zod schema conventions"}
 {"file": ".trellis/spec/frontend/ipc-electron.md", "reason": "Renderer-to-main review IPC"}
+{"file": ".trellis/spec/guides/cross-layer-thinking-guide.md", "reason": "Plan review request/response flow across UI, IPC, main process, provider, and database"}
+{"file": ".trellis/spec/guides/semantic-change-checklist.md", "reason": "Guard review status, validation status, and schema semantics across layers"}

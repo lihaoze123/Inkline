@@ -3,3 +3,4 @@
 {"file": ".trellis/spec/backend/error-handling.md", "reason": "Check failure paths"}
 {"file": ".trellis/spec/frontend/ipc-electron.md", "reason": "Check IPC boundary"}
 {"file": ".trellis/spec/shared/code-quality.md", "reason": "Check shared quality rules"}
+{"file": ".trellis/spec/guides/cross-layer-thinking-guide.md", "reason": "Check review data outlets across provider, main process, IPC, renderer, and database"}

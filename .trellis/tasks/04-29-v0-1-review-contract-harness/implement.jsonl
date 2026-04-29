@@ -4,3 +4,5 @@
 {"file": ".trellis/spec/backend/type-safety.md", "reason": "Zod-first type conventions"}
 {"file": ".trellis/spec/backend/error-handling.md", "reason": "Validation and transaction error handling"}
 {"file": ".trellis/spec/shared/typescript.md", "reason": "Strict TypeScript conventions"}
+{"file": ".trellis/spec/guides/pre-implementation-checklist.md", "reason": "Plan shared validation types and avoid duplicated contract constants"}
+{"file": ".trellis/spec/guides/transaction-consistency-guide.md", "reason": "Design idempotent save and validation side-effect checks consistently"}
