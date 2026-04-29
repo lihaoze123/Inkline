@@ -105,3 +105,37 @@ Scaffolded the Electron/Vite/React foundation with secure IPC boundaries, SQLite
 ### Next Steps
 
 - None - task complete
+
+
+## Session 4: Review contract harness
+
+**Date**: 2026-04-29
+**Task**: Review contract harness
+**Branch**: `main`
+
+### Summary
+
+Implemented the shared review contract harness with Zod schemas, LF/UTF-16 quote anchoring, preview operation generation, idempotent save simulation, CLI output, and tests. Recorded the executable harness contract in product validation specs.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `29bdbe2` | (see git log) |
+| `b51b191` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
