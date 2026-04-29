@@ -139,3 +139,37 @@ Implemented the shared review contract harness with Zod schemas, LF/UTF-16 quote
 ### Next Steps
 
 - None - task complete
+
+
+## Session 5: Journal editor autosave
+
+**Date**: 2026-04-29
+**Task**: Journal editor autosave
+**Branch**: `main`
+
+### Summary
+
+Implemented the Today journal editor and autosave flow with versioned journal revisions, LF-normalized content hashes, stale review transitions, renderer/main IPC wiring, tests, and recorded the reusable autosave contract in code-specs.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `e73f425` | (see git log) |
+| `f674e29` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
