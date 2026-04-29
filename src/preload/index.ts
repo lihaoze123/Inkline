@@ -2,7 +2,14 @@ import { contextBridge, ipcRenderer } from 'electron';
 import { IPC_CHANNELS } from '../shared/constants/channels';
 import type { StartupStatus } from '../shared/types/app';
 import type { ProviderKeyStatus } from '../shared/types/credentials';
-import type { SaveTodayJournalInput, SaveTodayJournalResult, TodayJournalSnapshot } from '../shared/types/journal';
+import type {
+  CompleteRewritePracticeInput,
+  RewritePracticeUpdateResult,
+  SaveTodayJournalInput,
+  SaveTodayJournalResult,
+  SkipRewritePracticeInput,
+  TodayJournalSnapshot,
+} from '../shared/types/journal';
 import type {
   AcknowledgeReviewDisclosureInput,
   GetReviewPreviewInput,
@@ -22,6 +29,10 @@ const api = {
     getToday: (): Promise<TodayJournalSnapshot> => ipcRenderer.invoke(IPC_CHANNELS.JOURNAL.GET_TODAY),
     saveToday: (input: SaveTodayJournalInput): Promise<SaveTodayJournalResult> =>
       ipcRenderer.invoke(IPC_CHANNELS.JOURNAL.SAVE_TODAY, input),
+    completeRewritePractice: (input: CompleteRewritePracticeInput): Promise<RewritePracticeUpdateResult> =>
+      ipcRenderer.invoke(IPC_CHANNELS.JOURNAL.COMPLETE_REWRITE_PRACTICE, input),
+    skipRewritePractice: (input: SkipRewritePracticeInput): Promise<RewritePracticeUpdateResult> =>
+      ipcRenderer.invoke(IPC_CHANNELS.JOURNAL.SKIP_REWRITE_PRACTICE, input),
   },
   settings: {
     get: (): Promise<SettingsSnapshot> => ipcRenderer.invoke(IPC_CHANNELS.SETTINGS.GET),

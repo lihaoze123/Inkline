@@ -114,14 +114,19 @@ export const rewriteTasks = sqliteTable('rewrite_tasks', {
     .references(() => reviewRuns.id, { onDelete: 'cascade' }),
   originalSentence: text('original_sentence').notNull().default(''),
   focusPattern: text('focus_pattern').notNull().default(''),
+  nativeModelSentence: text('native_model_sentence').notNull().default(''),
   prompt: text('prompt').notNull(),
   kind: text('kind', { enum: ['rewrite_original', 'new_context_reuse', 'pattern_detection'] })
     .notNull()
     .default('rewrite_original'),
+  spacedStage: text('spaced_stage').notNull().default('D+1'),
   status: text('status', { enum: ['pending', 'in_progress', 'completed', 'skipped', 'snoozed', 'expired'] })
     .notNull()
     .default('pending'),
+  userRewriteText: text('user_rewrite_text'),
   dueAt: integer('due_at', { mode: 'timestamp_ms' }),
+  completedAt: integer('completed_at', { mode: 'timestamp_ms' }),
+  skippedAt: integer('skipped_at', { mode: 'timestamp_ms' }),
   createdAt: integer('created_at', { mode: 'timestamp_ms' })
     .notNull()
     .default(sql`(unixepoch() * 1000)`),

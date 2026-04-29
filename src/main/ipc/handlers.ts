@@ -13,14 +13,17 @@ import {
 } from '../../shared/types/review';
 import { startupStatusSchema, type StartupStatus } from '../../shared/types/app';
 import {
+  completeRewritePracticeInputSchema,
+  rewritePracticeUpdateResultSchema,
   saveTodayJournalInputSchema,
   saveTodayJournalResultSchema,
+  skipRewritePracticeInputSchema,
   todayJournalSnapshotSchema,
 } from '../../shared/types/journal';
 import { getDatabasePath } from '../db/client';
 import type { MigrationResult } from '../db/migrate';
 import { getProviderKeyStatus } from '../services/credentials/service';
-import { getTodayJournal, saveTodayJournal } from '../services/journal/service';
+import { completeRewritePractice, getTodayJournal, saveTodayJournal, skipRewritePractice } from '../services/journal/service';
 import { acknowledgeReviewDisclosure } from '../services/review/lib/disclosure';
 import { getReviewPreview } from '../services/review/procedures/preview';
 import { saveReviewRun } from '../services/review/procedures/save';
@@ -43,6 +46,16 @@ export function registerIpcHandlers(migrationResult: MigrationResult): void {
   ipcMain.handle(IPC_CHANNELS.JOURNAL.SAVE_TODAY, (_event, input: unknown): unknown => {
     const parsedInput = saveTodayJournalInputSchema.parse(input);
     return saveTodayJournalResultSchema.parse(saveTodayJournal(parsedInput));
+  });
+
+  ipcMain.handle(IPC_CHANNELS.JOURNAL.COMPLETE_REWRITE_PRACTICE, (_event, input: unknown): unknown => {
+    const parsedInput = completeRewritePracticeInputSchema.parse(input);
+    return rewritePracticeUpdateResultSchema.parse(completeRewritePractice(parsedInput));
+  });
+
+  ipcMain.handle(IPC_CHANNELS.JOURNAL.SKIP_REWRITE_PRACTICE, (_event, input: unknown): unknown => {
+    const parsedInput = skipRewritePracticeInputSchema.parse(input);
+    return rewritePracticeUpdateResultSchema.parse(skipRewritePractice(parsedInput));
   });
 
   ipcMain.handle(IPC_CHANNELS.SETTINGS.GET, async (): Promise<unknown> => {

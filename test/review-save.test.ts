@@ -66,6 +66,7 @@ vi.mock('../src/main/db/client', () => ({
 }));
 
 const now = new Date('2026-04-29T12:00:00.000Z');
+vi.setSystemTime(now);
 const tableNames = new Map<object, TableName>([
   [journalEntries, 'journalEntries'],
   [journalRevisions, 'journalRevisions'],
@@ -220,6 +221,10 @@ class FakeReviewDatabase {
     return [...this.store.corrections];
   }
 
+  savedRewriteTasks(): RewriteTaskRow[] {
+    return [...this.store.rewriteTasks];
+  }
+
   asAppDatabase(): AppDatabase {
     return this as unknown as AppDatabase;
   }
@@ -251,7 +256,7 @@ class FakeReviewDatabase {
         return inserted;
       }
       case 'rewriteTasks': {
-        const inserted = { ...row, createdAt: now } as RewriteTaskRow;
+        const inserted = { ...row, userRewriteText: null, completedAt: null, skippedAt: null, createdAt: now } as RewriteTaskRow;
         this.store.rewriteTasks.push(inserted);
         return inserted;
       }
@@ -290,6 +295,7 @@ function currentJournal(): NonNullable<SaveReviewOutput['journal']> {
     lastAutosaveAt: now.getTime(),
     lastReviewRunId: 'review_1',
     staleReview: null,
+    pendingRewritePractice: null,
   };
 }
 
@@ -371,6 +377,15 @@ describe('saveReviewRun transaction', () => {
     expect(database.count('selfRepairAttempts')).toBe(1);
     expect(database.count('referenceRewrites')).toBe(1);
     expect(database.count('rewriteTasks')).toBe(1);
+    expect(database.savedRewriteTasks()[0]).toMatchObject({
+      originalSentence: 'I go home',
+      focusPattern: 'tense_pattern',
+      nativeModelSentence: 'I went home',
+      kind: 'rewrite_original',
+      spacedStage: 'D+1',
+      status: 'pending',
+    });
+    expect(database.savedRewriteTasks()[0].dueAt?.getTime()).toBeGreaterThanOrEqual(now.getTime() + 24 * 60 * 60 * 1000 - 1000);
   });
 
   it('rolls back partial writes when one transaction step fails', async () => {
@@ -434,6 +449,77 @@ describe('saveReviewRun transaction', () => {
     expect(result).toMatchObject({ success: true });
     expect(database.savedCorrections()).toHaveLength(1);
     expect(database.savedCorrections()[0].pattern).toBe('tense_pattern');
+    expect(database.count('rewriteTasks')).toBe(0);
+  });
+
+  it('creates at most one D+1 rewrite task from a saved review', async () => {
+    const database = new FakeReviewDatabase();
+    database.seedJournal();
+    database.seedReadyReview(baseOperations({
+      rewritePractice: [
+        ...baseOperations().rewritePractice,
+        {
+          taskIndex: 1,
+          kind: 'rewrite_original',
+          prompt: 'Second practice should not be saved.',
+          focusCorrectionIndexes: [0],
+          dueOffsetDays: 1,
+          revealNativeModelAfterSubmit: true,
+          updatesLongTermStats: false,
+        },
+      ],
+    }));
+    const saveReviewRun = await loadSaveReviewRun();
+
+    const result = saveReviewRun({ reviewRunId: 'review_1' }, { database: database.asAppDatabase(), getTodayJournalSnapshot: currentJournal });
+
+    if (!result.success) {
+      throw new Error(result.error);
+    }
+    expect(database.savedRewriteTasks()).toHaveLength(1);
+    expect(database.savedRewriteTasks()[0].prompt).toBe('Rewrite the original sentence.');
+  });
+
+  it('does not create a rewrite task unless it practices the focus correction', async () => {
+    const database = new FakeReviewDatabase();
+    database.seedJournal();
+    database.seedReadyReview(baseOperations({
+      corrections: [
+        ...baseOperations().corrections,
+        {
+          correctionIndex: 1,
+          originalText: 'a office',
+          correctedText: 'an office',
+          explanation: 'Use an before a vowel sound.',
+          category: 'article',
+          confidence: 'high',
+          status: 'suggested',
+          startOffset: 20,
+          endOffset: 28,
+          contentHash: 'hash_a',
+          matchedPatternId: 'article_pattern',
+          newPatternSuggestion: null,
+        },
+      ],
+      rewritePractice: [
+        {
+          taskIndex: 0,
+          kind: 'rewrite_original',
+          prompt: 'Rewrite a non-focus sentence.',
+          focusCorrectionIndexes: [1],
+          dueOffsetDays: 1,
+          revealNativeModelAfterSubmit: true,
+          updatesLongTermStats: false,
+        },
+      ],
+    }));
+    const saveReviewRun = await loadSaveReviewRun();
+
+    const result = saveReviewRun({ reviewRunId: 'review_1' }, { database: database.asAppDatabase(), getTodayJournalSnapshot: currentJournal });
+
+    if (!result.success) {
+      throw new Error(result.error);
+    }
     expect(database.count('rewriteTasks')).toBe(0);
   });
 

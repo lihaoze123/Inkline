@@ -5,6 +5,8 @@ export const IPC_CHANNELS = {
   JOURNAL: {
     GET_TODAY: 'journal:getToday',
     SAVE_TODAY: 'journal:saveToday',
+    COMPLETE_REWRITE_PRACTICE: 'journal:completeRewritePractice',
+    SKIP_REWRITE_PRACTICE: 'journal:skipRewritePractice',
   },
   SETTINGS: {
     GET: 'settings:get',

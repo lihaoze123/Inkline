@@ -270,6 +270,19 @@ h3 {
   justify-self: start;
 }
 
+.rewrite-practice-card {
+  border: 1px solid #d9c49f;
+  border-radius: 18px;
+  padding: 16px;
+  background: #fff7e8;
+}
+
+.rewrite-practice-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
 .stale-review {
   border: 1px solid #ead2a2;
   border-radius: 18px;

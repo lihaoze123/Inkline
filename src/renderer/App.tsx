@@ -81,6 +81,9 @@ function TodayPage({ initialJournal, settings, startup }: TodayPageProps): React
   const [reviewPreview, setReviewPreview] = useState<ReviewPreviewSnapshot | null>(null);
   const [selfRepairAttempt, setSelfRepairAttempt] = useState('');
   const [modelAnswerRevealed, setModelAnswerRevealed] = useState(false);
+  const [rewritePracticeInput, setRewritePracticeInput] = useState('');
+  const [completedRewritePractice, setCompletedRewritePractice] = useState<TodayJournalSnapshot['pendingRewritePractice']>(null);
+  const [rewritePracticeError, setRewritePracticeError] = useState<string | null>(null);
   const [showDisclosure, setShowDisclosure] = useState(false);
   const lastSavedContentRef = useRef(initialJournal.activeRevision?.content ?? '');
 
@@ -206,6 +209,45 @@ function TodayPage({ initialJournal, settings, startup }: TodayPageProps): React
     void reviewCurrentContent();
   }, [reviewCurrentContent]);
 
+  const completePendingRewritePractice = useCallback(async (): Promise<void> => {
+    if (!journal.pendingRewritePractice) {
+      return;
+    }
+
+    setRewritePracticeError(null);
+    const result = await window.api.journal.completeRewritePractice({
+      rewriteTaskId: journal.pendingRewritePractice.id,
+      userRewriteText: rewritePracticeInput,
+    });
+
+    if (result.success && result.journal && result.rewritePractice) {
+      setJournal(result.journal);
+      setCompletedRewritePractice(result.rewritePractice);
+      setRewritePracticeInput(result.rewritePractice.userRewriteText ?? rewritePracticeInput.trim());
+      return;
+    }
+
+    setRewritePracticeError(result.error ?? 'Unable to complete rewrite practice.');
+  }, [journal.pendingRewritePractice, rewritePracticeInput]);
+
+  const skipPendingRewritePractice = useCallback(async (): Promise<void> => {
+    if (!journal.pendingRewritePractice) {
+      return;
+    }
+
+    setRewritePracticeError(null);
+    const result = await window.api.journal.skipRewritePractice({ rewriteTaskId: journal.pendingRewritePractice.id });
+
+    if (result.success && result.journal) {
+      setJournal(result.journal);
+      setCompletedRewritePractice(null);
+      setRewritePracticeInput('');
+      return;
+    }
+
+    setRewritePracticeError(result.error ?? 'Unable to skip rewrite practice.');
+  }, [journal.pendingRewritePractice]);
+
   const acknowledgeDisclosureAndReview = useCallback(async (): Promise<void> => {
     await window.api.review.acknowledgeDisclosure({ acknowledged: true });
     setShowDisclosure(false);
@@ -263,6 +305,19 @@ function TodayPage({ initialJournal, settings, startup }: TodayPageProps): React
         onSaveReview={() => {
           void saveReview();
         }}
+        rewritePracticeInput={rewritePracticeInput}
+        completedRewritePractice={completedRewritePractice}
+        rewritePracticeError={rewritePracticeError}
+        onRewritePracticeInputChange={(value) => {
+          setRewritePracticeInput(value);
+          setCompletedRewritePractice(null);
+        }}
+        onCompleteRewritePractice={() => {
+          void completePendingRewritePractice();
+        }}
+        onSkipRewritePractice={() => {
+          void skipPendingRewritePractice();
+        }}
         onReviewCurrentVersion={handleReviewCurrentVersion}
       />
 
@@ -313,6 +368,12 @@ type LearningPanelProps = {
   onSelfRepairAttemptChange: (value: string) => void;
   onRevealModelAnswer: () => void;
   onSaveReview: () => void;
+  rewritePracticeInput: string;
+  completedRewritePractice: TodayJournalSnapshot['pendingRewritePractice'];
+  rewritePracticeError: string | null;
+  onRewritePracticeInputChange: (value: string) => void;
+  onCompleteRewritePractice: () => void;
+  onSkipRewritePractice: () => void;
   onReviewCurrentVersion: () => void;
 };
 
@@ -328,6 +389,12 @@ function LearningPanel({
   onSelfRepairAttemptChange,
   onRevealModelAnswer,
   onSaveReview,
+  rewritePracticeInput,
+  completedRewritePractice,
+  rewritePracticeError,
+  onRewritePracticeInputChange,
+  onCompleteRewritePractice,
+  onSkipRewritePractice,
   onReviewCurrentVersion,
 }: LearningPanelProps): React.JSX.Element {
   return (
@@ -346,7 +413,18 @@ function LearningPanel({
         </section>
       ) : null}
 
-      {!hasWritten ? <BeforeWritingState dateKey={journal.dateKey} /> : null}
+      {journal.pendingRewritePractice || completedRewritePractice ? (
+        <RewritePracticeCard
+          practice={completedRewritePractice ?? journal.pendingRewritePractice}
+          inputValue={rewritePracticeInput}
+          error={rewritePracticeError}
+          onInputChange={onRewritePracticeInputChange}
+          onComplete={onCompleteRewritePractice}
+          onSkip={onSkipRewritePractice}
+        />
+      ) : null}
+
+      {!hasWritten ? <BeforeWritingState dateKey={journal.dateKey} hasPendingRewritePractice={Boolean(journal.pendingRewritePractice || completedRewritePractice)} /> : null}
       {hasWritten && preview ? (
         <ReviewPreview
           preview={preview}
@@ -372,12 +450,67 @@ function LearningPanel({
   );
 }
 
-function BeforeWritingState({ dateKey }: { dateKey: string }): React.JSX.Element {
+function BeforeWritingState({ dateKey, hasPendingRewritePractice }: { dateKey: string; hasPendingRewritePractice: boolean }): React.JSX.Element {
   return (
     <section className="panel-block">
       <h3>Before writing</h3>
       <p>Today's journal is ready for {dateKey}. Start with free writing; feedback comes later.</p>
-      <p className="muted-panel-copy">No pending rewrite practice yet.</p>
+      <p className="muted-panel-copy">{hasPendingRewritePractice ? 'You can practice one saved sentence first, or ignore it and write.' : 'No pending rewrite practice yet.'}</p>
+    </section>
+  );
+}
+
+function RewritePracticeCard({
+  practice,
+  inputValue,
+  error,
+  onInputChange,
+  onComplete,
+  onSkip,
+}: {
+  practice: TodayJournalSnapshot['pendingRewritePractice'];
+  inputValue: string;
+  error: string | null;
+  onInputChange: (value: string) => void;
+  onComplete: () => void;
+  onSkip: () => void;
+}): React.JSX.Element | null {
+  if (!practice) {
+    return null;
+  }
+
+  const isCompleted = practice.status === 'completed';
+  const canSubmit = inputValue.trim().length > 0 && !isCompleted;
+  const showNativeModel = isCompleted && Boolean(practice.userRewriteText);
+
+  return (
+    <section className="panel-block rewrite-practice-card" aria-label="Pending rewrite practice">
+      <p className="eyebrow">D+1 rewrite practice</p>
+      <h3>Practice this sentence</h3>
+      <p><strong>Original:</strong> {practice.originalSentence}</p>
+      <p><strong>Focus pattern:</strong> {practice.focusPattern}</p>
+      <p>{practice.prompt}</p>
+      <input
+        className="rewrite-practice-input"
+        aria-label="Your rewrite practice answer"
+        value={inputValue}
+        onChange={(event) => onInputChange(event.target.value)}
+        placeholder="Rewrite it in your own words."
+        disabled={isCompleted}
+      />
+      <div className="rewrite-practice-actions">
+        <button type="button" disabled={!canSubmit} onClick={onComplete}>
+          {isCompleted ? 'Rewrite submitted' : 'Submit rewrite'}
+        </button>
+        {!isCompleted ? (
+          <button type="button" className="secondary-button" onClick={onSkip}>
+            Skip
+          </button>
+        ) : null}
+      </div>
+      {showNativeModel ? <p className="model-answer">Native model: {practice.nativeModelSentence}</p> : <p className="muted-panel-copy">Native model stays hidden until you submit.</p>}
+      {practice.isOlderThanSevenDays ? <p className="muted-panel-copy">This older practice is de-prioritized from Today.</p> : null}
+      {error ? <p className="muted-panel-copy error">{error}</p> : null}
     </section>
   );
 }

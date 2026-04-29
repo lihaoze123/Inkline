@@ -135,28 +135,31 @@ export function saveReviewRun(input: SaveReviewInput, options: SaveReviewOptions
           .run();
       });
 
-      operations.rewritePractice.forEach((operation) => {
-        const referencesLowConfidence = operation.focusCorrectionIndexes.some((correctionIndex) => {
+      const rewritePractice = operations.rewritePractice.find((operation) => operation.kind === 'rewrite_original' && operation.dueOffsetDays === 1);
+      if (rewritePractice) {
+        const referencesFocusCorrection = rewritePractice.focusCorrectionIndexes.includes(focusCorrectionIndex);
+        const referencesLowConfidence = rewritePractice.focusCorrectionIndexes.some((correctionIndex) => {
           const correction = operations.corrections.find((candidate) => candidate.correctionIndex === correctionIndex);
           return !correction || correction.status === 'low_confidence';
         });
-        if (referencesLowConfidence) {
-          return;
-        }
 
-        tx.insert(rewriteTasks)
-          .values({
-            id: createId('rewrite'),
-            reviewRunId: reviewRun.id,
-            originalSentence: focusCorrections[0].originalText,
-            focusPattern: patternLabelFor(focusCorrections[0]),
-            prompt: operation.prompt,
-            kind: operation.kind,
-            status: 'pending',
-            dueAt: new Date(Date.now() + operation.dueOffsetDays * 24 * 60 * 60 * 1000),
-          })
-          .run();
-      });
+        if (referencesFocusCorrection && !referencesLowConfidence) {
+          tx.insert(rewriteTasks)
+            .values({
+              id: createId('rewrite'),
+              reviewRunId: reviewRun.id,
+              originalSentence: focusCorrections[0].originalText,
+              focusPattern: patternLabelFor(focusCorrections[0]),
+              nativeModelSentence: focusCorrections[0].correctedText,
+              prompt: rewritePractice.prompt,
+              kind: rewritePractice.kind,
+              spacedStage: 'D+1',
+              status: 'pending',
+              dueAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
+            })
+            .run();
+        }
+      }
 
       const finalStatus = saveAsStaleHistory ? 'stale' : 'review_saved';
       const finalRun = tx

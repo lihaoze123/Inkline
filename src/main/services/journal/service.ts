@@ -1,9 +1,28 @@
 import { randomUUID } from 'node:crypto';
-import { desc, eq } from 'drizzle-orm';
+import { and, desc, eq, gte, lte } from 'drizzle-orm';
 import { db } from '../../db/client';
-import { journalEntries, journalRevisions, reviewRuns, type JournalEntry, type JournalRevision, type ReviewRun } from '../../db/schema';
+import {
+  journalEntries,
+  journalRevisions,
+  reviewRuns,
+  rewriteTasks,
+  type JournalEntry,
+  type JournalRevision,
+  type ReviewRun,
+  type rewriteTasks as rewriteTasksTable,
+} from '../../db/schema';
 import { computeJournalContentHash, getLocalDateKey, normalizeJournalContent } from '../../../shared/journal/content';
-import type { SaveTodayJournalInput, SaveTodayJournalResult, TodayJournalSnapshot } from '../../../shared/types/journal';
+import {
+  completeRewritePracticeInputSchema,
+  skipRewritePracticeInputSchema,
+  type CompleteRewritePracticeInput,
+  type RewritePracticeSnapshot,
+  type RewritePracticeUpdateResult,
+  type SaveTodayJournalInput,
+  type SaveTodayJournalResult,
+  type SkipRewritePracticeInput,
+  type TodayJournalSnapshot,
+} from '../../../shared/types/journal';
 
 function createId(prefix: string): string {
   return `${prefix}_${randomUUID()}`;
@@ -23,6 +42,11 @@ function revisionToSnapshot(revision: JournalRevision): TodayJournalSnapshot['ac
   };
 }
 
+type RewriteTaskRow = typeof rewriteTasksTable.$inferSelect;
+
+const ONE_DAY_MS = 24 * 60 * 60 * 1000;
+const REWRITE_PRACTICE_MAX_AGE_MS = 7 * ONE_DAY_MS;
+
 function staleReviewToSnapshot(reviewRun: ReviewRun | undefined): TodayJournalSnapshot['staleReview'] {
   if (!reviewRun) {
     return null;
@@ -32,6 +56,24 @@ function staleReviewToSnapshot(reviewRun: ReviewRun | undefined): TodayJournalSn
     id: reviewRun.id,
     reviewedContentHash: reviewRun.contentHash,
     createdAt: reviewRun.createdAt.getTime(),
+  };
+}
+
+function rewriteTaskToSnapshot(task: RewriteTaskRow, nowMillis = Date.now()): RewritePracticeSnapshot {
+  return {
+    id: task.id,
+    reviewRunId: task.reviewRunId,
+    originalSentence: task.originalSentence,
+    focusPattern: task.focusPattern,
+    nativeModelSentence: task.nativeModelSentence,
+    prompt: task.prompt,
+    practiceKind: 'rewrite_original',
+    spacedStage: 'D+1',
+    status: task.status,
+    userRewriteText: task.userRewriteText,
+    dueAt: toMillis(task.dueAt),
+    createdAt: task.createdAt.getTime(),
+    isOlderThanSevenDays: nowMillis - task.createdAt.getTime() > REWRITE_PRACTICE_MAX_AGE_MS,
   };
 }
 
@@ -53,9 +95,22 @@ function getMostRecentStaleReview(entryId: string): ReviewRun | undefined {
     .find((reviewRun) => reviewRun.status === 'stale');
 }
 
+function getPendingRewritePractice(now = new Date()): RewriteTaskRow | null {
+  const cutoff = new Date(now.getTime() - REWRITE_PRACTICE_MAX_AGE_MS);
+
+  return db
+    .select()
+    .from(rewriteTasks)
+    .where(and(eq(rewriteTasks.status, 'pending'), eq(rewriteTasks.kind, 'rewrite_original'), lte(rewriteTasks.dueAt, now), gte(rewriteTasks.createdAt, cutoff)))
+    .orderBy(desc(rewriteTasks.dueAt), desc(rewriteTasks.createdAt))
+    .all()
+    .find((task) => task.spacedStage === 'D+1') ?? null;
+}
+
 function buildSnapshot(entry: JournalEntry): TodayJournalSnapshot {
   const activeRevision = getActiveRevision(entry);
   const staleReview = getMostRecentStaleReview(entry.id);
+  const pendingRewritePractice = getPendingRewritePractice();
 
   return {
     entryId: entry.id,
@@ -64,6 +119,7 @@ function buildSnapshot(entry: JournalEntry): TodayJournalSnapshot {
     lastAutosaveAt: toMillis(activeRevision?.createdAt ?? null),
     lastReviewRunId: entry.lastReviewRunId,
     staleReview: staleReviewToSnapshot(staleReview),
+    pendingRewritePractice: pendingRewritePractice ? rewriteTaskToSnapshot(pendingRewritePractice) : null,
   };
 }
 
@@ -88,6 +144,11 @@ function getOrCreateTodayEntry(): JournalEntry {
 export function getTodayJournal(): TodayJournalSnapshot {
   const entry = getOrCreateTodayEntry();
   return buildSnapshot(entry);
+}
+
+export function getDueRewritePracticeForToday(now = new Date()): RewritePracticeSnapshot | null {
+  const practice = getPendingRewritePractice(now);
+  return practice ? rewriteTaskToSnapshot(practice, now.getTime()) : null;
 }
 
 export function saveTodayJournal(input: SaveTodayJournalInput): SaveTodayJournalResult {
@@ -137,4 +198,61 @@ export function saveTodayJournal(input: SaveTodayJournalInput): SaveTodayJournal
   });
 
   return { ...buildSnapshot(updatedEntry), saved: true };
+}
+
+export function completeRewritePractice(input: CompleteRewritePracticeInput): RewritePracticeUpdateResult {
+  const parseResult = completeRewritePracticeInputSchema.safeParse(input);
+  if (!parseResult.success) {
+    return { success: false, error: parseResult.error.issues[0].message };
+  }
+
+  const task = db.select().from(rewriteTasks).where(eq(rewriteTasks.id, parseResult.data.rewriteTaskId)).get();
+  if (!task) {
+    return { success: false, error: 'Rewrite practice was not found.' };
+  }
+
+  if (task.status !== 'pending' && task.status !== 'in_progress') {
+    return { success: true, journal: getTodayJournal(), rewritePractice: rewriteTaskToSnapshot(task) };
+  }
+
+  const updatedTask = db
+    .update(rewriteTasks)
+    .set({
+      status: 'completed',
+      userRewriteText: parseResult.data.userRewriteText.trim(),
+      completedAt: new Date(),
+    })
+    .where(eq(rewriteTasks.id, parseResult.data.rewriteTaskId))
+    .returning()
+    .get();
+
+  return { success: true, journal: getTodayJournal(), rewritePractice: rewriteTaskToSnapshot(updatedTask) };
+}
+
+export function skipRewritePractice(input: SkipRewritePracticeInput): RewritePracticeUpdateResult {
+  const parseResult = skipRewritePracticeInputSchema.safeParse(input);
+  if (!parseResult.success) {
+    return { success: false, error: parseResult.error.issues[0].message };
+  }
+
+  const task = db.select().from(rewriteTasks).where(eq(rewriteTasks.id, parseResult.data.rewriteTaskId)).get();
+  if (!task) {
+    return { success: false, error: 'Rewrite practice was not found.' };
+  }
+
+  if (task.status !== 'pending' && task.status !== 'in_progress') {
+    return { success: true, journal: getTodayJournal(), rewritePractice: rewriteTaskToSnapshot(task) };
+  }
+
+  const updatedTask = db
+    .update(rewriteTasks)
+    .set({
+      status: 'skipped',
+      skippedAt: new Date(),
+    })
+    .where(eq(rewriteTasks.id, parseResult.data.rewriteTaskId))
+    .returning()
+    .get();
+
+  return { success: true, journal: getTodayJournal(), rewritePractice: rewriteTaskToSnapshot(updatedTask) };
 }
