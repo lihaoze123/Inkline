@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-1.md`
-- **Total Sessions**: 7
+- **Total Sessions**: 8
 - **Last Active**: 2026-04-29
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-1.md` | ~245 | Active |
+| `journal-1.md` | ~280 | Active |
 <!-- @@@/auto:active-documents -->
 
 ---
@@ -29,6 +29,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 8 | 2026-04-29 | D+1 rewrite practice | `fa4fd50`, `7d68c9a`, `f22cdcd` | `main` |
 | 7 | 2026-04-29 | Review result learning flow | `48068fb`, `fa9d393`, `5b1e49c` | `main` |
 | 6 | 2026-04-29 | Review agent boundary and runtime contract | `3d84aa8`, `80705e4`, `c929538` | `main` |
 | 5 | 2026-04-29 | Journal editor autosave | `e73f425`, `f674e29` | `main` |

@@ -243,3 +243,38 @@ Implemented the v0.1 review preview/save learning flow, added the review preview
 ### Next Steps
 
 - None - task complete
+
+
+## Session 8: D+1 rewrite practice
+
+**Date**: 2026-04-29
+**Task**: D+1 rewrite practice
+**Branch**: `main`
+
+### Summary
+
+Implemented one D+1 rewrite-original practice from saved reviews, surfaced it on Today with submit/reveal/skip behavior, added persistence and tests, and recorded the cross-layer contract.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `fa4fd50` | (see git log) |
+| `7d68c9a` | (see git log) |
+| `f22cdcd` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
