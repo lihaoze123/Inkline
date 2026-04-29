@@ -3,7 +3,7 @@
   "name": "v0-1-review-result-learning-flow",
   "title": "v0.1 review result learning flow",
   "description": "Implement review preview/save UI: what went well, exactly one focus pattern, hint-first self-repair, corrections, reference rewrite, notice-the-gap, and local history updates.",
-  "status": "planning",
+  "status": "in_progress",
   "dev_type": null,
   "scope": null,
   "package": null,
