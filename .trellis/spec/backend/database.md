@@ -159,6 +159,100 @@ export function runMigrations() {
 
 ---
 
+## Scenario: Local App Data SQLite Foundation
+
+### 1. Scope / Trigger
+
+- Trigger: Any Electron foundation or persistence task that creates/changes the local SQLite client, migration runner, packaged migration resources, or v0.1 foundation tables.
+- Main process owns SQLite. Renderer and preload must not import `better-sqlite3`, Drizzle clients, schema modules, `node:fs`, or database paths directly.
+
+### 2. Signatures
+
+- Database path: `getDatabasePath(): string`
+  - Returns `path.join(app.getPath('userData'), 'english-coach.sqlite')`.
+  - Dev/prod isolation comes from `env-setup` changing `app.getPath('userData')` before database initialization.
+- Client exports:
+  - `export const db = drizzle(sqlite, { schema })`
+  - `export { sqlite }`
+- Migration runner: `runMigrations(): MigrationResult`
+
+```typescript
+type MigrationResult =
+  | { success: true }
+  | { success: false; reason: 'missing-folder' | 'error'; error?: string };
+```
+
+- Required v0.1 foundation tables:
+  - `journal_entries`
+  - `review_runs`
+  - `corrections`
+  - `rewrite_tasks`
+
+### 3. Contracts
+
+- SQLite pragmas:
+  - `journal_mode = WAL`
+  - `foreign_keys = ON`
+- Migration folders:
+  - Dev: `path.resolve(process.cwd(), 'drizzle')`
+  - Packaged: `path.join(process.resourcesPath, 'drizzle')`
+- Packaging contract:
+  - Electron Forge must include `drizzle` in `packagerConfig.extraResource` so packaged apps can run migrations.
+- Table contract:
+  - Primary keys are `TEXT` IDs.
+  - Timestamp columns store Unix milliseconds using Drizzle `integer(..., { mode: 'timestamp_ms' })`.
+  - Review raw output, if present, is stored locally only and is governed by the off-by-default raw-response setting.
+  - Provider API keys must not appear as SQLite tables or columns.
+
+### 4. Validation & Error Matrix
+
+| Condition | Behavior |
+| --- | --- |
+| Migration folder missing | Return `{ success: false, reason: 'missing-folder' }` |
+| Drizzle migration throws | Return `{ success: false, reason: 'error', error: message }` |
+| Migration succeeds | Return `{ success: true }` |
+| API-key table/column proposed | Reject the schema; use OS keychain service instead |
+| Timestamp column proposed without `timestamp_ms` | Reject the schema; use Unix milliseconds |
+
+### 5. Good/Base/Bad Cases
+
+- Good: Dev app opens `english-coach.sqlite` under the dev-isolated `userData` directory, applies migrations from repo `drizzle`, and stores no provider secrets in SQL.
+- Base: Packaged app opens the production `userData` database and applies migrations from `process.resourcesPath/drizzle`.
+- Bad: Migration lookup depends on Vite output-relative paths, so packaged apps cannot find `drizzle`.
+- Bad: Renderer imports schema or database modules to display local status.
+
+### 6. Tests Required
+
+- Database contract test:
+  - Assert migration SQL creates all required v0.1 foundation tables.
+  - Assert timestamp defaults use millisecond precision.
+  - Assert foreign keys exist for review/correction/rewrite relationships.
+  - Assert migration SQL does not create API-key tables or columns.
+- Build smoke test:
+  - Run Electron package build and verify migrations are included as packaged resources.
+- Settings/privacy test:
+  - Assert raw response storage defaults to `false`.
+
+### 7. Wrong vs Correct
+
+#### Wrong
+
+```typescript
+const migrationsFolder = path.resolve(__dirname, '..', '..', 'drizzle');
+```
+
+This works only when runtime output layout happens to match source assumptions.
+
+#### Correct
+
+```typescript
+const migrationsFolder = app.isPackaged
+  ? path.join(process.resourcesPath, 'drizzle')
+  : path.resolve(process.cwd(), 'drizzle');
+```
+
+Pair this with `packagerConfig.extraResource = ['drizzle']` so packaged builds have the same migration contract as development.
+
 ## Quick Reference
 
 | Operation     | Method                  |

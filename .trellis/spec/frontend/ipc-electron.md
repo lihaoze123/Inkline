@@ -72,6 +72,131 @@ declare global {
 
 ---
 
+## Scenario: Foundation Settings IPC Contract
+
+### 1. Scope / Trigger
+
+- Trigger: Any task that adds or changes the foundation Settings shell, startup status, provider credential status, or raw-response storage toggle.
+- The renderer displays settings and startup state only through `window.api`; main process owns settings, database location, and credential/keychain access.
+
+### 2. Signatures
+
+Preload API:
+
+```typescript
+type Api = {
+  app: {
+    getStartupStatus: () => Promise<StartupStatus>;
+  };
+  settings: {
+    get: () => Promise<SettingsSnapshot>;
+    setRawResponseStorage: (input: SetRawResponseStorageInput) => Promise<boolean>;
+  };
+  credentials: {
+    getProviderKeyStatus: () => Promise<ProviderKeyStatus>;
+  };
+};
+```
+
+IPC channels:
+
+```typescript
+const IPC_CHANNELS = {
+  APP: {
+    GET_STARTUP_STATUS: 'app:getStartupStatus',
+  },
+  SETTINGS: {
+    GET: 'settings:get',
+    SET_RAW_RESPONSE_STORAGE: 'settings:setRawResponseStorage',
+  },
+  CREDENTIALS: {
+    GET_PROVIDER_KEY_STATUS: 'credentials:getProviderKeyStatus',
+  },
+} as const;
+```
+
+### 3. Contracts
+
+`StartupStatus` response fields:
+
+| Field | Type | Constraint |
+| --- | --- | --- |
+| `databaseReady` | boolean | Mirrors migration success |
+| `databaseLocation` | string | Non-empty app-data SQLite path |
+| `migrationsApplied` | boolean | Mirrors migration success |
+
+`SettingsSnapshot` response fields:
+
+| Field | Type | Constraint |
+| --- | --- | --- |
+| `provider` | string | Non-empty; may be `Not configured` before integration |
+| `model` | string | Non-empty; may be `Not configured` before integration |
+| `isLocalModel` | boolean | `false` for cloud/unconfigured providers |
+| `reviewContextDescription` | string | Explains what review context will be sent |
+| `rawResponseStorageEnabled` | boolean | Production default is `false` |
+| `databaseLocation` | string | Non-empty app-data SQLite path |
+| `piMonoAuthStatus` | `'not-configured' | 'configured'` | Display-only foundation status |
+| `providerApiKeyStatus` | `'not-configured' | 'configured' | 'unavailable'` | Derived from main-process keychain service |
+| `ankiConnectStatus` | `'reserved'` | Reserved v0.1 Settings row |
+
+`SetRawResponseStorageInput` request fields:
+
+| Field | Type | Constraint |
+| --- | --- | --- |
+| `enabled` | boolean | Validate in main process with Zod before persistence |
+
+### 4. Validation & Error Matrix
+
+| Condition | Behavior |
+| --- | --- |
+| Renderer requests settings | Main returns `settingsSnapshotSchema.parse(...)` output |
+| Renderer toggles raw response storage with non-boolean input | Main rejects via Zod parse error |
+| Keychain read succeeds with stored password | Return `{ status: 'configured', storage: 'os-keychain' }` |
+| Keychain read succeeds with no password | Return `{ status: 'not-configured', storage: 'os-keychain' }` |
+| Keychain read throws | Return `{ status: 'unavailable', storage: 'os-keychain' }` |
+| Migration startup failed | Startup status reports `databaseReady: false` and `migrationsApplied: false` |
+
+### 5. Good/Base/Bad Cases
+
+- Good: Renderer calls `window.api.settings.get()` and renders provider/model/database/raw-response/keychain/pi-mono/Anki status from typed response data.
+- Base: Provider integration is not implemented yet, but Settings still displays non-empty `Not configured` provider/model values.
+- Bad: Renderer imports `electron-store`, `keytar`, `fs`, or database modules to compute Settings rows.
+- Bad: Raw response storage defaults to `true` in production or is hidden from Settings.
+
+### 6. Tests Required
+
+- Settings default test:
+  - Assert `rawResponseStorageEnabled` is `false` by default.
+  - Assert provider/model/database/status fields are present and schema-valid.
+- IPC boundary test or static check:
+  - Assert renderer files do not import `electron`, `node:*`, `fs`, `path`, `better-sqlite3`, or `keytar`.
+- Dev smoke test:
+  - Run `pnpm run dev` long enough to verify Vite bundles and Electron launch.
+
+### 7. Wrong vs Correct
+
+#### Wrong
+
+```tsx
+import Store from 'electron-store';
+
+const store = new Store();
+const rawResponseStorageEnabled = store.get('rawResponseStorageEnabled');
+```
+
+Renderer code must not access Node/Electron storage directly.
+
+#### Correct
+
+```tsx
+const settings = await window.api.settings.get();
+const rawResponseStorageEnabled = settings.rawResponseStorageEnabled;
+```
+
+The main process validates and owns settings; preload exposes only a typed, narrow API.
+
+---
+
 ## Data Refresh Subscription Pattern
 
 All hooks that fetch data from the backend via IPC **should** subscribe to data change events. This ensures UI updates when data changes from external sources (sync, background refresh, etc.).
