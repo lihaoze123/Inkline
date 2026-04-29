@@ -1,0 +1,5 @@
+{"_example": "Fill with {\"file\": \"<path>\", \"reason\": \"<why>\"}. Put spec/research files only — no code paths. Run `python3 .trellis/scripts/get_context.py --mode packages` to list available specs. Delete this line once real entries are added."}
+{"file": ".trellis/spec/product/mvp-scope.md", "reason": "v0.1 MVP scope and hard caps"}
+{"file": ".trellis/spec/product/data-model-contract.md", "reason": "Review save and persistence contracts"}
+{"file": ".trellis/spec/product/learning-flow.md", "reason": "Today review flow and UX ordering"}
+{"file": ".trellis/spec/shared/code-quality.md", "reason": "Shared implementation quality baseline"}
