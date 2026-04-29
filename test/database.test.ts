@@ -3,9 +3,12 @@ import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 const REQUIRED_TABLE_DEFINITIONS = [
-  'CREATE TABLE `journals`',
+  'CREATE TABLE `journal_entries`',
+  'CREATE TABLE `journal_revisions`',
   'CREATE TABLE `review_runs`',
   'CREATE TABLE `corrections`',
+  'CREATE TABLE `self_repair_attempts`',
+  'CREATE TABLE `reference_rewrites`',
   'CREATE TABLE `rewrite_tasks`',
 ];
 
@@ -18,7 +21,9 @@ describe('database foundation migration', () => {
     }
 
     expect(migrationSql).toContain('`created_at` integer DEFAULT (unixepoch() * 1000) NOT NULL');
-    expect(migrationSql).toContain('FOREIGN KEY (`journal_id`) REFERENCES `journals`(`id`)');
+    expect(migrationSql).toContain('`content_hash` text NOT NULL');
+    expect(migrationSql).toContain('FOREIGN KEY (`journal_entry_id`) REFERENCES `journal_entries`(`id`)');
+    expect(migrationSql).toContain('FOREIGN KEY (`review_run_id`) REFERENCES `review_runs`(`id`)');
     expect(migrationSql).not.toContain('api_key');
   });
 });
