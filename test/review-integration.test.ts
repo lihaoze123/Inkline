@@ -1,7 +1,8 @@
 import { createHash } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
-import { buildBoundedReviewInput } from '../src/main/services/review/lib/review-input';
+import { createOpenAiCompatibleReviewAgent } from '../src/main/services/review/lib/openai-compatible-agent';
 import { buildReviewUserPrompt, REVIEW_SYSTEM_PROMPT } from '../src/main/services/review/lib/prompt';
+import { buildBoundedReviewInput } from '../src/main/services/review/lib/review-input';
 import { V0_1_REVIEW_CAPS } from '../src/main/services/review/types';
 import type { ReviewInput } from '../src/shared/review-contract';
 
@@ -96,5 +97,96 @@ describe('review agent integration contracts', () => {
       summary: { focusPattern: { correctionIndex: 0 } },
       referenceRewrites: [{ noticeTheGap: 'The verb changes to past tense.' }],
     });
+  });
+
+  it('calls OpenAI-compatible chat completions and parses JSON content', async () => {
+    const output = validOutputFor('Today I go home.');
+    const fetchCalls: Array<{ url: string; init: RequestInit | undefined }> = [];
+    const fetchImpl: typeof globalThis.fetch = async (url, init) => {
+      fetchCalls.push({ url: String(url), init });
+      return new Response(
+        JSON.stringify({
+          choices: [{ message: { content: JSON.stringify(output) } }],
+        }),
+        { status: 200, headers: { 'Content-Type': 'application/json' } }
+      );
+    };
+    const agent = createOpenAiCompatibleReviewAgent({
+      fetchImpl,
+      apiKey: 'test-key',
+      baseUrl: 'https://provider.example/v1',
+      model: 'review-model',
+      timeoutMs: 1_000,
+    });
+
+    const response = await agent({
+      systemPrompt: REVIEW_SYSTEM_PROMPT,
+      userPrompt: 'Return JSON.',
+      input: buildBoundedReviewInput({
+        journalContent: 'Today I go home.',
+        contentHash: contentHash('Today I go home.'),
+        date: '2026-04-29',
+        existingPatterns: [],
+      }),
+    });
+
+    expect(response.output).toMatchObject({ summary: { focusPattern: { correctionIndex: 0 } } });
+    expect(fetchCalls[0]?.url).toBe('https://provider.example/v1/chat/completions');
+    expect(fetchCalls[0]?.init?.headers).toMatchObject({ Authorization: 'Bearer test-key' });
+    expect(JSON.parse(String(fetchCalls[0]?.init?.body))).toMatchObject({
+      model: 'review-model',
+      response_format: { type: 'json_object' },
+      max_tokens: 2_500,
+    });
+  });
+
+  it('parses JSON content even when a compatible provider wraps it in a fenced block', async () => {
+    const output = validOutputFor('Today I go home.');
+    const agent = createOpenAiCompatibleReviewAgent({
+      fetchImpl: async () => new Response(
+        JSON.stringify({
+          choices: [{ message: { content: `\`\`\`json\n${JSON.stringify(output)}\n\`\`\`` } }],
+        }),
+        { status: 200, headers: { 'Content-Type': 'application/json' } }
+      ),
+      apiKey: 'test-key',
+      baseUrl: 'https://provider.example/v1/chat/completions',
+      model: 'review-model',
+      timeoutMs: 1_000,
+    });
+
+    const response = await agent({
+      systemPrompt: REVIEW_SYSTEM_PROMPT,
+      userPrompt: 'Return JSON.',
+      input: buildBoundedReviewInput({
+        journalContent: 'Today I go home.',
+        contentHash: contentHash('Today I go home.'),
+        date: '2026-04-29',
+        existingPatterns: [],
+      }),
+    });
+
+    expect(response.output).toMatchObject({ summary: { focusPattern: { correctionIndex: 0 } } });
+  });
+
+  it('returns a clear error when the provider key is missing', async () => {
+    const agent = createOpenAiCompatibleReviewAgent({
+      fetchImpl: async () => new Response('{}'),
+      apiKey: null,
+      baseUrl: 'https://provider.example/v1',
+      model: 'review-model',
+      timeoutMs: 1_000,
+    });
+
+    await expect(agent({
+      systemPrompt: REVIEW_SYSTEM_PROMPT,
+      userPrompt: 'Return JSON.',
+      input: buildBoundedReviewInput({
+        journalContent: 'Today I go home.',
+        contentHash: contentHash('Today I go home.'),
+        date: '2026-04-29',
+        existingPatterns: [],
+      }),
+    })).rejects.toThrow('OpenAI-compatible provider API key is not configured. Add it in Settings before reviewing.');
   });
 });

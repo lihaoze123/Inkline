@@ -7,7 +7,7 @@ import { reviewRunSnapshotSchema, type ReviewRunSnapshot } from '../../../../sha
 import { getSettingsSnapshot, type ReviewSettingsSnapshot } from '../../settings/service';
 import { hasReviewDisclosureAcknowledgement } from '../lib/disclosure';
 import { buildReviewInput } from '../lib/input';
-import { callPiMonoReviewAgent } from '../lib/pi-mono-agent';
+import { callOpenAiCompatibleReviewAgent } from '../lib/openai-compatible-agent';
 import { buildReviewPersistenceDecision } from '../lib/persistence-decision';
 import { buildReviewUserPrompt, REVIEW_SYSTEM_PROMPT } from '../lib/prompt';
 import { startReviewInputSchema, type ReviewAgent, type StartReviewInput, type StartReviewOutput } from '../types';
@@ -80,7 +80,7 @@ export async function startReview(input: StartReviewInput, options: StartReviewO
     .get();
 
   try {
-    const agent = options.agent ?? callPiMonoReviewAgent;
+    const agent = options.agent ?? callOpenAiCompatibleReviewAgent;
     const agentResponse = await agent({
       systemPrompt: REVIEW_SYSTEM_PROMPT,
       userPrompt: buildReviewUserPrompt(reviewInput),
@@ -113,6 +113,9 @@ export async function startReview(input: StartReviewInput, options: StartReviewO
     };
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Review failed.';
+    const recoverableMessage = message.includes('provider API key') || message.includes('base URL') || message.includes('model') || message.includes('keychain')
+      ? message
+      : 'Review failed.';
     const failedRun = db
       .update(reviewRuns)
       .set({
@@ -124,7 +127,7 @@ export async function startReview(input: StartReviewInput, options: StartReviewO
       .returning()
       .get();
 
-    return { success: false, reviewRun: reviewRunToSnapshot(failedRun), error: 'Review failed.' };
+    return { success: false, reviewRun: reviewRunToSnapshot(failedRun), error: recoverableMessage };
   }
 }
 

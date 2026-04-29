@@ -21,8 +21,9 @@ The current app is v0.1.0 and focuses on one workflow: today's English journal e
 - Stale review handling when the journal changes after review.
 - One D+1 rewrite practice slot on Today, with submit and skip actions.
 - Review contract harness for validating mock review output without depending on live model output.
+- Minimal OpenAI-compatible live review adapter configurable with base URL, model, and an OS-keychain API key.
 
-Review execution is wired through the app-side review boundary and validation flow. The default live review agent adapter is not configured in this repository, so real model review requires providing a review agent adapter before the Review button can return useful feedback.
+Review execution is wired through the app-side review boundary and validation flow. The default live review path calls an OpenAI-compatible chat completions endpoint and validates the JSON response before showing preview results.
 
 ## Privacy and local data
 
@@ -67,6 +68,19 @@ pnpm dev
 ```
 
 This starts Electron Forge with the Vite-powered main, preload, and renderer builds.
+
+## Configure live review
+
+Live review uses an OpenAI-compatible `/chat/completions` API.
+
+1. Open the app and find **Live review provider** at the top of Today.
+2. Set the provider base URL, for example `https://api.openai.com/v1`.
+3. Set the model, for example `gpt-4o-mini` or another model supported by your compatible provider.
+4. Paste your provider API key and click **Save API key**. The key is stored in the OS keychain and is never shown back in the renderer.
+5. Leave **Save raw model responses for debugging** off unless you explicitly want raw provider JSON saved in local review runs.
+6. Write a journal entry and click **Review**. The first review shows a disclosure before sending the current entry and bounded learning context to the configured provider.
+
+If the key is missing or the OS keychain is unavailable, Review returns a recoverable configuration error and local journal/autosave behavior is unaffected.
 
 ## Quality checks
 

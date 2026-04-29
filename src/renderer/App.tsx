@@ -72,6 +72,7 @@ type TodayPageProps = {
 };
 
 function TodayPage({ initialJournal, settings, startup }: TodayPageProps): React.JSX.Element {
+  const [appSettings, setAppSettings] = useState(settings);
   const [journal, setJournal] = useState(initialJournal);
   const [content, setContent] = useState(initialJournal.activeRevision?.content ?? '');
   const [saveState, setSaveState] = useState<SaveState>('idle');
@@ -85,6 +86,11 @@ function TodayPage({ initialJournal, settings, startup }: TodayPageProps): React
   const [completedRewritePractice, setCompletedRewritePractice] = useState<TodayJournalSnapshot['pendingRewritePractice']>(null);
   const [rewritePracticeError, setRewritePracticeError] = useState<string | null>(null);
   const [showDisclosure, setShowDisclosure] = useState(false);
+  const [providerBaseUrlInput, setProviderBaseUrlInput] = useState(settings.baseUrl);
+  const [providerModelInput, setProviderModelInput] = useState(settings.model);
+  const [providerApiKeyInput, setProviderApiKeyInput] = useState('');
+  const [settingsMessage, setSettingsMessage] = useState<string | null>(null);
+  const [settingsError, setSettingsError] = useState<string | null>(null);
   const lastSavedContentRef = useRef(initialJournal.activeRevision?.content ?? '');
 
   const hasWritten = content.trim().length > 0;
@@ -254,6 +260,51 @@ function TodayPage({ initialJournal, settings, startup }: TodayPageProps): React
     await reviewCurrentContent();
   }, [reviewCurrentContent]);
 
+  const saveProviderConfig = useCallback(async (): Promise<void> => {
+    setSettingsError(null);
+    setSettingsMessage(null);
+    try {
+      const updatedSettings = await window.api.settings.setProviderConfig({ baseUrl: providerBaseUrlInput, model: providerModelInput });
+      setAppSettings(updatedSettings);
+      setProviderBaseUrlInput(updatedSettings.baseUrl);
+      setProviderModelInput(updatedSettings.model);
+      setSettingsMessage('Provider settings saved.');
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unable to save provider settings.';
+      setSettingsError(message);
+    }
+  }, [providerBaseUrlInput, providerModelInput]);
+
+  const saveProviderApiKey = useCallback(async (): Promise<void> => {
+    setSettingsError(null);
+    setSettingsMessage(null);
+    const result = await window.api.credentials.setProviderApiKey({ apiKey: providerApiKeyInput });
+    if (result.success && result.status) {
+      setAppSettings({ ...appSettings, providerApiKeyStatus: result.status.status });
+      setProviderApiKeyInput('');
+      setSettingsMessage('Provider API key saved to the OS keychain.');
+      return;
+    }
+    setSettingsError(result.error ?? 'Unable to save provider API key.');
+  }, [appSettings, providerApiKeyInput]);
+
+  const deleteProviderKey = useCallback(async (): Promise<void> => {
+    setSettingsError(null);
+    setSettingsMessage(null);
+    const result = await window.api.credentials.deleteProviderApiKey();
+    if (result.success && result.status) {
+      setAppSettings({ ...appSettings, providerApiKeyStatus: result.status.status });
+      setSettingsMessage('Provider API key deleted.');
+      return;
+    }
+    setSettingsError(result.error ?? 'Unable to delete provider API key.');
+  }, [appSettings]);
+
+  const toggleRawResponseStorage = useCallback(async (enabled: boolean): Promise<void> => {
+    const rawResponseStorageEnabled = await window.api.settings.setRawResponseStorage({ enabled });
+    setAppSettings({ ...appSettings, rawResponseStorageEnabled });
+  }, [appSettings]);
+
   const focusCorrection = reviewPreview ? getFocusCorrection(reviewPreview) : null;
   const canRevealAnswer = modelAnswerRevealed || selfRepairAttempt.trim().length > 0;
 
@@ -266,9 +317,36 @@ function TodayPage({ initialJournal, settings, startup }: TodayPageProps): React
         </div>
         <div className="foundation-status" aria-label="Local app status">
           <span>{startup.databaseReady ? 'Local database ready' : 'Database unavailable'}</span>
-          <span>Raw model responses: {settings.rawResponseStorageEnabled ? 'On' : 'Off'}</span>
+          <span>Provider: {appSettings.provider}</span>
+          <span>Model: {appSettings.model}</span>
+          <span>Key: {formatProviderKeyStatus(appSettings.providerApiKeyStatus)}</span>
+          <span>Raw model responses: {appSettings.rawResponseStorageEnabled ? 'On' : 'Off'}</span>
         </div>
       </section>
+
+      <SettingsPanel
+        settings={appSettings}
+        baseUrlInput={providerBaseUrlInput}
+        modelInput={providerModelInput}
+        apiKeyInput={providerApiKeyInput}
+        message={settingsMessage}
+        error={settingsError}
+        onBaseUrlChange={setProviderBaseUrlInput}
+        onModelChange={setProviderModelInput}
+        onApiKeyChange={setProviderApiKeyInput}
+        onSaveProviderConfig={() => {
+          void saveProviderConfig();
+        }}
+        onSaveApiKey={() => {
+          void saveProviderApiKey();
+        }}
+        onDeleteApiKey={() => {
+          void deleteProviderKey();
+        }}
+        onRawResponseStorageChange={(enabled) => {
+          void toggleRawResponseStorage(enabled);
+        }}
+      />
 
       <section className="journal-card" aria-labelledby="journal-editor-title">
         <div className="journal-header">
@@ -323,7 +401,7 @@ function TodayPage({ initialJournal, settings, startup }: TodayPageProps): React
 
       {showDisclosure ? (
         <ReviewDisclosureDialog
-          settings={settings}
+          settings={appSettings}
           onCancel={() => setShowDisclosure(false)}
           onAcknowledge={() => {
             void acknowledgeDisclosureAndReview();
@@ -339,6 +417,79 @@ type AutosaveStatusProps = {
   lastAutosaveAt: number | null;
   error: string | null;
 };
+
+type SettingsPanelProps = {
+  settings: SettingsSnapshot;
+  baseUrlInput: string;
+  modelInput: string;
+  apiKeyInput: string;
+  message: string | null;
+  error: string | null;
+  onBaseUrlChange: (value: string) => void;
+  onModelChange: (value: string) => void;
+  onApiKeyChange: (value: string) => void;
+  onSaveProviderConfig: () => void;
+  onSaveApiKey: () => void;
+  onDeleteApiKey: () => void;
+  onRawResponseStorageChange: (enabled: boolean) => void;
+};
+
+function SettingsPanel({
+  settings,
+  baseUrlInput,
+  modelInput,
+  apiKeyInput,
+  message,
+  error,
+  onBaseUrlChange,
+  onModelChange,
+  onApiKeyChange,
+  onSaveProviderConfig,
+  onSaveApiKey,
+  onDeleteApiKey,
+  onRawResponseStorageChange,
+}: SettingsPanelProps): React.JSX.Element {
+  return (
+    <section className="settings-card" aria-labelledby="provider-settings-title">
+      <div>
+        <p className="eyebrow">Settings</p>
+        <h2 id="provider-settings-title">Live review provider</h2>
+      </div>
+      <div className="settings-grid">
+        <label>
+          Base URL
+          <input value={baseUrlInput} onChange={(event) => onBaseUrlChange(event.target.value)} aria-label="OpenAI-compatible base URL" />
+        </label>
+        <label>
+          Model
+          <input value={modelInput} onChange={(event) => onModelChange(event.target.value)} aria-label="OpenAI-compatible model" />
+        </label>
+        <label>
+          API key
+          <input
+            value={apiKeyInput}
+            onChange={(event) => onApiKeyChange(event.target.value)}
+            aria-label="Provider API key"
+            type="password"
+            placeholder={settings.providerApiKeyStatus === 'configured' ? 'Key is saved in OS keychain' : 'Paste key to save'}
+          />
+        </label>
+      </div>
+      <div className="settings-actions">
+        <button type="button" onClick={onSaveProviderConfig}>Save provider settings</button>
+        <button type="button" disabled={apiKeyInput.trim().length === 0} onClick={onSaveApiKey}>Save API key</button>
+        <button type="button" className="secondary-button" disabled={settings.providerApiKeyStatus !== 'configured'} onClick={onDeleteApiKey}>Delete API key</button>
+      </div>
+      <label className="raw-response-toggle">
+        <input type="checkbox" checked={settings.rawResponseStorageEnabled} onChange={(event) => onRawResponseStorageChange(event.target.checked)} />
+        Save raw model responses for debugging
+      </label>
+      <p className="muted-panel-copy">Provider: {settings.provider}. Base URL: {settings.baseUrl}. Key status: {formatProviderKeyStatus(settings.providerApiKeyStatus)}.</p>
+      {message ? <p className="muted-panel-copy success">{message}</p> : null}
+      {error ? <p className="muted-panel-copy error">{error}</p> : null}
+    </section>
+  );
+}
 
 function AutosaveStatus({ state, lastAutosaveAt, error }: AutosaveStatusProps): React.JSX.Element {
   if (state === 'saving') {
@@ -735,6 +886,18 @@ function ReviewDisclosureDialog({
       </section>
     </div>
   );
+}
+
+function formatProviderKeyStatus(status: SettingsSnapshot['providerApiKeyStatus']): string {
+  if (status === 'configured') {
+    return 'Configured';
+  }
+
+  if (status === 'unavailable') {
+    return 'Keychain unavailable';
+  }
+
+  return 'Not configured';
 }
 
 function formatTime(timestamp: number): string {

@@ -55,13 +55,14 @@ textarea:focus-visible {
 .today-shell {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(280px, 340px);
-  grid-template-rows: auto minmax(0, 1fr);
+  grid-template-rows: auto auto minmax(0, 1fr);
   gap: 24px;
   min-height: 100vh;
   padding: 32px;
 }
 
 .today-status,
+.settings-card,
 .journal-card,
 .learning-panel {
   border: 1px solid #e1d8ca;
@@ -79,10 +80,51 @@ textarea:focus-visible {
   padding: 28px 32px;
 }
 
+.settings-card,
 .journal-card,
 .learning-panel {
   min-height: 0;
   padding: 28px;
+}
+
+.settings-card {
+  grid-column: 1 / -1;
+  display: grid;
+  gap: 16px;
+}
+
+.settings-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.settings-grid label,
+.raw-response-toggle {
+  display: grid;
+  gap: 8px;
+  color: #4f5a6c;
+  font-size: 0.92rem;
+}
+
+.settings-grid input {
+  width: 100%;
+  border: 1px solid #eadfce;
+  border-radius: 14px;
+  padding: 12px;
+  color: #243047;
+  background: #fffdf8;
+}
+
+.settings-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.raw-response-toggle {
+  display: flex;
+  align-items: center;
 }
 
 .journal-card {
@@ -298,6 +340,10 @@ h3 {
   color: #9d2d22;
 }
 
+.muted-panel-copy.success {
+  color: #2f6f3e;
+}
+
 .modal-backdrop {
   position: fixed;
   inset: 0;
@@ -367,6 +413,10 @@ h3 {
   .today-status,
   .journal-header {
     flex-direction: column;
+  }
+
+  .settings-grid {
+    grid-template-columns: 1fr;
   }
 
   .foundation-status {

@@ -11,9 +11,12 @@ export const IPC_CHANNELS = {
   SETTINGS: {
     GET: 'settings:get',
     SET_RAW_RESPONSE_STORAGE: 'settings:setRawResponseStorage',
+    SET_PROVIDER_CONFIG: 'settings:setProviderConfig',
   },
   CREDENTIALS: {
     GET_PROVIDER_KEY_STATUS: 'credentials:getProviderKeyStatus',
+    SET_PROVIDER_API_KEY: 'credentials:setProviderApiKey',
+    DELETE_PROVIDER_API_KEY: 'credentials:deleteProviderApiKey',
   },
   REVIEW: {
     ACKNOWLEDGE_DISCLOSURE: 'review:acknowledgeDisclosure',
