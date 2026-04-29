@@ -3,7 +3,7 @@
   "name": "v0-1-d1-rewrite-practice",
   "title": "v0.1 D+1 rewrite practice",
   "description": "Generate and surface one D+1 rewrite-original practice from a saved review without implementing the full rewrite queue or rewrite-check agent.",
-  "status": "planning",
+  "status": "in_progress",
   "dev_type": null,
   "scope": null,
   "package": null,
