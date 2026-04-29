@@ -3,7 +3,7 @@
   "name": "v0-1-review-agent-integration",
   "title": "v0.1 review agent integration",
   "description": "Wire the review flow through pi-mono with provider/model privacy disclosure, bounded context, structured JSON output, and validation persistence.",
-  "status": "planning",
+  "status": "in_progress",
   "dev_type": null,
   "scope": null,
   "package": null,

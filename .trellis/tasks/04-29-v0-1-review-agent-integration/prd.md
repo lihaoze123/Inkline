@@ -2,7 +2,9 @@
 
 ## Goal
 
-Connect the journal review action to pi-mono while enforcing provider disclosure, bounded context, structured JSON output, and client-side validation before any learning history is saved.
+Connect the journal review action to a main-process review-agent boundary while enforcing provider disclosure, bounded context, structured JSON output, and client-side validation before any learning history is saved.
+
+Live pi-mono runtime invocation is deferred until a concrete project contract exists for package/version, SDK or CLI/RPC mode, auth/model configuration, no-tool policy, and structured JSON extraction.
 
 ## Requirements
 
@@ -10,7 +12,8 @@ Connect the journal review action to pi-mono while enforcing provider disclosure
 - Before first review, display provider/model/privacy disclosure and require acknowledgement.
 - Build `ReviewInput` with current date, journal content, content hash, selected existing patterns, and v0.1 caps.
 - Limit existing patterns to at most 30 and exclude spelling by default.
-- Call pi-mono review agent through the main process, not the renderer.
+- Call the review-agent boundary through the main process, not the renderer.
+- Keep live pi-mono invocation behind the `ReviewAgent` seam until the pi-mono integration contract is defined.
 - Delimit journal content as untrusted text in the agent prompt.
 - Require JSON output matching the review schema.
 - Persist review run status transitions: `reviewing`, `review_ready`, `review_failed`.
@@ -20,7 +23,7 @@ Connect the journal review action to pi-mono while enforcing provider disclosure
 ## Acceptance Criteria
 
 - [ ] Review cannot run without provider/model disclosure acknowledgement on first use.
-- [ ] Review calls are made from the main process.
+- [ ] Review calls enter the review-agent boundary from the main process only.
 - [ ] Agent input uses v0.1 caps.
 - [ ] Journal content is clearly delimited as untrusted content.
 - [ ] Valid output transitions review run to `review_ready`.
@@ -34,11 +37,14 @@ Connect the journal review action to pi-mono while enforcing provider disclosure
 
 ## Technical Approach
 
-Reuse the contract harness validation instead of creating a second validation path. Treat pi-mono as a dependency behind a narrow service interface so mock outputs remain testable.
+Reuse the contract harness validation instead of creating a second validation path. Treat the future pi-mono runtime as a dependency behind a narrow `ReviewAgent` service interface so mock outputs remain testable.
+
+Research in `research/pi-mono-integration.md` found no current local pi-mono invocation contract. Do not invent one in this task; define it separately before wiring the live runtime.
 
 ## Out of Scope
 
 - Designing the full Review Result UI.
+- Choosing or wiring the concrete live pi-mono SDK/CLI/RPC integration.
 - Saving review results into learning history.
 - Rewrite-check agent.
 - Anki/CET/drill integrations.
