@@ -2,6 +2,7 @@ import { ipcMain } from 'electron';
 import { IPC_CHANNELS } from '../../shared/constants/channels';
 import { providerKeyStatusSchema } from '../../shared/types/credentials';
 import { setRawResponseStorageInputSchema, settingsSnapshotSchema } from '../../shared/types/settings';
+import { acknowledgeReviewDisclosureInputSchema, startReviewInputSchema, startReviewOutputSchema } from '../../shared/types/review';
 import { startupStatusSchema, type StartupStatus } from '../../shared/types/app';
 import {
   saveTodayJournalInputSchema,
@@ -12,6 +13,8 @@ import { getDatabasePath } from '../db/client';
 import type { MigrationResult } from '../db/migrate';
 import { getProviderKeyStatus } from '../services/credentials/service';
 import { getTodayJournal, saveTodayJournal } from '../services/journal/service';
+import { acknowledgeReviewDisclosure } from '../services/review/lib/disclosure';
+import { startReview } from '../services/review/procedures/start';
 import { getSettingsSnapshot, setRawResponseStorage } from '../services/settings/service';
 
 export function registerIpcHandlers(migrationResult: MigrationResult): void {
@@ -43,5 +46,15 @@ export function registerIpcHandlers(migrationResult: MigrationResult): void {
 
   ipcMain.handle(IPC_CHANNELS.CREDENTIALS.GET_PROVIDER_KEY_STATUS, async (): Promise<unknown> => {
     return providerKeyStatusSchema.parse(await getProviderKeyStatus());
+  });
+
+  ipcMain.handle(IPC_CHANNELS.REVIEW.ACKNOWLEDGE_DISCLOSURE, (_event, input: unknown): boolean => {
+    acknowledgeReviewDisclosureInputSchema.parse(input);
+    return acknowledgeReviewDisclosure();
+  });
+
+  ipcMain.handle(IPC_CHANNELS.REVIEW.START, async (_event, input: unknown): Promise<unknown> => {
+    const parsedInput = startReviewInputSchema.parse(input);
+    return startReviewOutputSchema.parse(await startReview(parsedInput));
   });
 }

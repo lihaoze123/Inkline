@@ -7,6 +7,8 @@ const DEFAULT_PROVIDER = 'Not configured';
 const DEFAULT_MODEL = 'Not configured';
 const REVIEW_CONTEXT_DESCRIPTION = 'Current entry and selected learning history will be sent when Review is clicked.';
 
+export type ReviewSettingsSnapshot = Pick<SettingsSnapshot, 'provider' | 'model' | 'rawResponseStorageEnabled'>;
+
 type SettingsStore = {
   rawResponseStorageEnabled: boolean;
 };

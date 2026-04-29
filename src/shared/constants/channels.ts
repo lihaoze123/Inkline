@@ -13,4 +13,8 @@ export const IPC_CHANNELS = {
   CREDENTIALS: {
     GET_PROVIDER_KEY_STATUS: 'credentials:getProviderKeyStatus',
   },
+  REVIEW: {
+    ACKNOWLEDGE_DISCLOSURE: 'review:acknowledgeDisclosure',
+    START: 'review:start',
+  },
 } as const;

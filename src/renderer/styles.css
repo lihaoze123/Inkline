@@ -211,6 +211,70 @@ h3 {
   font-size: 0.92rem;
 }
 
+.muted-panel-copy.error {
+  color: #9d2d22;
+}
+
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgb(23 32 51 / 45%);
+}
+
+.review-disclosure-dialog {
+  width: min(560px, 100%);
+  border: 1px solid #e1d8ca;
+  border-radius: 24px;
+  padding: 28px;
+  color: #243047;
+  background: #fffaf2;
+  box-shadow: 0 28px 80px rgb(20 16 12 / 28%);
+}
+
+.review-disclosure-dialog p {
+  color: #4f5a6c;
+  line-height: 1.55;
+}
+
+.review-disclosure-dialog dl {
+  display: grid;
+  gap: 12px;
+  margin: 20px 0;
+}
+
+.review-disclosure-dialog dl div {
+  display: grid;
+  grid-template-columns: 150px minmax(0, 1fr);
+  gap: 12px;
+  border-top: 1px solid #eadfce;
+  padding-top: 12px;
+}
+
+.review-disclosure-dialog dt {
+  color: #7a5a2f;
+  font-weight: 700;
+}
+
+.review-disclosure-dialog dd {
+  margin: 0;
+  color: #4f5a6c;
+}
+
+.dialog-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 12px;
+}
+
+.secondary-button {
+  color: #72542d;
+  background: #f0e3d1;
+}
+
 @media (max-width: 900px) {
   .today-shell {
     grid-template-columns: 1fr;
