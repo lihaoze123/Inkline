@@ -167,6 +167,112 @@ Idempotency:
 
 Pattern merge is v0.2+. Historical corrections keep original pattern IDs, and display follows `merged_into_pattern_id` only when merge exists.
 
+## Scenario: D+1 Rewrite Practice Today Slot
+
+### 1. Scope / Trigger
+
+- Trigger: Any task that changes saved-review rewrite task creation, Today journal snapshots, rewrite practice IPC, or rewrite task completion/skip persistence.
+- v0.1 supports one due D+1 `rewrite_original` practice surfaced on Today; this is not the full rewrite queue.
+
+### 2. Signatures
+
+- DB table: `rewrite_tasks`
+  - `native_model_sentence: text not null default ''`
+  - `spaced_stage: text not null default 'D+1'`
+  - `user_rewrite_text: text | null`
+  - `completed_at: integer timestamp_ms | null`
+  - `skipped_at: integer timestamp_ms | null`
+- Today snapshot field:
+  - `pendingRewritePractice: RewritePracticeSnapshot | null`
+- `RewritePracticeSnapshot`:
+  - `id`, `reviewRunId`, `originalSentence`, `focusPattern`, `nativeModelSentence`, `prompt`
+  - `practiceKind: 'rewrite_original'`
+  - `spacedStage: 'D+1'`
+  - `status: pending | in_progress | completed | skipped | snoozed | expired`
+  - `userRewriteText: string | null`
+  - `dueAt: number | null`, `createdAt: number`, `isOlderThanSevenDays: boolean`
+- IPC/API:
+  - `journal.completeRewritePractice({ rewriteTaskId: string, userRewriteText: string }): RewritePracticeUpdateResult`
+  - `journal.skipRewritePractice({ rewriteTaskId: string }): RewritePracticeUpdateResult`
+  - `RewritePracticeUpdateResult = { success: boolean; journal?: TodayJournalSnapshot; rewritePractice?: RewritePracticeSnapshot | null; error?: string }`
+
+### 3. Contracts
+
+- `saveReviewRun` may create at most one pending rewrite task per saved review.
+- The saved task must be `kind = 'rewrite_original'`, `spaced_stage = 'D+1'`, `status = 'pending'`, and `due_at = saved_at + 1 day`.
+- The task must practice the single focus correction only. It must not be generated from a low-confidence correction or a non-focus correction.
+- Today selects one pending due rewrite task where `kind = 'rewrite_original'`, `spaced_stage = 'D+1'`, `due_at <= now`, and `created_at >= now - 7 days`.
+- Today rewrite practice must not block journal editing or autosave.
+- The native model sentence stays hidden while the task is pending and is revealed only after the user submits a rewrite, or in a future flow that explicitly supports reveal.
+- Completing a task stores trimmed `user_rewrite_text`, sets `status = 'completed'`, sets `completed_at`, returns a fresh Today snapshot, and still returns the completed `rewritePractice` so the renderer can reveal the native model after the pending slot is empty.
+- Skipping a task sets `status = 'skipped'`, sets `skipped_at`, returns a fresh Today snapshot, and removes the card from the pending Today slot.
+- All timestamp fields crossing IPC are Unix milliseconds numbers, not ISO strings.
+
+### 4. Validation & Error Matrix
+
+| Condition | Behavior |
+| --- | --- |
+| Save review has no D+1 `rewrite_original` operation | Save review succeeds without creating a rewrite task. |
+| Rewrite operation references missing or low-confidence corrections | Do not create a rewrite task. |
+| Rewrite operation does not reference the focus correction | Do not create a rewrite task. |
+| Multiple D+1 rewrite operations exist | Create at most the first valid focus rewrite task. |
+| Pending task is not due yet | Do not surface it in `pendingRewritePractice`. |
+| Pending task is older than 7 days | Do not occupy the main Today rewrite slot. |
+| Complete input has blank `userRewriteText` | Return `{ success: false, error }`; do not update the task. |
+| Complete/skip task ID is missing | Return `{ success: false, error: 'Rewrite practice was not found.' }`. |
+| Complete/skip task is already terminal | Return success with the current task snapshot and no duplicate status transition. |
+
+### 5. Good/Base/Bad Cases
+
+- Good: A saved valid review creates one D+1 focus rewrite task; next day Today shows it, journal writing still works, submitting reveals the native model and stores the trimmed rewrite.
+- Base: The user skips the due practice; Today removes the card and still allows normal writing/review.
+- Base: A task older than 7 days remains in storage/history but no longer occupies the main Today practice slot.
+- Bad: A low-confidence or non-focus correction generates rewrite practice.
+- Bad: The renderer derives the post-submit reveal card only from `journal.pendingRewritePractice`, so completion removes the card before the native model can be shown.
+- Bad: Date fields return ISO strings over IPC or compare seconds to milliseconds.
+
+### 6. Tests Required
+
+- Save transaction test:
+  - Assert saved review creates one pending `rewrite_original` task with `spacedStage = 'D+1'`, D+1 `dueAt`, focus original sentence, focus pattern, and native model sentence.
+  - Assert multiple rewrite operations still create at most one task.
+  - Assert low-confidence or non-focus referenced rewrite operations do not create tasks.
+- Service test:
+  - Assert Today returns one due pending D+1 task and excludes not-due, non-D+1, terminal, and older-than-7-days tasks.
+  - Assert complete stores trimmed `userRewriteText`, sets `completedAt`, removes pending Today task, and returns completed `rewritePractice` for UI reveal.
+  - Assert skip sets `skippedAt` and removes pending Today task.
+- UI smoke/manual test:
+  - Pending card shows original sentence, focus pattern, input, and Skip.
+  - Native model is hidden before submit and visible after submit.
+  - Journal editor remains editable/autosaves while the rewrite card is present.
+
+### 7. Wrong vs Correct
+
+#### Wrong
+
+```typescript
+if (result.success && result.journal) {
+  setJournal(result.journal);
+}
+
+const practice = journal.pendingRewritePractice;
+```
+
+After completion, the fresh Today snapshot has no pending practice, so the UI loses the card before revealing the native model.
+
+#### Correct
+
+```typescript
+if (result.success && result.journal && result.rewritePractice) {
+  setJournal(result.journal);
+  setCompletedRewritePractice(result.rewritePractice);
+}
+
+const practice = completedRewritePractice ?? journal.pendingRewritePractice;
+```
+
+The pending Today slot stays empty after completion, while the completed task remains available long enough to show the native model result.
+
 ## Scenario: Review Preview Payload and Save Boundary
 
 ### 1. Scope / Trigger
