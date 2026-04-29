@@ -208,3 +208,38 @@ Implemented the review-agent main-process boundary with disclosure gating, v0.1 
 ### Next Steps
 
 - None - task complete
+
+
+## Session 7: Review result learning flow
+
+**Date**: 2026-04-29
+**Task**: Review result learning flow
+**Branch**: `main`
+
+### Summary
+
+Implemented the v0.1 review preview/save learning flow, added the review preview/save contract, and verified lint, typecheck, and tests.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `48068fb` | (see git log) |
+| `fa9d393` | (see git log) |
+| `5b1e49c` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
