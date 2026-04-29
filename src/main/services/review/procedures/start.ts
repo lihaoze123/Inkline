@@ -1,41 +1,120 @@
 import { randomUUID } from 'node:crypto';
 import { eq } from 'drizzle-orm';
 import { db } from '../../../db/client';
-import { journalEntries, journalRevisions, reviewRuns, type ReviewRun } from '../../../db/schema';
-import { validateReviewResult } from '../../../../shared/review-contract';
-import { reviewRunSnapshotSchema, type ReviewRunSnapshot } from '../../../../shared/types/review';
+import { journalEntries, journalRevisions, reviewRuns } from '../../../db/schema';
+import { validateReviewResult, type PreviewOperations, type ReviewValidationResult } from '../../../../shared/review-contract';
+import {
+  reviewProgressEventSchema,
+  reviewRunSummarySchema,
+  type ReviewErrorCategory,
+  type ReviewProgressEvent,
+  type ReviewProgressPhase,
+  type ReviewRunResultKind,
+  type ReviewRunSummary,
+} from '../../../../shared/types/review';
 import { getSettingsSnapshot, type ReviewSettingsSnapshot } from '../../settings/service';
 import { hasReviewDisclosureAcknowledgement } from '../lib/disclosure';
 import { buildReviewInput } from '../lib/input';
 import { callOpenAiCompatibleReviewAgent } from '../lib/openai-compatible-agent';
 import { buildReviewPersistenceDecision } from '../lib/persistence-decision';
 import { buildReviewUserPrompt, REVIEW_SYSTEM_PROMPT } from '../lib/prompt';
+import { reviewRunToSnapshot } from '../lib/snapshots';
 import { startReviewInputSchema, type ReviewAgent, type StartReviewInput, type StartReviewOutput } from '../types';
 
 type StartReviewOptions = {
   agent?: ReviewAgent;
   hasDisclosureAcknowledgement?: () => boolean;
   settings?: ReviewSettingsSnapshot;
+  onProgress?: (event: ReviewProgressEvent) => void;
+};
+
+type PhaseTimingState = {
+  currentPhase: ReviewProgressPhase | null;
+  phaseStartedAt: number | null;
+  startedAt: number;
+  timings: Record<ReviewProgressPhase, number | null>;
 };
 
 function createId(prefix: string): string {
   return `${prefix}_${randomUUID()}`;
 }
 
-function reviewRunToSnapshot(reviewRun: ReviewRun): ReviewRunSnapshot {
-  return reviewRunSnapshotSchema.parse({
-    id: reviewRun.id,
-    journalEntryId: reviewRun.journalEntryId,
-    journalRevisionId: reviewRun.journalRevisionId,
-    contentHash: reviewRun.contentHash,
-    status: reviewRun.status,
-    validationStatus: reviewRun.validationStatus,
-    provider: reviewRun.provider,
-    model: reviewRun.model,
-    validationErrors: parseValidationErrors(reviewRun.validationErrorsJson),
-    createdAt: reviewRun.createdAt.getTime(),
-    updatedAt: reviewRun.updatedAt.getTime(),
+function createPhaseTimingState(startedAt: number): PhaseTimingState {
+  return {
+    currentPhase: null,
+    phaseStartedAt: null,
+    startedAt,
+    timings: {
+      preparing: null,
+      requesting: null,
+      waiting: null,
+      checking: null,
+      building_preview: null,
+    },
+  };
+}
+
+function beginPhase(runId: string, timingState: PhaseTimingState, phase: ReviewProgressPhase, onProgress: StartReviewOptions['onProgress']): void {
+  const at = Date.now();
+  timingState.currentPhase = phase;
+  timingState.phaseStartedAt = at;
+  emitProgress(onProgress, {
+    runId,
+    phase,
+    event: 'started',
+    at,
+    elapsedMs: at - timingState.startedAt,
   });
+}
+
+function completeCurrentPhase(runId: string, timingState: PhaseTimingState, onProgress: StartReviewOptions['onProgress']): void {
+  const phase = timingState.currentPhase;
+  const phaseStartedAt = timingState.phaseStartedAt;
+  if (!phase || phaseStartedAt === null) {
+    return;
+  }
+
+  const at = Date.now();
+  timingState.timings[phase] = at - phaseStartedAt;
+  emitProgress(onProgress, {
+    runId,
+    phase,
+    event: 'completed',
+    at,
+    elapsedMs: at - timingState.startedAt,
+  });
+  timingState.currentPhase = null;
+  timingState.phaseStartedAt = null;
+}
+
+function failCurrentPhase(
+  runId: string,
+  timingState: PhaseTimingState,
+  onProgress: StartReviewOptions['onProgress'],
+  errorCategory: ReviewErrorCategory,
+): void {
+  const phase = timingState.currentPhase;
+  const phaseStartedAt = timingState.phaseStartedAt;
+  if (!phase || phaseStartedAt === null) {
+    return;
+  }
+
+  const at = Date.now();
+  timingState.timings[phase] = at - phaseStartedAt;
+  emitProgress(onProgress, {
+    runId,
+    phase,
+    event: 'failed',
+    at,
+    elapsedMs: at - timingState.startedAt,
+    errorCategory,
+  });
+  timingState.currentPhase = null;
+  timingState.phaseStartedAt = null;
+}
+
+function emitProgress(onProgress: StartReviewOptions['onProgress'], event: ReviewProgressEvent): void {
+  onProgress?.(reviewProgressEventSchema.parse(event));
 }
 
 export async function startReview(input: StartReviewInput, options: StartReviewOptions = {}): Promise<StartReviewOutput> {
@@ -59,9 +138,13 @@ export async function startReview(input: StartReviewInput, options: StartReviewO
     return { success: false, error: 'Review requires the current active journal revision.' };
   }
 
+  const reviewRunId = createId('review');
+  const startedAt = Date.now();
+  const timingState = createPhaseTimingState(startedAt);
+  beginPhase(reviewRunId, timingState, 'preparing', options.onProgress);
+
   const settings = options.settings ?? (await getSettingsSnapshot());
   const reviewInput = buildReviewInput({ journalContent: revision.content, contentHash: revision.contentHash, date: entry.dateKey });
-  const reviewRunId = createId('review');
 
   const reviewingRun = db
     .insert(reviewRuns)
@@ -80,16 +163,73 @@ export async function startReview(input: StartReviewInput, options: StartReviewO
     .get();
 
   try {
+    completeCurrentPhase(reviewRunId, timingState, options.onProgress);
+    beginPhase(reviewRunId, timingState, 'requesting', options.onProgress);
     const agent = options.agent ?? callOpenAiCompatibleReviewAgent;
-    const agentResponse = await agent({
+    const agentRequest = {
       systemPrompt: REVIEW_SYSTEM_PROMPT,
       userPrompt: buildReviewUserPrompt(reviewInput),
       input: reviewInput,
-    });
+    };
+    completeCurrentPhase(reviewRunId, timingState, options.onProgress);
+
+    beginPhase(reviewRunId, timingState, 'waiting', options.onProgress);
+    const agentResponse = await agent(agentRequest);
+    completeCurrentPhase(reviewRunId, timingState, options.onProgress);
+
+    beginPhase(reviewRunId, timingState, 'checking', options.onProgress);
+    const validation = validateReviewResult(reviewInput, agentResponse.output);
     const persistenceDecision = buildReviewPersistenceDecision({
-      validation: validateReviewResult(reviewInput, agentResponse.output),
+      validation,
       rawOutput: agentResponse.rawOutput,
       rawResponseStorageEnabled: settings.rawResponseStorageEnabled,
+    });
+
+    if (persistenceDecision.status === 'review_failed') {
+      failCurrentPhase(reviewRunId, timingState, options.onProgress, 'validation_failed');
+      const summary = buildReviewRunSummary({
+        timingState,
+        validation,
+        resultKind: 'failed',
+        errorCategory: 'validation_failed',
+        providerStatus: null,
+        rawSaved: Boolean(persistenceDecision.rawOutputJson),
+      });
+      const failedRun = db
+        .update(reviewRuns)
+        .set({
+          status: persistenceDecision.status,
+          validationStatus: persistenceDecision.validationStatus,
+          validationErrorsJson: persistenceDecision.validationErrorsJson,
+          rawOutputJson: persistenceDecision.rawOutputJson,
+          parsedOutputJson: null,
+          previewOperationsJson: null,
+          summaryJson: JSON.stringify(summary),
+        })
+        .where(eq(reviewRuns.id, reviewingRun.id))
+        .returning()
+        .get();
+
+      return { success: false, reviewRun: reviewRunToSnapshot(failedRun), error: 'Review output did not pass validation.' };
+    }
+
+    completeCurrentPhase(reviewRunId, timingState, options.onProgress);
+    beginPhase(reviewRunId, timingState, 'building_preview', options.onProgress);
+    const currentEntryForCompletion = db.select().from(journalEntries).where(eq(journalEntries.id, entry.id)).get();
+    const isStaleAtCompletion = currentEntryForCompletion?.activeRevisionId !== revision.id;
+    const resultKind = isStaleAtCompletion
+      ? 'stale'
+      : persistenceDecision.validationStatus === 'valid_with_warnings'
+        ? 'ready_with_warnings'
+        : 'ready';
+    completeCurrentPhase(reviewRunId, timingState, options.onProgress);
+    const summary = buildReviewRunSummary({
+      timingState,
+      validation,
+      resultKind,
+      errorCategory: isStaleAtCompletion ? 'stale_content' : null,
+      providerStatus: null,
+      rawSaved: Boolean(persistenceDecision.rawOutputJson),
     });
 
     const finalRun = db
@@ -99,29 +239,38 @@ export async function startReview(input: StartReviewInput, options: StartReviewO
         validationStatus: persistenceDecision.validationStatus,
         validationErrorsJson: persistenceDecision.validationErrorsJson,
         rawOutputJson: persistenceDecision.rawOutputJson,
-        parsedOutputJson: persistenceDecision.status === 'review_ready' ? JSON.stringify(persistenceDecision.validation.parsedOutput) : null,
-        previewOperationsJson: persistenceDecision.status === 'review_ready' ? JSON.stringify(persistenceDecision.validation.operations) : null,
+        parsedOutputJson: JSON.stringify(persistenceDecision.validation.parsedOutput),
+        previewOperationsJson: JSON.stringify(persistenceDecision.validation.operations),
+        summaryJson: JSON.stringify(summary),
       })
       .where(eq(reviewRuns.id, reviewingRun.id))
       .returning()
       .get();
 
     return {
-      success: persistenceDecision.status === 'review_ready',
+      success: true,
       reviewRun: reviewRunToSnapshot(finalRun),
-      error: persistenceDecision.status === 'review_failed' ? 'Review output did not pass validation.' : undefined,
     };
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Review failed.';
-    const recoverableMessage = message.includes('provider API key') || message.includes('base URL') || message.includes('model') || message.includes('keychain')
-      ? message
-      : 'Review failed.';
+    const errorCategory = classifyReviewError(message);
+    const recoverableMessage = errorCategory === 'missing_config' ? message : userFacingErrorFor(errorCategory);
+    failCurrentPhase(reviewRunId, timingState, options.onProgress, errorCategory);
+    const summary = buildReviewRunSummary({
+      timingState,
+      validation: null,
+      resultKind: 'failed',
+      errorCategory,
+      providerStatus: providerStatusFromError(message),
+      rawSaved: false,
+    });
     const failedRun = db
       .update(reviewRuns)
       .set({
         status: 'review_failed',
         validationStatus: 'invalid',
         validationErrorsJson: JSON.stringify([message]),
+        summaryJson: JSON.stringify(summary),
       })
       .where(eq(reviewRuns.id, reviewingRun.id))
       .returning()
@@ -131,11 +280,85 @@ export async function startReview(input: StartReviewInput, options: StartReviewO
   }
 }
 
-function parseValidationErrors(value: string | null): string[] {
-  if (!value) {
-    return [];
+function buildReviewRunSummary(params: {
+  timingState: PhaseTimingState;
+  validation: ReviewValidationResult | null;
+  resultKind: ReviewRunResultKind;
+  errorCategory: ReviewErrorCategory | null;
+  providerStatus: string | null;
+  rawSaved: boolean;
+}): ReviewRunSummary {
+  const completedAt = Date.now();
+  const summary = {
+    startedAt: params.timingState.startedAt,
+    completedAt,
+    durationMs: completedAt - params.timingState.startedAt,
+    phaseTimings: params.timingState.timings,
+    resultKind: params.resultKind,
+    errorCategory: params.errorCategory,
+    providerStatus: params.providerStatus,
+    reviewStats: statsFromOperations(params.validation?.operations ?? null),
+    warningCount: params.validation?.issues.filter((issue) => issue.severity === 'warning').length ?? 0,
+    rawSaved: params.rawSaved,
+  };
+
+  return reviewRunSummarySchema.parse(summary);
+}
+
+function statsFromOperations(operations: PreviewOperations | null): ReviewRunSummary['reviewStats'] {
+  if (!operations) {
+    return {
+      anchoredCorrections: 0,
+      lowConfidenceCorrections: 0,
+      generatedRewriteTasks: 0,
+      generatedSelfRepairAttempts: 0,
+      generatedReferenceRewrites: 0,
+    };
   }
 
-  const parsed = JSON.parse(value) as unknown;
-  return Array.isArray(parsed) && parsed.every((item) => typeof item === 'string') ? parsed : [];
+  return {
+    anchoredCorrections: operations.corrections.filter((correction) => correction.status !== 'low_confidence').length,
+    lowConfidenceCorrections: operations.corrections.filter((correction) => correction.status === 'low_confidence').length,
+    generatedRewriteTasks: operations.rewritePractice.length,
+    generatedSelfRepairAttempts: operations.selfRepair ? 1 : 0,
+    generatedReferenceRewrites: operations.referenceRewrites.length,
+  };
+}
+
+function classifyReviewError(message: string): ReviewErrorCategory {
+  if (message.includes('provider API key') || message.includes('base URL') || message.includes('model') || message.includes('keychain')) {
+    return 'missing_config';
+  }
+
+  if (message.toLowerCase().includes('timed out')) {
+    return 'timeout';
+  }
+
+  if (message.includes('invalid JSON') || message.includes('Provider JSON')) {
+    return 'invalid_json';
+  }
+
+  return 'provider_error';
+}
+
+function providerStatusFromError(message: string): string | null {
+  const statusMatch = message.match(/\((\d{3})\)/);
+  return statusMatch?.[1] ?? null;
+}
+
+function userFacingErrorFor(errorCategory: ReviewErrorCategory): string {
+  switch (errorCategory) {
+    case 'timeout':
+      return 'AI service took too long. Try again in a moment.';
+    case 'invalid_json':
+      return 'AI response could not be used. Try again or change the model in Settings.';
+    case 'provider_error':
+      return 'AI service connection failed. Try again or check Settings.';
+    case 'validation_failed':
+      return 'AI suggestions could not be used reliably. Try again.';
+    case 'stale_content':
+      return 'This review is based on an earlier version of your journal.';
+    case 'missing_config':
+      return 'Review needs provider settings before it can run.';
+  }
 }

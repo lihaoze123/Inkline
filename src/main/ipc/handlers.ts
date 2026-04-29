@@ -6,6 +6,7 @@ import {
   acknowledgeReviewDisclosureInputSchema,
   getReviewPreviewInputSchema,
   reviewPreviewSnapshotSchema,
+  reviewProgressEventSchema,
   saveReviewInputSchema,
   saveReviewOutputSchema,
   startReviewInputSchema,
@@ -103,9 +104,13 @@ export function registerIpcHandlers(migrationResult: MigrationResult): void {
     return acknowledgeReviewDisclosure();
   });
 
-  ipcMain.handle(IPC_CHANNELS.REVIEW.START, async (_event, input: unknown): Promise<unknown> => {
+  ipcMain.handle(IPC_CHANNELS.REVIEW.START, async (event, input: unknown): Promise<unknown> => {
     const parsedInput = startReviewInputSchema.parse(input);
-    return startReviewOutputSchema.parse(await startReview(parsedInput));
+    return startReviewOutputSchema.parse(await startReview(parsedInput, {
+      onProgress: (progressEvent) => {
+        event.sender.send(IPC_CHANNELS.REVIEW.PROGRESS, reviewProgressEventSchema.parse(progressEvent));
+      },
+    }));
   });
 
   ipcMain.handle(IPC_CHANNELS.REVIEW.GET_PREVIEW, (_event, input: unknown): unknown => {

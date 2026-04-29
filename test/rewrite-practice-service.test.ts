@@ -118,6 +118,7 @@ class FakeJournalDatabase {
       parsedOutputJson: null,
       previewOperationsJson: null,
       validationErrorsJson: null,
+      summaryJson: null,
       createdAt: now,
       updatedAt: now,
     });

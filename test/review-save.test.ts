@@ -193,6 +193,7 @@ class FakeReviewDatabase {
       parsedOutputJson: null,
       previewOperationsJson: JSON.stringify(operations),
       validationErrorsJson: JSON.stringify([]),
+      summaryJson: null,
       createdAt: now,
       updatedAt: now,
     });

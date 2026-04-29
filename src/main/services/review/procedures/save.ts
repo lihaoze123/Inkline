@@ -9,36 +9,18 @@ import {
   reviewRuns,
   rewriteTasks,
   selfRepairAttempts,
-  type ReviewRun,
 } from '../../../db/schema';
 import {
   previewOperationsSnapshotSchema,
-  reviewRunSnapshotSchema,
   saveReviewInputSchema,
-  type ReviewRunSnapshot,
   type SaveReviewInput,
   type SaveReviewOutput,
 } from '../../../../shared/types/review';
 import { getTodayJournal } from '../../journal/service';
+import { reviewRunToSnapshot } from '../lib/snapshots';
 
 function createId(prefix: string): string {
   return `${prefix}_${randomUUID()}`;
-}
-
-function reviewRunToSnapshot(reviewRun: ReviewRun): ReviewRunSnapshot {
-  return reviewRunSnapshotSchema.parse({
-    id: reviewRun.id,
-    journalEntryId: reviewRun.journalEntryId,
-    journalRevisionId: reviewRun.journalRevisionId,
-    contentHash: reviewRun.contentHash,
-    status: reviewRun.status,
-    validationStatus: reviewRun.validationStatus,
-    provider: reviewRun.provider,
-    model: reviewRun.model,
-    validationErrors: parseValidationErrors(reviewRun.validationErrorsJson),
-    createdAt: reviewRun.createdAt.getTime(),
-    updatedAt: reviewRun.updatedAt.getTime(),
-  });
 }
 
 type SaveReviewOptions = {
@@ -201,13 +183,4 @@ function patternLabelFor(operation: { matchedPatternId: string | null; newPatter
 
 function isNewPatternSuggestion(value: unknown): value is { rule: string } {
   return typeof value === 'object' && value !== null && 'rule' in value && typeof (value as { rule?: unknown }).rule === 'string';
-}
-
-function parseValidationErrors(value: string | null): string[] {
-  if (!value) {
-    return [];
-  }
-
-  const parsed = JSON.parse(value) as unknown;
-  return Array.isArray(parsed) && parsed.every((item) => typeof item === 'string') ? parsed : [];
 }

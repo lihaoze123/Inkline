@@ -1,4 +1,4 @@
-import { contextBridge, ipcRenderer } from 'electron';
+import { contextBridge, ipcRenderer, type IpcRendererEvent } from 'electron';
 import { IPC_CHANNELS } from '../shared/constants/channels';
 import type { StartupStatus } from '../shared/types/app';
 import type { ProviderCredentialMutationResult, ProviderKeyStatus, SetProviderApiKeyInput } from '../shared/types/credentials';
@@ -14,6 +14,7 @@ import type {
   AcknowledgeReviewDisclosureInput,
   GetReviewPreviewInput,
   ReviewPreviewSnapshot,
+  ReviewProgressEvent,
   SaveReviewInput,
   SaveReviewOutput,
   StartReviewInput,
@@ -53,6 +54,11 @@ const api = {
     acknowledgeDisclosure: (input: AcknowledgeReviewDisclosureInput): Promise<boolean> =>
       ipcRenderer.invoke(IPC_CHANNELS.REVIEW.ACKNOWLEDGE_DISCLOSURE, input),
     start: (input: StartReviewInput): Promise<StartReviewOutput> => ipcRenderer.invoke(IPC_CHANNELS.REVIEW.START, input),
+    onProgress: (handler: (event: ReviewProgressEvent) => void): (() => void) => {
+      const wrapped = (_event: IpcRendererEvent, progressEvent: ReviewProgressEvent): void => handler(progressEvent);
+      ipcRenderer.on(IPC_CHANNELS.REVIEW.PROGRESS, wrapped);
+      return () => ipcRenderer.removeListener(IPC_CHANNELS.REVIEW.PROGRESS, wrapped);
+    },
     getPreview: (input: GetReviewPreviewInput): Promise<ReviewPreviewSnapshot | null> =>
       ipcRenderer.invoke(IPC_CHANNELS.REVIEW.GET_PREVIEW, input),
     save: (input: SaveReviewInput): Promise<SaveReviewOutput> => ipcRenderer.invoke(IPC_CHANNELS.REVIEW.SAVE, input),

@@ -52,6 +52,7 @@ export const reviewRuns = sqliteTable('review_runs', {
   parsedOutputJson: text('parsed_output_json'),
   previewOperationsJson: text('preview_operations_json'),
   validationErrorsJson: text('validation_errors_json'),
+  summaryJson: text('summary_json'),
   createdAt: integer('created_at', { mode: 'timestamp_ms' })
     .notNull()
     .default(sql`(unixepoch() * 1000)`),

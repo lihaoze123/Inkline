@@ -34,6 +34,7 @@
     "zod": "^4.2.0"
   },
   "devDependencies": {
+    "@tailwindcss/vite": "^4.2.4",
     "@types/better-sqlite3": "^7.6.13",
     "@types/node": "^24.10.1",
     "@types/react": "^19.2.7",
@@ -41,9 +42,11 @@
     "@typescript-eslint/eslint-plugin": "^8.48.1",
     "@typescript-eslint/parser": "^8.48.1",
     "@vitejs/plugin-react": "^5.1.1",
+    "daisyui": "^5.5.19",
     "electron": "^39.2.7",
     "eslint": "^9.39.1",
     "eslint-plugin-react-hooks": "^7.0.1",
+    "tailwindcss": "^4.2.4",
     "tsx": "^4.21.0",
     "typescript": "^5.9.3",
     "vite": "^7.2.4",

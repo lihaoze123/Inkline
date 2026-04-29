@@ -1,32 +1,15 @@
 import { eq } from 'drizzle-orm';
 import { db } from '../../../db/client';
-import { journalEntries, journalRevisions, reviewRuns, type ReviewRun } from '../../../db/schema';
+import { journalEntries, journalRevisions, reviewRuns } from '../../../db/schema';
 import {
   getReviewPreviewInputSchema,
   previewOperationsSnapshotSchema,
   reviewPreviewSnapshotSchema,
-  reviewRunSnapshotSchema,
   type GetReviewPreviewInput,
   type ReviewPreviewSnapshot,
-  type ReviewRunSnapshot,
 } from '../../../../shared/types/review';
 import { reviewOutputSchema } from '../../../../shared/review-contract/schemas';
-
-function reviewRunToSnapshot(reviewRun: ReviewRun): ReviewRunSnapshot {
-  return reviewRunSnapshotSchema.parse({
-    id: reviewRun.id,
-    journalEntryId: reviewRun.journalEntryId,
-    journalRevisionId: reviewRun.journalRevisionId,
-    contentHash: reviewRun.contentHash,
-    status: reviewRun.status,
-    validationStatus: reviewRun.validationStatus,
-    provider: reviewRun.provider,
-    model: reviewRun.model,
-    validationErrors: parseValidationErrors(reviewRun.validationErrorsJson),
-    createdAt: reviewRun.createdAt.getTime(),
-    updatedAt: reviewRun.updatedAt.getTime(),
-  });
-}
+import { reviewRunToSnapshot } from '../lib/snapshots';
 
 export function getReviewPreview(input: GetReviewPreviewInput): ReviewPreviewSnapshot | null {
   const parseResult = getReviewPreviewInputSchema.safeParse(input);
@@ -59,13 +42,4 @@ export function getReviewPreview(input: GetReviewPreviewInput): ReviewPreviewSna
     currentJournalContentHash: activeRevision?.contentHash ?? null,
     isStaleForCurrentJournal: activeRevision?.contentHash !== reviewRun.contentHash,
   });
-}
-
-function parseValidationErrors(value: string | null): string[] {
-  if (!value) {
-    return [];
-  }
-
-  const parsed = JSON.parse(value) as unknown;
-  return Array.isArray(parsed) && parsed.every((item) => typeof item === 'string') ? parsed : [];
 }

@@ -11,6 +11,57 @@ export const startReviewInputSchema = z.object({
   journalRevisionId: z.string().min(1),
 });
 
+export const reviewProgressPhaseSchema = z.enum(['preparing', 'requesting', 'waiting', 'checking', 'building_preview']);
+export const reviewProgressEventKindSchema = z.enum(['started', 'completed', 'failed']);
+export const reviewErrorCategorySchema = z.enum([
+  'missing_config',
+  'provider_error',
+  'timeout',
+  'invalid_json',
+  'validation_failed',
+  'stale_content',
+]);
+export const reviewRunResultKindSchema = z.enum(['ready', 'ready_with_warnings', 'failed', 'stale', 'saved']);
+
+export const reviewPhaseTimingsSchema = z.object({
+  preparing: z.number().int().nonnegative().nullable(),
+  requesting: z.number().int().nonnegative().nullable(),
+  waiting: z.number().int().nonnegative().nullable(),
+  checking: z.number().int().nonnegative().nullable(),
+  building_preview: z.number().int().nonnegative().nullable(),
+});
+
+export const reviewStatsSchema = z.object({
+  anchoredCorrections: z.number().int().nonnegative(),
+  lowConfidenceCorrections: z.number().int().nonnegative(),
+  generatedRewriteTasks: z.number().int().nonnegative(),
+  generatedSelfRepairAttempts: z.number().int().nonnegative(),
+  generatedReferenceRewrites: z.number().int().nonnegative(),
+});
+
+export const reviewRunSummarySchema = z.object({
+  startedAt: z.number(),
+  completedAt: z.number().nullable(),
+  durationMs: z.number().int().nonnegative().nullable(),
+  phaseTimings: reviewPhaseTimingsSchema,
+  resultKind: reviewRunResultKindSchema,
+  errorCategory: reviewErrorCategorySchema.nullable(),
+  providerStatus: z.string().nullable(),
+  reviewStats: reviewStatsSchema,
+  warningCount: z.number().int().nonnegative(),
+  rawSaved: z.boolean(),
+});
+
+export const reviewProgressEventSchema = z.object({
+  runId: z.string().min(1),
+  phase: reviewProgressPhaseSchema,
+  event: reviewProgressEventKindSchema,
+  at: z.number(),
+  elapsedMs: z.number().int().nonnegative(),
+  message: z.string().optional(),
+  errorCategory: reviewErrorCategorySchema.optional(),
+});
+
 export const reviewRunSnapshotSchema = z.object({
   id: z.string().min(1),
   journalEntryId: z.string().min(1),
@@ -21,6 +72,7 @@ export const reviewRunSnapshotSchema = z.object({
   provider: z.string().min(1),
   model: z.string().min(1),
   validationErrors: z.array(z.string()),
+  summary: reviewRunSummarySchema.nullable(),
   createdAt: z.number(),
   updatedAt: z.number(),
 });
@@ -108,6 +160,13 @@ export const startReviewOutputSchema = z.object({
 
 export type AcknowledgeReviewDisclosureInput = z.infer<typeof acknowledgeReviewDisclosureInputSchema>;
 export type StartReviewInput = z.infer<typeof startReviewInputSchema>;
+export type ReviewProgressPhase = z.infer<typeof reviewProgressPhaseSchema>;
+export type ReviewErrorCategory = z.infer<typeof reviewErrorCategorySchema>;
+export type ReviewRunResultKind = z.infer<typeof reviewRunResultKindSchema>;
+export type ReviewPhaseTimings = z.infer<typeof reviewPhaseTimingsSchema>;
+export type ReviewStats = z.infer<typeof reviewStatsSchema>;
+export type ReviewRunSummary = z.infer<typeof reviewRunSummarySchema>;
+export type ReviewProgressEvent = z.infer<typeof reviewProgressEventSchema>;
 export type ReviewRunSnapshot = z.infer<typeof reviewRunSnapshotSchema>;
 export type AnchoredCorrectionOperationSnapshot = z.infer<typeof anchoredCorrectionOperationSchema>;
 export type PreviewOperationsSnapshot = z.infer<typeof previewOperationsSnapshotSchema>;

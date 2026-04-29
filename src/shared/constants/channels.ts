@@ -21,6 +21,7 @@ export const IPC_CHANNELS = {
   REVIEW: {
     ACKNOWLEDGE_DISCLOSURE: 'review:acknowledgeDisclosure',
     START: 'review:start',
+    PROGRESS: 'review:progress',
     GET_PREVIEW: 'review:getPreview',
     SAVE: 'review:save',
   },

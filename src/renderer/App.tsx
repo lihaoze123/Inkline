@@ -1,18 +1,32 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { StartupStatus } from '@shared/types/app';
 import type { TodayJournalSnapshot } from '@shared/types/journal';
-import type { AnchoredCorrectionOperationSnapshot, ReviewPreviewSnapshot } from '@shared/types/review';
+import type { ReviewPreviewSnapshot, ReviewProgressEvent, ReviewRunSnapshot } from '@shared/types/review';
 import type { SettingsSnapshot } from '@shared/types/settings';
+import { JournalEditorCard } from './components/JournalEditorCard';
+import { LearningPanel } from './components/LearningPanel';
+import { RevealAnswerDialog } from './components/RevealAnswerDialog';
+import { ReviewDisclosureDialog } from './components/ReviewDisclosureDialog';
+import { SettingsDrawer } from './components/SettingsDrawer';
+import { TodayHeader } from './components/TodayHeader';
+import { getFocusCorrection } from './components/review-utils';
+import type { AppStatusModel, ReviewProgressModel, ReviewState, SaveState } from './components/types';
 
 type LoadState =
   | { status: 'loading' }
   | { status: 'ready'; journal: TodayJournalSnapshot; settings: SettingsSnapshot; startup: StartupStatus }
   | { status: 'error'; message: string };
 
-type SaveState = 'idle' | 'saving' | 'saved' | 'error';
-type ReviewState = 'idle' | 'reviewing' | 'ready' | 'saving' | 'saved' | 'failed';
-
 const AUTOSAVE_DELAY_MS = 900;
+
+function emptyReviewProgress(): ReviewProgressModel {
+  return {
+    activeRunId: null,
+    events: [],
+    currentEvent: null,
+    startedAt: null,
+  };
+}
 
 export function App(): React.JSX.Element {
   const [loadState, setLoadState] = useState<LoadState>({ status: 'loading' });
@@ -48,16 +62,21 @@ export function App(): React.JSX.Element {
 
   if (loadState.status === 'loading') {
     return (
-      <main className="app-shell">
-        <p className="status-line">Loading today...</p>
+      <main className="grid min-h-screen place-items-center bg-base-200 p-8">
+        <div className="rounded-[2rem] border border-base-300 bg-base-100 p-8 text-center shadow-xl">
+          <span className="loading loading-spinner loading-lg text-primary" />
+          <p className="mt-4 font-medium text-base-content/70">Loading today...</p>
+        </div>
       </main>
     );
   }
 
   if (loadState.status === 'error') {
     return (
-      <main className="app-shell">
-        <p className="status-line error">{loadState.message}</p>
+      <main className="grid min-h-screen place-items-center bg-base-200 p-8">
+        <div className="alert alert-error max-w-lg rounded-[1.5rem] shadow-xl">
+          <span>{loadState.message}</span>
+        </div>
       </main>
     );
   }
@@ -79,6 +98,8 @@ function TodayPage({ initialJournal, settings, startup }: TodayPageProps): React
   const [saveError, setSaveError] = useState<string | null>(null);
   const [reviewState, setReviewState] = useState<ReviewState>('idle');
   const [reviewError, setReviewError] = useState<string | null>(null);
+  const [reviewProgress, setReviewProgress] = useState<ReviewProgressModel>(() => emptyReviewProgress());
+  const [latestReviewRun, setLatestReviewRun] = useState<ReviewRunSnapshot | null>(null);
   const [reviewPreview, setReviewPreview] = useState<ReviewPreviewSnapshot | null>(null);
   const [selfRepairAttempt, setSelfRepairAttempt] = useState('');
   const [modelAnswerRevealed, setModelAnswerRevealed] = useState(false);
@@ -86,22 +107,38 @@ function TodayPage({ initialJournal, settings, startup }: TodayPageProps): React
   const [completedRewritePractice, setCompletedRewritePractice] = useState<TodayJournalSnapshot['pendingRewritePractice']>(null);
   const [rewritePracticeError, setRewritePracticeError] = useState<string | null>(null);
   const [showDisclosure, setShowDisclosure] = useState(false);
+  const [showSettingsDrawer, setShowSettingsDrawer] = useState(false);
+  const [showRevealConfirmation, setShowRevealConfirmation] = useState(false);
   const [providerBaseUrlInput, setProviderBaseUrlInput] = useState(settings.baseUrl);
   const [providerModelInput, setProviderModelInput] = useState(settings.model);
   const [providerApiKeyInput, setProviderApiKeyInput] = useState('');
   const [settingsMessage, setSettingsMessage] = useState<string | null>(null);
   const [settingsError, setSettingsError] = useState<string | null>(null);
   const lastSavedContentRef = useRef(initialJournal.activeRevision?.content ?? '');
+  const activeReviewRef = useRef(false);
 
   const hasWritten = content.trim().length > 0;
-  const editorModel = useMemo(
-    () => ({
-      content,
-      contentHash: journal.activeRevision?.contentHash ?? null,
-      revisionId: journal.activeRevision?.id ?? null,
-    }),
-    [content, journal.activeRevision?.contentHash, journal.activeRevision?.id]
-  );
+  const appStatus = useMemo(() => getAppStatus(startup, appSettings), [appSettings, startup]);
+  const focusCorrection = reviewPreview ? getFocusCorrection(reviewPreview) : null;
+  const highlightedContent = reviewPreview && focusCorrection && reviewPreview.isStaleForCurrentJournal === false ? reviewPreview.reviewedContent : null;
+  const highlightedCorrections = reviewPreview && focusCorrection && reviewPreview.isStaleForCurrentJournal === false ? reviewPreview.operations.corrections : [];
+
+  useEffect(() => {
+    return window.api.review.onProgress((event: ReviewProgressEvent) => {
+      setReviewProgress((current) => {
+        if (!activeReviewRef.current || (current.activeRunId && current.activeRunId !== event.runId)) {
+          return current;
+        }
+
+        return {
+          activeRunId: event.runId,
+          events: [...current.events, event],
+          currentEvent: event,
+          startedAt: current.startedAt ?? event.at - event.elapsedMs,
+        };
+      });
+    });
+  }, []);
 
   const saveContent = useCallback(async (nextContent: string): Promise<void> => {
     setSaveState('saving');
@@ -113,6 +150,7 @@ function TodayPage({ initialJournal, settings, startup }: TodayPageProps): React
       setJournal(savedJournal);
       if (savedJournal.staleReview) {
         setReviewPreview(null);
+        setLatestReviewRun(null);
       }
       setSaveState('saved');
     } catch (error) {
@@ -142,36 +180,54 @@ function TodayPage({ initialJournal, settings, startup }: TodayPageProps): React
       return;
     }
 
+    activeReviewRef.current = true;
     setReviewState('reviewing');
     setReviewError(null);
+    setReviewProgress(emptyReviewProgress());
+    setLatestReviewRun(null);
     setReviewPreview(null);
     setSelfRepairAttempt('');
     setModelAnswerRevealed(false);
 
-    const result = await window.api.review.start({
-      journalEntryId: targetJournal.entryId,
-      journalRevisionId: targetJournal.activeRevision.id,
-    });
+    try {
+      const result = await window.api.review.start({
+        journalEntryId: targetJournal.entryId,
+        journalRevisionId: targetJournal.activeRevision.id,
+      });
 
-    if (result.disclosureRequired) {
-      setShowDisclosure(true);
-      setReviewState('idle');
-      return;
-    }
+      activeReviewRef.current = false;
 
-    if (result.success === true && result.reviewRun) {
-      const preview = await window.api.review.getPreview({ reviewRunId: result.reviewRun.id });
-      setReviewPreview(preview);
-      setReviewState(preview ? 'ready' : 'failed');
-      setJournal(await window.api.journal.getToday());
-      if (!preview) {
-        setReviewError('Review preview is unavailable.');
+      if (result.disclosureRequired) {
+        setShowDisclosure(true);
+        setReviewState('idle');
+        return;
       }
-      return;
-    }
 
-    setReviewState('failed');
-    setReviewError(result.error ?? 'Review failed.');
+      if (result.reviewRun) {
+        setLatestReviewRun(result.reviewRun);
+        setReviewProgress((current) => ({
+          ...current,
+          activeRunId: result.reviewRun?.id ?? current.activeRunId,
+        }));
+      }
+
+      if (result.success === true && result.reviewRun) {
+        const preview = await window.api.review.getPreview({ reviewRunId: result.reviewRun.id });
+        setReviewPreview(preview);
+        setReviewState(preview ? 'ready' : 'failed');
+        setJournal(await window.api.journal.getToday());
+        if (!preview) {
+          setReviewError('Review preview is unavailable.');
+        }
+        return;
+      }
+
+      setReviewState('failed');
+      setReviewError(result.error ?? 'Review failed.');
+    } catch (error) {
+      activeReviewRef.current = false;
+      throw error;
+    }
   }, []);
 
   const reviewCurrentContent = useCallback(async (): Promise<void> => {
@@ -210,10 +266,6 @@ function TodayPage({ initialJournal, settings, startup }: TodayPageProps): React
     setReviewState('failed');
     setReviewError(result.error ?? 'Unable to save review.');
   }, [modelAnswerRevealed, reviewPreview, selfRepairAttempt]);
-
-  const handleReviewCurrentVersion = useCallback(() => {
-    void reviewCurrentContent();
-  }, [reviewCurrentContent]);
 
   const completePendingRewritePractice = useCallback(async (): Promise<void> => {
     if (!journal.pendingRewritePractice) {
@@ -305,32 +357,81 @@ function TodayPage({ initialJournal, settings, startup }: TodayPageProps): React
     setAppSettings({ ...appSettings, rawResponseStorageEnabled });
   }, [appSettings]);
 
-  const focusCorrection = reviewPreview ? getFocusCorrection(reviewPreview) : null;
-  const canRevealAnswer = modelAnswerRevealed || selfRepairAttempt.trim().length > 0;
+  const requestRevealModelAnswer = useCallback((): void => {
+    if (modelAnswerRevealed || selfRepairAttempt.trim().length > 0) {
+      setModelAnswerRevealed(true);
+      return;
+    }
+
+    setShowRevealConfirmation(true);
+  }, [modelAnswerRevealed, selfRepairAttempt]);
+
+  const revealModelAnswerAfterConfirmation = useCallback((): void => {
+    setShowRevealConfirmation(false);
+    setModelAnswerRevealed(true);
+  }, []);
 
   return (
-    <main className="today-shell">
-      <section className="today-status" aria-labelledby="today-title">
-        <div>
-          <p className="eyebrow">Today</p>
-          <h1 id="today-title">Write freely first.</h1>
-        </div>
-        <div className="foundation-status" aria-label="Local app status">
-          <span>{startup.databaseReady ? 'Local database ready' : 'Database unavailable'}</span>
-          <span>Provider: {appSettings.provider}</span>
-          <span>Model: {appSettings.model}</span>
-          <span>Key: {formatProviderKeyStatus(appSettings.providerApiKeyStatus)}</span>
-          <span>Raw model responses: {appSettings.rawResponseStorageEnabled ? 'On' : 'Off'}</span>
-        </div>
-      </section>
+    <main className="app-orb-field min-h-screen overflow-hidden bg-base-200 p-4 text-base-content md:p-6">
+      <div className="mx-auto flex h-[calc(100vh-2rem)] max-w-[96rem] flex-col gap-4 md:h-[calc(100vh-3rem)]">
+        <TodayHeader startup={startup} status={appStatus} onOpenSettings={() => setShowSettingsDrawer(true)} />
 
-      <SettingsPanel
+        <div className="grid min-h-0 flex-1 gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(20rem,24rem)]">
+          <JournalEditorCard
+            content={content}
+            lastAutosaveAt={journal.lastAutosaveAt}
+            saveState={saveState}
+            saveError={saveError}
+            highlightedContent={highlightedContent}
+            highlightedCorrections={highlightedCorrections}
+            onContentChange={setContent}
+          />
+          <LearningPanel
+            journal={journal}
+            hasWritten={hasWritten}
+            saveState={saveState}
+            reviewState={reviewState}
+            reviewError={reviewError}
+            reviewProgress={reviewProgress}
+            latestReviewRun={latestReviewRun}
+            preview={reviewPreview}
+            selfRepairAttempt={selfRepairAttempt}
+            modelAnswerRevealed={modelAnswerRevealed}
+            onSelfRepairAttemptChange={setSelfRepairAttempt}
+            onRevealModelAnswer={requestRevealModelAnswer}
+            onSaveReview={() => {
+              void saveReview();
+            }}
+            rewritePracticeInput={rewritePracticeInput}
+            completedRewritePractice={completedRewritePractice}
+            rewritePracticeError={rewritePracticeError}
+            onRewritePracticeInputChange={(value) => {
+              setRewritePracticeInput(value);
+              setCompletedRewritePractice(null);
+            }}
+            onCompleteRewritePractice={() => {
+              void completePendingRewritePractice();
+            }}
+            onSkipRewritePractice={() => {
+              void skipPendingRewritePractice();
+            }}
+            onReviewCurrentVersion={() => {
+              void reviewCurrentContent();
+            }}
+          />
+        </div>
+      </div>
+
+      <SettingsDrawer
+        isOpen={showSettingsDrawer}
         settings={appSettings}
+        startup={startup}
         baseUrlInput={providerBaseUrlInput}
         modelInput={providerModelInput}
         apiKeyInput={providerApiKeyInput}
         message={settingsMessage}
         error={settingsError}
+        onClose={() => setShowSettingsDrawer(false)}
         onBaseUrlChange={setProviderBaseUrlInput}
         onModelChange={setProviderModelInput}
         onApiKeyChange={setProviderApiKeyInput}
@@ -348,55 +449,10 @@ function TodayPage({ initialJournal, settings, startup }: TodayPageProps): React
         }}
       />
 
-      <section className="journal-card" aria-labelledby="journal-editor-title">
-        <div className="journal-header">
-          <div>
-            <p className="eyebrow">Journal editor</p>
-            <h2 id="journal-editor-title">Today's journal</h2>
-          </div>
-          <AutosaveStatus state={saveState} lastAutosaveAt={journal.lastAutosaveAt} error={saveError} />
-        </div>
-        {reviewPreview && focusCorrection && reviewPreview.isStaleForCurrentJournal === false ? (
-          <HighlightedJournal content={reviewPreview.reviewedContent} corrections={reviewPreview.operations.corrections} />
-        ) : null}
-        <textarea
-          className="journal-editor"
-          value={editorModel.content}
-          onChange={(event) => setContent(event.target.value)}
-          placeholder="Write about your day in English. No redlines, no corrections while you write."
-          aria-label="Today's English journal"
-          spellCheck={false}
-        />
-      </section>
-
-      <LearningPanel
-        journal={journal}
-        hasWritten={hasWritten}
-        saveState={saveState}
-        reviewState={reviewState}
-        reviewError={reviewError}
-        preview={reviewPreview}
-        selfRepairAttempt={selfRepairAttempt}
-        modelAnswerRevealed={canRevealAnswer}
-        onSelfRepairAttemptChange={setSelfRepairAttempt}
-        onRevealModelAnswer={() => setModelAnswerRevealed(true)}
-        onSaveReview={() => {
-          void saveReview();
-        }}
-        rewritePracticeInput={rewritePracticeInput}
-        completedRewritePractice={completedRewritePractice}
-        rewritePracticeError={rewritePracticeError}
-        onRewritePracticeInputChange={(value) => {
-          setRewritePracticeInput(value);
-          setCompletedRewritePractice(null);
-        }}
-        onCompleteRewritePractice={() => {
-          void completePendingRewritePractice();
-        }}
-        onSkipRewritePractice={() => {
-          void skipPendingRewritePractice();
-        }}
-        onReviewCurrentVersion={handleReviewCurrentVersion}
+      <RevealAnswerDialog
+        isOpen={showRevealConfirmation}
+        onCancel={() => setShowRevealConfirmation(false)}
+        onReveal={revealModelAnswerAfterConfirmation}
       />
 
       {showDisclosure ? (
@@ -412,494 +468,29 @@ function TodayPage({ initialJournal, settings, startup }: TodayPageProps): React
   );
 }
 
-type AutosaveStatusProps = {
-  state: SaveState;
-  lastAutosaveAt: number | null;
-  error: string | null;
-};
-
-type SettingsPanelProps = {
-  settings: SettingsSnapshot;
-  baseUrlInput: string;
-  modelInput: string;
-  apiKeyInput: string;
-  message: string | null;
-  error: string | null;
-  onBaseUrlChange: (value: string) => void;
-  onModelChange: (value: string) => void;
-  onApiKeyChange: (value: string) => void;
-  onSaveProviderConfig: () => void;
-  onSaveApiKey: () => void;
-  onDeleteApiKey: () => void;
-  onRawResponseStorageChange: (enabled: boolean) => void;
-};
-
-function SettingsPanel({
-  settings,
-  baseUrlInput,
-  modelInput,
-  apiKeyInput,
-  message,
-  error,
-  onBaseUrlChange,
-  onModelChange,
-  onApiKeyChange,
-  onSaveProviderConfig,
-  onSaveApiKey,
-  onDeleteApiKey,
-  onRawResponseStorageChange,
-}: SettingsPanelProps): React.JSX.Element {
-  return (
-    <section className="settings-card" aria-labelledby="provider-settings-title">
-      <div>
-        <p className="eyebrow">Settings</p>
-        <h2 id="provider-settings-title">Live review provider</h2>
-      </div>
-      <div className="settings-grid">
-        <label>
-          Base URL
-          <input value={baseUrlInput} onChange={(event) => onBaseUrlChange(event.target.value)} aria-label="OpenAI-compatible base URL" />
-        </label>
-        <label>
-          Model
-          <input value={modelInput} onChange={(event) => onModelChange(event.target.value)} aria-label="OpenAI-compatible model" />
-        </label>
-        <label>
-          API key
-          <input
-            value={apiKeyInput}
-            onChange={(event) => onApiKeyChange(event.target.value)}
-            aria-label="Provider API key"
-            type="password"
-            placeholder={settings.providerApiKeyStatus === 'configured' ? 'Key is saved in OS keychain' : 'Paste key to save'}
-          />
-        </label>
-      </div>
-      <div className="settings-actions">
-        <button type="button" onClick={onSaveProviderConfig}>Save provider settings</button>
-        <button type="button" disabled={apiKeyInput.trim().length === 0} onClick={onSaveApiKey}>Save API key</button>
-        <button type="button" className="secondary-button" disabled={settings.providerApiKeyStatus !== 'configured'} onClick={onDeleteApiKey}>Delete API key</button>
-      </div>
-      <label className="raw-response-toggle">
-        <input type="checkbox" checked={settings.rawResponseStorageEnabled} onChange={(event) => onRawResponseStorageChange(event.target.checked)} />
-        Save raw model responses for debugging
-      </label>
-      <p className="muted-panel-copy">Provider: {settings.provider}. Base URL: {settings.baseUrl}. Key status: {formatProviderKeyStatus(settings.providerApiKeyStatus)}.</p>
-      {message ? <p className="muted-panel-copy success">{message}</p> : null}
-      {error ? <p className="muted-panel-copy error">{error}</p> : null}
-    </section>
-  );
-}
-
-function AutosaveStatus({ state, lastAutosaveAt, error }: AutosaveStatusProps): React.JSX.Element {
-  if (state === 'saving') {
-    return <p className="autosave-status">Autosaving...</p>;
+function getAppStatus(startup: StartupStatus, settings: SettingsSnapshot): AppStatusModel {
+  if (!startup.databaseReady || !startup.migrationsApplied || settings.providerApiKeyStatus === 'unavailable') {
+    return {
+      readiness: 'error',
+      label: 'Error',
+      toneClassName: 'badge-error badge-soft',
+      detail: !startup.databaseReady ? 'Database unavailable' : 'Keychain unavailable',
+    };
   }
 
-  if (state === 'error') {
-    return <p className="autosave-status error">{error ?? 'Autosave failed.'}</p>;
+  if (settings.providerApiKeyStatus !== 'configured') {
+    return {
+      readiness: 'setup-needed',
+      label: 'Setup needed',
+      toneClassName: 'badge-warning badge-soft',
+      detail: 'Add an API key before review',
+    };
   }
 
-  if (lastAutosaveAt) {
-    return <p className="autosave-status">Last autosave {formatTime(lastAutosaveAt)}</p>;
-  }
-
-  return <p className="autosave-status">Not saved yet</p>;
-}
-
-type LearningPanelProps = {
-  journal: TodayJournalSnapshot;
-  hasWritten: boolean;
-  saveState: SaveState;
-  reviewState: ReviewState;
-  reviewError: string | null;
-  preview: ReviewPreviewSnapshot | null;
-  selfRepairAttempt: string;
-  modelAnswerRevealed: boolean;
-  onSelfRepairAttemptChange: (value: string) => void;
-  onRevealModelAnswer: () => void;
-  onSaveReview: () => void;
-  rewritePracticeInput: string;
-  completedRewritePractice: TodayJournalSnapshot['pendingRewritePractice'];
-  rewritePracticeError: string | null;
-  onRewritePracticeInputChange: (value: string) => void;
-  onCompleteRewritePractice: () => void;
-  onSkipRewritePractice: () => void;
-  onReviewCurrentVersion: () => void;
-};
-
-function LearningPanel({
-  journal,
-  hasWritten,
-  saveState,
-  reviewState,
-  reviewError,
-  preview,
-  selfRepairAttempt,
-  modelAnswerRevealed,
-  onSelfRepairAttemptChange,
-  onRevealModelAnswer,
-  onSaveReview,
-  rewritePracticeInput,
-  completedRewritePractice,
-  rewritePracticeError,
-  onRewritePracticeInputChange,
-  onCompleteRewritePractice,
-  onSkipRewritePractice,
-  onReviewCurrentVersion,
-}: LearningPanelProps): React.JSX.Element {
-  return (
-    <aside className="learning-panel" aria-labelledby="learning-panel-title">
-      <div>
-        <p className="eyebrow">Learning panel</p>
-        <h2 id="learning-panel-title">Next step</h2>
-      </div>
-
-      {journal.staleReview ? (
-        <section className="panel-block stale-review" aria-label="Stale review">
-          <p>This review is based on an earlier version of your journal.</p>
-          <button type="button" onClick={onReviewCurrentVersion}>
-            Review current version
-          </button>
-        </section>
-      ) : null}
-
-      {journal.pendingRewritePractice || completedRewritePractice ? (
-        <RewritePracticeCard
-          practice={completedRewritePractice ?? journal.pendingRewritePractice}
-          inputValue={rewritePracticeInput}
-          error={rewritePracticeError}
-          onInputChange={onRewritePracticeInputChange}
-          onComplete={onCompleteRewritePractice}
-          onSkip={onSkipRewritePractice}
-        />
-      ) : null}
-
-      {!hasWritten ? <BeforeWritingState dateKey={journal.dateKey} hasPendingRewritePractice={Boolean(journal.pendingRewritePractice || completedRewritePractice)} /> : null}
-      {hasWritten && preview ? (
-        <ReviewPreview
-          preview={preview}
-          reviewState={reviewState}
-          selfRepairAttempt={selfRepairAttempt}
-          modelAnswerRevealed={modelAnswerRevealed}
-          onSelfRepairAttemptChange={onSelfRepairAttemptChange}
-          onRevealModelAnswer={onRevealModelAnswer}
-          onSaveReview={onSaveReview}
-        />
-      ) : null}
-      {hasWritten && !preview ? (
-        <AfterWritingState
-          lastAutosaveAt={journal.lastAutosaveAt}
-          saveState={saveState}
-          reviewState={reviewState}
-          reviewError={reviewError}
-          onReviewCurrentVersion={onReviewCurrentVersion}
-        />
-      ) : null}
-      {reviewError && preview ? <p className="muted-panel-copy error">{reviewError}</p> : null}
-    </aside>
-  );
-}
-
-function BeforeWritingState({ dateKey, hasPendingRewritePractice }: { dateKey: string; hasPendingRewritePractice: boolean }): React.JSX.Element {
-  return (
-    <section className="panel-block">
-      <h3>Before writing</h3>
-      <p>Today's journal is ready for {dateKey}. Start with free writing; feedback comes later.</p>
-      <p className="muted-panel-copy">{hasPendingRewritePractice ? 'You can practice one saved sentence first, or ignore it and write.' : 'No pending rewrite practice yet.'}</p>
-    </section>
-  );
-}
-
-function RewritePracticeCard({
-  practice,
-  inputValue,
-  error,
-  onInputChange,
-  onComplete,
-  onSkip,
-}: {
-  practice: TodayJournalSnapshot['pendingRewritePractice'];
-  inputValue: string;
-  error: string | null;
-  onInputChange: (value: string) => void;
-  onComplete: () => void;
-  onSkip: () => void;
-}): React.JSX.Element | null {
-  if (!practice) {
-    return null;
-  }
-
-  const isCompleted = practice.status === 'completed';
-  const canSubmit = inputValue.trim().length > 0 && !isCompleted;
-  const showNativeModel = isCompleted && Boolean(practice.userRewriteText);
-
-  return (
-    <section className="panel-block rewrite-practice-card" aria-label="Pending rewrite practice">
-      <p className="eyebrow">D+1 rewrite practice</p>
-      <h3>Practice this sentence</h3>
-      <p><strong>Original:</strong> {practice.originalSentence}</p>
-      <p><strong>Focus pattern:</strong> {practice.focusPattern}</p>
-      <p>{practice.prompt}</p>
-      <input
-        className="rewrite-practice-input"
-        aria-label="Your rewrite practice answer"
-        value={inputValue}
-        onChange={(event) => onInputChange(event.target.value)}
-        placeholder="Rewrite it in your own words."
-        disabled={isCompleted}
-      />
-      <div className="rewrite-practice-actions">
-        <button type="button" disabled={!canSubmit} onClick={onComplete}>
-          {isCompleted ? 'Rewrite submitted' : 'Submit rewrite'}
-        </button>
-        {!isCompleted ? (
-          <button type="button" className="secondary-button" onClick={onSkip}>
-            Skip
-          </button>
-        ) : null}
-      </div>
-      {showNativeModel ? <p className="model-answer">Native model: {practice.nativeModelSentence}</p> : <p className="muted-panel-copy">Native model stays hidden until you submit.</p>}
-      {practice.isOlderThanSevenDays ? <p className="muted-panel-copy">This older practice is de-prioritized from Today.</p> : null}
-      {error ? <p className="muted-panel-copy error">{error}</p> : null}
-    </section>
-  );
-}
-
-function AfterWritingState({
-  lastAutosaveAt,
-  saveState,
-  reviewState,
-  reviewError,
-  onReviewCurrentVersion,
-}: {
-  lastAutosaveAt: number | null;
-  saveState: SaveState;
-  reviewState: ReviewState;
-  reviewError: string | null;
-  onReviewCurrentVersion: () => void;
-}): React.JSX.Element {
-  const reviewDisabled = saveState === 'saving' || reviewState === 'reviewing';
-
-  return (
-    <section className="panel-block">
-      <h3>After writing</h3>
-      <button type="button" disabled={reviewDisabled} aria-disabled={reviewDisabled} onClick={onReviewCurrentVersion}>
-        {reviewState === 'reviewing' ? 'Reviewing...' : 'Review'}
-      </button>
-      <p className="muted-panel-copy">
-        {lastAutosaveAt ? `Last autosave ${formatTime(lastAutosaveAt)}` : 'Autosave will appear here after writing.'}
-      </p>
-      {reviewState === 'failed' ? <p className="muted-panel-copy error">{reviewError ?? 'Review failed.'}</p> : null}
-      <p className="muted-panel-copy">Light self-check: read once for the main idea before review.</p>
-    </section>
-  );
-}
-
-function ReviewPreview({
-  preview,
-  reviewState,
-  selfRepairAttempt,
-  modelAnswerRevealed,
-  onSelfRepairAttemptChange,
-  onRevealModelAnswer,
-  onSaveReview,
-}: {
-  preview: ReviewPreviewSnapshot;
-  reviewState: ReviewState;
-  selfRepairAttempt: string;
-  modelAnswerRevealed: boolean;
-  onSelfRepairAttemptChange: (value: string) => void;
-  onRevealModelAnswer: () => void;
-  onSaveReview: () => void;
-}): React.JSX.Element {
-  const focusCorrection = getFocusCorrection(preview);
-  const topCorrections = preview.operations.corrections.filter(
-    (correction) => correction.status !== 'low_confidence' && correction.correctionIndex !== focusCorrection?.correctionIndex
-  );
-  const lowConfidenceCorrections = preview.operations.corrections.filter((correction) => correction.status === 'low_confidence');
-  const firstReferenceRewrite = preview.operations.referenceRewrites[0];
-  const firstRewritePractice = preview.operations.rewritePractice[0];
-
-  if (!focusCorrection || !preview.operations.selfRepair) {
-    return (
-      <section className="panel-block">
-        <h3>Review unavailable</h3>
-        <p>This review does not contain exactly one focus correction.</p>
-      </section>
-    );
-  }
-
-  return (
-    <section className="panel-block review-preview" aria-label="Review preview">
-      <h3>What you did well</h3>
-      <ul>{preview.parsedOutput.summary.whatWentWell.map((item) => <li key={item}>{item}</li>)}</ul>
-
-      <h3>Today's Focus Pattern</h3>
-      <CorrectionCard correction={focusCorrection} showAnswer={modelAnswerRevealed} reason={preview.parsedOutput.summary.focusPattern.reason} />
-
-      <h3>Try fixing this</h3>
-      <p>{preview.operations.selfRepair.prompt}</p>
-      <p className="hint-box">Hint: {preview.operations.selfRepair.hint}</p>
-      <textarea
-        className="self-repair-input"
-        value={selfRepairAttempt}
-        onChange={(event) => onSelfRepairAttemptChange(event.target.value)}
-        placeholder="Try your own correction before revealing the model answer."
-        aria-label="Self-repair attempt"
-      />
-      <button type="button" className="secondary-button" onClick={onRevealModelAnswer}>
-        Reveal model answer
-      </button>
-      {modelAnswerRevealed ? <p className="model-answer">Model answer: {focusCorrection.correctedText}</p> : null}
-
-      <h3>Top corrections</h3>
-      {topCorrections.length > 0 ? topCorrections.map((correction) => <CorrectionCard correction={correction} key={correction.correctionIndex} showAnswer />) : <p>No other anchored corrections.</p>}
-
-      {lowConfidenceCorrections.length > 0 ? (
-        <section className="other-suggestions" aria-label="Other suggestions">
-          <h3>Other suggestions</h3>
-          {lowConfidenceCorrections.map((correction) => <CorrectionCard correction={correction} key={correction.correctionIndex} showAnswer />)}
-          <p className="muted-panel-copy">These are low-confidence suggestions and will not update pattern counts or rewrite practice.</p>
-        </section>
-      ) : null}
-
-      {firstReferenceRewrite ? (
-        <section>
-          <h3>Reference rewrite / Notice the gap</h3>
-          <p>{firstReferenceRewrite.text}</p>
-          <p className="hint-box">Notice the gap: {firstReferenceRewrite.noticeTheGap}</p>
-        </section>
-      ) : null}
-
-      {firstRewritePractice ? (
-        <section>
-          <h3>Practice this sentence</h3>
-          <p>{firstRewritePractice.prompt}</p>
-          <input className="rewrite-practice-input" aria-label="Rewrite practice" placeholder="Practice this tomorrow." disabled />
-          <button type="button" className="secondary-button" disabled>
-            Skip
-          </button>
-        </section>
-      ) : null}
-
-      <button type="button" disabled={reviewState === 'saving' || reviewState === 'saved'} onClick={onSaveReview}>
-        {reviewState === 'saving' ? 'Saving review...' : reviewState === 'saved' ? 'Review saved' : 'Save review and update learning history'}
-      </button>
-    </section>
-  );
-}
-
-function CorrectionCard({ correction, showAnswer, reason }: { correction: AnchoredCorrectionOperationSnapshot; showAnswer: boolean; reason?: string }): React.JSX.Element {
-  return (
-    <article className={`correction-card ${correction.status === 'low_confidence' ? 'low-confidence' : ''}`}>
-      <p><strong>Pattern:</strong> {correction.matchedPatternId ?? patternRule(correction) ?? correction.category}</p>
-      <p><strong>You wrote:</strong> {correction.originalText}</p>
-      {showAnswer ? <p><strong>Try:</strong> {correction.correctedText}</p> : <p><strong>Try:</strong> Hidden until you try or reveal.</p>}
-      <p><strong>Why:</strong> {reason ?? correction.explanation}</p>
-    </article>
-  );
-}
-
-function HighlightedJournal({ content, corrections }: { content: string; corrections: AnchoredCorrectionOperationSnapshot[] }): React.JSX.Element {
-  const anchoredCorrections = corrections
-    .filter((correction) => correction.status !== 'low_confidence' && correction.startOffset !== null && correction.endOffset !== null)
-    .sort((left, right) => (left.startOffset ?? 0) - (right.startOffset ?? 0));
-  const parts: React.ReactNode[] = [];
-  let cursor = 0;
-
-  anchoredCorrections.forEach((correction) => {
-    const startOffset = correction.startOffset ?? 0;
-    const endOffset = correction.endOffset ?? startOffset;
-    if (startOffset < cursor) {
-      return;
-    }
-    parts.push(content.slice(cursor, startOffset));
-    parts.push(<mark key={`${startOffset}-${endOffset}`}>{content.slice(startOffset, endOffset)}</mark>);
-    cursor = endOffset;
-  });
-  parts.push(content.slice(cursor));
-
-  return <div className="highlighted-journal" aria-label="Reviewed text with anchored highlights">{parts}</div>;
-}
-
-function getFocusCorrection(preview: ReviewPreviewSnapshot): AnchoredCorrectionOperationSnapshot | null {
-  const focusIndex = preview.parsedOutput.summary.focusPattern.correctionIndex;
-  const matches = preview.operations.corrections.filter((correction) => correction.correctionIndex === focusIndex && correction.status !== 'low_confidence');
-  return matches.length === 1 ? matches[0] : null;
-}
-
-function patternRule(correction: AnchoredCorrectionOperationSnapshot): string | null {
-  const suggestion = correction.newPatternSuggestion;
-  if (typeof suggestion === 'object' && suggestion !== null && 'rule' in suggestion && typeof (suggestion as { rule?: unknown }).rule === 'string') {
-    return (suggestion as { rule: string }).rule;
-  }
-  return null;
-}
-
-function ReviewDisclosureDialog({
-  settings,
-  onCancel,
-  onAcknowledge,
-}: {
-  settings: SettingsSnapshot;
-  onCancel: () => void;
-  onAcknowledge: () => void;
-}): React.JSX.Element {
-  return (
-    <div className="modal-backdrop" role="presentation">
-      <section className="review-disclosure-dialog" role="dialog" aria-modal="true" aria-labelledby="review-disclosure-title">
-        <p className="eyebrow">Before first review</p>
-        <h2 id="review-disclosure-title">Provider privacy disclosure</h2>
-        <p>Your journal stays local by default.</p>
-        <p>When you click Review, the current entry and selected learning history will be sent to your configured model provider.</p>
-        <dl>
-          <div>
-            <dt>Provider</dt>
-            <dd>{settings.provider}</dd>
-          </div>
-          <div>
-            <dt>Model</dt>
-            <dd>{settings.model}</dd>
-          </div>
-          <div>
-            <dt>Local model</dt>
-            <dd>{settings.isLocalModel ? 'Yes' : 'No'}</dd>
-          </div>
-          <div>
-            <dt>Review context</dt>
-            <dd>{settings.reviewContextDescription}</dd>
-          </div>
-          <div>
-            <dt>Raw model responses saved</dt>
-            <dd>{settings.rawResponseStorageEnabled ? 'Yes' : 'No'}</dd>
-          </div>
-        </dl>
-        <div className="dialog-actions">
-          <button type="button" className="secondary-button" onClick={onCancel}>
-            Cancel
-          </button>
-          <button type="button" onClick={onAcknowledge}>
-            I understand, review now
-          </button>
-        </div>
-      </section>
-    </div>
-  );
-}
-
-function formatProviderKeyStatus(status: SettingsSnapshot['providerApiKeyStatus']): string {
-  if (status === 'configured') {
-    return 'Configured';
-  }
-
-  if (status === 'unavailable') {
-    return 'Keychain unavailable';
-  }
-
-  return 'Not configured';
-}
-
-function formatTime(timestamp: number): string {
-  return new Date(timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  return {
+    readiness: 'ready',
+    label: 'Ready',
+    toneClassName: 'badge-success badge-soft',
+    detail: 'Review is configured',
+  };
 }
