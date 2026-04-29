@@ -3,7 +3,15 @@ import { IPC_CHANNELS } from '../shared/constants/channels';
 import type { StartupStatus } from '../shared/types/app';
 import type { ProviderKeyStatus } from '../shared/types/credentials';
 import type { SaveTodayJournalInput, SaveTodayJournalResult, TodayJournalSnapshot } from '../shared/types/journal';
-import type { AcknowledgeReviewDisclosureInput, StartReviewInput, StartReviewOutput } from '../shared/types/review';
+import type {
+  AcknowledgeReviewDisclosureInput,
+  GetReviewPreviewInput,
+  ReviewPreviewSnapshot,
+  SaveReviewInput,
+  SaveReviewOutput,
+  StartReviewInput,
+  StartReviewOutput,
+} from '../shared/types/review';
 import type { SettingsSnapshot, SetRawResponseStorageInput } from '../shared/types/settings';
 
 const api = {
@@ -28,6 +36,9 @@ const api = {
     acknowledgeDisclosure: (input: AcknowledgeReviewDisclosureInput): Promise<boolean> =>
       ipcRenderer.invoke(IPC_CHANNELS.REVIEW.ACKNOWLEDGE_DISCLOSURE, input),
     start: (input: StartReviewInput): Promise<StartReviewOutput> => ipcRenderer.invoke(IPC_CHANNELS.REVIEW.START, input),
+    getPreview: (input: GetReviewPreviewInput): Promise<ReviewPreviewSnapshot | null> =>
+      ipcRenderer.invoke(IPC_CHANNELS.REVIEW.GET_PREVIEW, input),
+    save: (input: SaveReviewInput): Promise<SaveReviewOutput> => ipcRenderer.invoke(IPC_CHANNELS.REVIEW.SAVE, input),
   },
 };
 

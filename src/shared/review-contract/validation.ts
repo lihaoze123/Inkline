@@ -229,6 +229,8 @@ function correctionOperation(
   anchorLocation: AnchorLocation | null,
   anchorFailureReason: string | undefined,
 ): AnchoredCorrectionOperation {
+  const isLowConfidence = !anchorLocation || correction.confidence === 'low';
+
   return {
     correctionIndex,
     originalText: correction.originalText,
@@ -236,13 +238,13 @@ function correctionOperation(
     explanation: correction.explanation,
     category: correction.category,
     confidence: correction.confidence,
-    status: anchorLocation ? 'suggested' : 'low_confidence',
+    status: isLowConfidence ? 'low_confidence' : 'suggested',
     startOffset: anchorLocation?.startOffset ?? null,
     endOffset: anchorLocation?.endOffset ?? null,
     contentHash,
     matchedPatternId: correction.matchedPatternId ?? null,
     newPatternSuggestion: correction.newPatternSuggestion ?? null,
-    lowConfidenceReason: anchorFailureReason,
+    lowConfidenceReason: anchorFailureReason ?? (correction.confidence === 'low' ? 'model_low_confidence' : undefined),
   };
 }
 
@@ -371,15 +373,20 @@ function buildPreviewOperations(
       hint: output.selfRepairTask.hint,
       updatesLongTermStats: false,
     },
-    rewritePractice: output.rewriteTasks.map((task, taskIndex) => ({
-      taskIndex,
-      kind: task.kind,
-      prompt: task.prompt,
-      focusCorrectionIndexes: task.focusCorrectionIndexes,
-      dueOffsetDays: task.dueOffsetDays ?? 1,
-      revealNativeModelAfterSubmit: task.revealNativeModelAfterSubmit ?? true,
-      updatesLongTermStats: false,
-    })),
+    rewritePractice: output.rewriteTasks
+      .map((task, taskIndex) => ({ task, taskIndex }))
+      .filter(({ task }) =>
+        task.focusCorrectionIndexes.every((correctionIndex) => corrections[correctionIndex]?.status !== 'low_confidence')
+      )
+      .map(({ task, taskIndex }) => ({
+        taskIndex,
+        kind: task.kind,
+        prompt: task.prompt,
+        focusCorrectionIndexes: task.focusCorrectionIndexes,
+        dueOffsetDays: task.dueOffsetDays ?? 1,
+        revealNativeModelAfterSubmit: task.revealNativeModelAfterSubmit ?? true,
+        updatesLongTermStats: false,
+      })),
     inputBridge: {
       correctionIndex: output.inputBridge.correctionIndex,
       examples: output.inputBridge.examples,

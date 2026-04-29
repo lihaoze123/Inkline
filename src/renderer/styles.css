@@ -19,6 +19,7 @@ body {
 }
 
 button,
+input,
 textarea {
   font: inherit;
 }
@@ -38,6 +39,7 @@ button:disabled {
 }
 
 button:focus-visible,
+input:focus-visible,
 textarea:focus-visible {
   outline: 2px solid #72542d;
   outline-offset: 3px;
@@ -165,6 +167,74 @@ h3 {
 
 .journal-editor::placeholder {
   color: #9c8f7c;
+}
+
+.highlighted-journal {
+  max-height: 160px;
+  overflow-y: auto;
+  border: 1px solid #eadfce;
+  border-radius: 18px;
+  padding: 18px;
+  color: #243047;
+  background: #fffdf8;
+  line-height: 1.7;
+  white-space: pre-wrap;
+  scrollbar-gutter: stable;
+}
+
+.highlighted-journal mark {
+  border-radius: 6px;
+  padding: 1px 3px;
+  background: #ffe08a;
+}
+
+.review-preview ul {
+  margin: 0;
+  padding-left: 20px;
+  color: #4f5a6c;
+  line-height: 1.55;
+}
+
+.correction-card,
+.hint-box,
+.other-suggestions {
+  border: 1px solid #eadfce;
+  border-radius: 16px;
+  padding: 14px;
+  background: #fffdf8;
+}
+
+.correction-card.low-confidence {
+  border-style: dashed;
+  background: #fbf1e1;
+}
+
+.correction-card p {
+  margin: 0 0 8px;
+}
+
+.correction-card p:last-child {
+  margin-bottom: 0;
+}
+
+.self-repair-input,
+.rewrite-practice-input {
+  width: 100%;
+  border: 1px solid #eadfce;
+  border-radius: 14px;
+  padding: 12px;
+  color: #243047;
+  background: #fffdf8;
+}
+
+.self-repair-input {
+  min-height: 92px;
+  resize: vertical;
+}
+
+.model-answer {
+  border-left: 4px solid #72542d;
+  padding-left: 12px;
 }
 
 .autosave-status,

@@ -99,6 +99,8 @@ export async function startReview(input: StartReviewInput, options: StartReviewO
         validationStatus: persistenceDecision.validationStatus,
         validationErrorsJson: persistenceDecision.validationErrorsJson,
         rawOutputJson: persistenceDecision.rawOutputJson,
+        parsedOutputJson: persistenceDecision.status === 'review_ready' ? JSON.stringify(persistenceDecision.validation.parsedOutput) : null,
+        previewOperationsJson: persistenceDecision.status === 'review_ready' ? JSON.stringify(persistenceDecision.validation.operations) : null,
       })
       .where(eq(reviewRuns.id, reviewingRun.id))
       .returning()

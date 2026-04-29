@@ -5,6 +5,7 @@ export type ReviewPersistenceDecision = {
   validationStatus: ValidationStatus;
   validationErrorsJson: string;
   rawOutputJson: string | null;
+  validation: ReviewValidationResult;
 };
 
 export function buildReviewPersistenceDecision(params: {
@@ -19,6 +20,7 @@ export function buildReviewPersistenceDecision(params: {
     validationStatus: params.validation.validationStatus,
     validationErrorsJson: JSON.stringify(validationIssuesToMessages(params.validation)),
     rawOutputJson: params.rawResponseStorageEnabled ? JSON.stringify(params.rawOutput) : null,
+    validation: params.validation,
   };
 }
 

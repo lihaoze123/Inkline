@@ -49,6 +49,8 @@ export const reviewRuns = sqliteTable('review_runs', {
   model: text('model').notNull(),
   inputSnapshotJson: text('input_snapshot_json'),
   rawOutputJson: text('raw_output_json'),
+  parsedOutputJson: text('parsed_output_json'),
+  previewOperationsJson: text('preview_operations_json'),
   validationErrorsJson: text('validation_errors_json'),
   createdAt: integer('created_at', { mode: 'timestamp_ms' })
     .notNull()
