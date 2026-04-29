@@ -4,6 +4,17 @@ Universal development guidelines extracted from production Electron projects.
 
 ## Structure
 
+### [Product](./product/index.md)
+
+English Journal Coach product contracts extracted from the PRD:
+
+- [MVP Scope](./product/mvp-scope.md)
+- [Learning Flow](./product/learning-flow.md)
+- [Review Agent Contract](./product/review-agent-contract.md)
+- [Data Model Contract](./product/data-model-contract.md)
+- [Privacy and Security](./product/privacy-security.md)
+- [Validation and Testing](./product/validation-and-testing.md)
+
 ### [Frontend](./frontend/index.md)
 
 React + TypeScript frontend development patterns:
@@ -73,9 +84,11 @@ Common issues and solutions:
 
 ## Tech Stack
 
+- **Product**: Local-first English journal coach with pi-mono agent runtime
 - **Frontend**: React 18, TypeScript, TanStack Query, Tailwind CSS
-- **Backend**: Electron (Main Process), better-sqlite3, TypeScript
+- **Backend**: Electron (Main Process), SQLite, TypeScript
 - **IPC**: Type-safe contextBridge pattern
+- **Agent contract**: Zod-validated structured JSON; app owns persistence
 - **Build**: Vite, electron-builder
 
 ## Usage

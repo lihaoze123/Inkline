@@ -2,6 +2,10 @@
 
 > **Tech Stack**: Electron Main Process + Drizzle ORM + SQLite (better-sqlite3)
 
+## Product Context
+
+Read [`../product/index.md`](../product/index.md) for every backend task that touches journal persistence, review runs, correction anchoring, agent calls, pattern operations, privacy settings, or save transactions.
+
 ## Related Guidelines
 
 | Guideline                 | Location     | When to Read                 |

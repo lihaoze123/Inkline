@@ -1,0 +1,5 @@
+{"file": ".trellis/spec/product/learning-flow.md", "reason": "Check Today flow behavior"}
+{"file": ".trellis/spec/product/data-model-contract.md", "reason": "Check revision/stale-review behavior"}
+{"file": ".trellis/spec/frontend/quality.md", "reason": "Check frontend quality"}
+{"file": ".trellis/spec/backend/database.md", "reason": "Check persistence behavior"}
+{"file": ".trellis/spec/shared/code-quality.md", "reason": "Check shared quality rules"}

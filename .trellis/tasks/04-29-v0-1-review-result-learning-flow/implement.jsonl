@@ -1,0 +1,7 @@
+{"file": ".trellis/spec/product/learning-flow.md", "reason": "Review preview and learning path order"}
+{"file": ".trellis/spec/product/data-model-contract.md", "reason": "Atomic save and stale review rules"}
+{"file": ".trellis/spec/product/review-agent-contract.md", "reason": "Focus/self-repair/correction constraints"}
+{"file": ".trellis/spec/frontend/index.md", "reason": "Renderer conventions"}
+{"file": ".trellis/spec/frontend/components.md", "reason": "Review UI component conventions"}
+{"file": ".trellis/spec/backend/database.md", "reason": "Save transaction persistence"}
+{"file": ".trellis/spec/backend/error-handling.md", "reason": "Atomic transaction failures"}

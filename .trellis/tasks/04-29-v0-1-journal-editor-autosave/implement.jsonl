@@ -1,0 +1,7 @@
+{"file": ".trellis/spec/product/learning-flow.md", "reason": "Today and journal-writing flow"}
+{"file": ".trellis/spec/product/data-model-contract.md", "reason": "Journal revisions and stale review contract"}
+{"file": ".trellis/spec/frontend/index.md", "reason": "Renderer conventions"}
+{"file": ".trellis/spec/frontend/components.md", "reason": "Component and empty state conventions"}
+{"file": ".trellis/spec/frontend/state-management.md", "reason": "Renderer state conventions"}
+{"file": ".trellis/spec/backend/database.md", "reason": "Revision persistence conventions"}
+{"file": ".trellis/spec/shared/timestamp.md", "reason": "Timestamp handling"}

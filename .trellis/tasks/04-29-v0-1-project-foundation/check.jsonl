@@ -1,0 +1,5 @@
+{"file": ".trellis/spec/product/privacy-security.md", "reason": "Check privacy and secret defaults"}
+{"file": ".trellis/spec/frontend/ipc-electron.md", "reason": "Check renderer/main boundary"}
+{"file": ".trellis/spec/backend/environment.md", "reason": "Check environment isolation"}
+{"file": ".trellis/spec/backend/database.md", "reason": "Check database setup"}
+{"file": ".trellis/spec/shared/code-quality.md", "reason": "Check shared quality rules"}

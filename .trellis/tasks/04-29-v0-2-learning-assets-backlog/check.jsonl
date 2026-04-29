@@ -1,0 +1,2 @@
+{"file": ".trellis/spec/product/mvp-scope.md", "reason": "Check backlog does not leak into v0.1"}
+{"file": ".trellis/spec/product/data-model-contract.md", "reason": "Check future model consistency"}

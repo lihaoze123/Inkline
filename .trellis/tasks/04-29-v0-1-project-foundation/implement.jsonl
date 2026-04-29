@@ -1,0 +1,9 @@
+{"file": ".trellis/spec/product/mvp-scope.md", "reason": "v0.1 foundation scope"}
+{"file": ".trellis/spec/product/privacy-security.md", "reason": "Privacy defaults and secret handling"}
+{"file": ".trellis/spec/frontend/index.md", "reason": "Renderer conventions"}
+{"file": ".trellis/spec/frontend/ipc-electron.md", "reason": "Preload/contextBridge IPC rules"}
+{"file": ".trellis/spec/backend/index.md", "reason": "Main process conventions"}
+{"file": ".trellis/spec/backend/environment.md", "reason": "Dev/prod userData isolation"}
+{"file": ".trellis/spec/backend/database.md", "reason": "SQLite and migration conventions"}
+{"file": ".trellis/spec/shared/pnpm-electron-setup.md", "reason": "Electron project setup conventions"}
+{"file": ".trellis/spec/shared/typescript.md", "reason": "Strict TypeScript conventions"}

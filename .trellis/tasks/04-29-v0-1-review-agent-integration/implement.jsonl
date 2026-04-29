@@ -1,0 +1,7 @@
+{"file": ".trellis/spec/product/review-agent-contract.md", "reason": "Review input/output and prompt safety"}
+{"file": ".trellis/spec/product/privacy-security.md", "reason": "Provider disclosure and raw output defaults"}
+{"file": ".trellis/spec/product/mvp-scope.md", "reason": "v0.1 caps"}
+{"file": ".trellis/spec/backend/api-module.md", "reason": "Main-process service module pattern"}
+{"file": ".trellis/spec/backend/error-handling.md", "reason": "Agent failure and validation error handling"}
+{"file": ".trellis/spec/backend/type-safety.md", "reason": "Zod schema conventions"}
+{"file": ".trellis/spec/frontend/ipc-electron.md", "reason": "Renderer-to-main review IPC"}

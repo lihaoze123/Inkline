@@ -1,0 +1,6 @@
+{"file": ".trellis/spec/product/review-agent-contract.md", "reason": "Review schema, quote anchoring, validation rules"}
+{"file": ".trellis/spec/product/validation-and-testing.md", "reason": "Harness cases and exit criteria"}
+{"file": ".trellis/spec/product/data-model-contract.md", "reason": "Review statuses and operation semantics"}
+{"file": ".trellis/spec/backend/type-safety.md", "reason": "Zod-first type conventions"}
+{"file": ".trellis/spec/backend/error-handling.md", "reason": "Validation and transaction error handling"}
+{"file": ".trellis/spec/shared/typescript.md", "reason": "Strict TypeScript conventions"}

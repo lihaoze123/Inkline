@@ -12,6 +12,10 @@
 
 ---
 
+## Product Context
+
+Read [`../product/index.md`](../product/index.md) for every UI task that touches Today, Review Result, self-repair, correction presentation, rewrite practice, settings, privacy disclosure, or stale review behavior.
+
 ## Documentation Files
 
 | File                                                                           | Description                                     | Priority      |

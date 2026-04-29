@@ -1,0 +1,4 @@
+{"file": ".trellis/spec/product/review-agent-contract.md", "reason": "Check contract compliance"}
+{"file": ".trellis/spec/product/validation-and-testing.md", "reason": "Check required harness coverage"}
+{"file": ".trellis/spec/product/data-model-contract.md", "reason": "Check operation/status semantics"}
+{"file": ".trellis/spec/shared/code-quality.md", "reason": "Check shared quality rules"}

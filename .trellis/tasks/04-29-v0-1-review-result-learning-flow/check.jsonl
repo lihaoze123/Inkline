@@ -1,0 +1,5 @@
+{"file": ".trellis/spec/product/learning-flow.md", "reason": "Check learning flow order and copy"}
+{"file": ".trellis/spec/product/data-model-contract.md", "reason": "Check save idempotency and stale review rules"}
+{"file": ".trellis/spec/product/review-agent-contract.md", "reason": "Check focus and validation constraints"}
+{"file": ".trellis/spec/frontend/quality.md", "reason": "Check frontend quality"}
+{"file": ".trellis/spec/shared/code-quality.md", "reason": "Check shared quality rules"}
