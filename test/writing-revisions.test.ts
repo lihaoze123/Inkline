@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { computeJournalContentHash, normalizeJournalContent } from '../src/shared/journal/content';
+import { computeWritingContentHash, normalizeWritingContent } from '../src/shared/writing/content';
 
 type RevisionRecord = {
   id: string;
-  journalEntryId: string;
+  writingAttemptId: string;
   content: string;
   contentHash: string;
 };
@@ -20,14 +20,14 @@ type EntryRecord = {
   lastReviewRunId: string | null;
 };
 
-function createRevision(id: string, journalEntryId: string, rawContent: string): RevisionRecord {
-  const content = normalizeJournalContent(rawContent);
+function createRevision(id: string, writingAttemptId: string, rawContent: string): RevisionRecord {
+  const content = normalizeWritingContent(rawContent);
 
   return {
     id,
-    journalEntryId,
+    writingAttemptId,
     content,
-    contentHash: computeJournalContentHash(content),
+    contentHash: computeWritingContentHash(content),
   };
 }
 
@@ -48,13 +48,13 @@ function applyActiveRevisionChange(entry: EntryRecord, review: ReviewRecord, rev
   };
 }
 
-describe('journal revision persistence contract', () => {
-  it('creates a journal entry with an active LF-normalized revision', () => {
+describe('writing revision persistence contract', () => {
+  it('creates a writing attempt with an active LF-normalized revision', () => {
     const revision = createRevision('revision_1', 'entry_1', 'Hello\r\nworld');
     const entry: EntryRecord = { id: 'entry_1', activeRevisionId: revision.id, lastReviewRunId: null };
 
     expect(revision.content).toBe('Hello\nworld');
-    expect(revision.contentHash).toBe(computeJournalContentHash('Hello\nworld'));
+    expect(revision.contentHash).toBe(computeWritingContentHash('Hello\nworld'));
     expect(entry.activeRevisionId).toBe('revision_1');
   });
 

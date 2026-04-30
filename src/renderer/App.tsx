@@ -1,20 +1,22 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { StartupStatus } from '@shared/types/app';
-import type { TodayJournalSnapshot } from '@shared/types/journal';
+import type { WritingAttemptSnapshot, WritingTemplateId } from '@shared/types/writing';
+import { WRITING_TEMPLATES } from '@shared/writing/templates';
 import type { ReviewPreviewSnapshot, ReviewProgressEvent, ReviewRunSnapshot } from '@shared/types/review';
 import type { SettingsSnapshot } from '@shared/types/settings';
-import { JournalEditorCard } from './components/JournalEditorCard';
+import { WritingEditorCard } from './components/WritingEditorCard';
 import { LearningPanel } from './components/LearningPanel';
+import { PracticeTemplatePicker } from './components/PracticeTemplatePicker';
 import { RevealAnswerDialog } from './components/RevealAnswerDialog';
 import { ReviewDisclosureDialog } from './components/ReviewDisclosureDialog';
 import { SettingsDrawer } from './components/SettingsDrawer';
-import { TodayHeader } from './components/TodayHeader';
+import { PracticeHeader } from './components/PracticeHeader';
 import { getFocusCorrection } from './components/review-utils';
 import type { AppStatusModel, ReviewProgressModel, ReviewState, SaveState } from './components/types';
 
 type LoadState =
   | { status: 'loading' }
-  | { status: 'ready'; journal: TodayJournalSnapshot; settings: SettingsSnapshot; startup: StartupStatus }
+  | { status: 'ready'; writing: WritingAttemptSnapshot; settings: SettingsSnapshot; startup: StartupStatus }
   | { status: 'error'; message: string };
 
 const AUTOSAVE_DELAY_MS = 900;
@@ -36,14 +38,14 @@ export function App(): React.JSX.Element {
 
     async function loadFoundationState(): Promise<void> {
       try {
-        const [journal, settings, startup] = await Promise.all([
-          window.api.journal.getToday(),
+        const [writing, settings, startup] = await Promise.all([
+          window.api.writing.getCurrentAttempt(),
           window.api.settings.get(),
           window.api.app.getStartupStatus(),
         ]);
 
         if (!cancelled) {
-          setLoadState({ status: 'ready', journal, settings, startup });
+          setLoadState({ status: 'ready', writing, settings, startup });
         }
       } catch (error) {
         const message = error instanceof Error ? error.message : 'Unable to load application state.';
@@ -65,7 +67,7 @@ export function App(): React.JSX.Element {
       <main className="grid min-h-screen place-items-center bg-base-200 p-8">
         <div className="rounded-[2rem] border border-base-300 bg-base-100 p-8 text-center shadow-xl">
           <span className="loading loading-spinner loading-lg text-primary" />
-          <p className="mt-4 font-medium text-base-content/70">Loading today...</p>
+          <p className="mt-4 font-medium text-base-content/70">Loading practice...</p>
         </div>
       </main>
     );
@@ -81,19 +83,24 @@ export function App(): React.JSX.Element {
     );
   }
 
-  return <TodayPage initialJournal={loadState.journal} settings={loadState.settings} startup={loadState.startup} />;
+  return <PracticePage initialWriting={loadState.writing} settings={loadState.settings} startup={loadState.startup} />;
 }
 
-type TodayPageProps = {
-  initialJournal: TodayJournalSnapshot;
+type PracticePageProps = {
+  initialWriting: WritingAttemptSnapshot;
   settings: SettingsSnapshot;
   startup: StartupStatus;
 };
 
-function TodayPage({ initialJournal, settings, startup }: TodayPageProps): React.JSX.Element {
+function PracticePage({ initialWriting, settings, startup }: PracticePageProps): React.JSX.Element {
   const [appSettings, setAppSettings] = useState(settings);
-  const [journal, setJournal] = useState(initialJournal);
-  const [content, setContent] = useState(initialJournal.activeRevision?.content ?? '');
+  const [writing, setWriting] = useState(initialWriting);
+  const [selectedTemplateId, setSelectedTemplateId] = useState<WritingTemplateId>(initialWriting.templateId);
+  const [content, setContent] = useState(initialWriting.activeRevision?.content ?? '');
+  const [userGoal, setUserGoal] = useState(initialWriting.userGoal ?? '');
+  const [starterPromptState, setStarterPromptState] = useState<'idle' | 'generating' | 'error'>('idle');
+  const [starterPromptError, setStarterPromptError] = useState<string | null>(null);
+  const [showStarterDisclosure, setShowStarterDisclosure] = useState(false);
   const [saveState, setSaveState] = useState<SaveState>('idle');
   const [saveError, setSaveError] = useState<string | null>(null);
   const [reviewState, setReviewState] = useState<ReviewState>('idle');
@@ -104,7 +111,7 @@ function TodayPage({ initialJournal, settings, startup }: TodayPageProps): React
   const [selfRepairAttempt, setSelfRepairAttempt] = useState('');
   const [modelAnswerRevealed, setModelAnswerRevealed] = useState(false);
   const [rewritePracticeInput, setRewritePracticeInput] = useState('');
-  const [completedRewritePractice, setCompletedRewritePractice] = useState<TodayJournalSnapshot['pendingRewritePractice']>(null);
+  const [completedRewritePractice, setCompletedRewritePractice] = useState<WritingAttemptSnapshot['pendingRewritePractice']>(null);
   const [rewritePracticeError, setRewritePracticeError] = useState<string | null>(null);
   const [showDisclosure, setShowDisclosure] = useState(false);
   const [showSettingsDrawer, setShowSettingsDrawer] = useState(false);
@@ -114,14 +121,14 @@ function TodayPage({ initialJournal, settings, startup }: TodayPageProps): React
   const [providerApiKeyInput, setProviderApiKeyInput] = useState('');
   const [settingsMessage, setSettingsMessage] = useState<string | null>(null);
   const [settingsError, setSettingsError] = useState<string | null>(null);
-  const lastSavedContentRef = useRef(initialJournal.activeRevision?.content ?? '');
+  const lastSavedContentRef = useRef(initialWriting.activeRevision?.content ?? '');
   const activeReviewRef = useRef(false);
 
   const hasWritten = content.trim().length > 0;
   const appStatus = useMemo(() => getAppStatus(startup, appSettings), [appSettings, startup]);
   const focusCorrection = reviewPreview ? getFocusCorrection(reviewPreview) : null;
-  const highlightedContent = reviewPreview && focusCorrection && reviewPreview.isStaleForCurrentJournal === false ? reviewPreview.reviewedContent : null;
-  const highlightedCorrections = reviewPreview && focusCorrection && reviewPreview.isStaleForCurrentJournal === false ? reviewPreview.operations.corrections : [];
+  const highlightedContent = reviewPreview && focusCorrection && reviewPreview.isStaleForCurrentWriting === false ? reviewPreview.reviewedContent : null;
+  const highlightedCorrections = reviewPreview && focusCorrection && reviewPreview.isStaleForCurrentWriting === false ? reviewPreview.operations.corrections : [];
 
   useEffect(() => {
     return window.api.review.onProgress((event: ReviewProgressEvent) => {
@@ -140,15 +147,32 @@ function TodayPage({ initialJournal, settings, startup }: TodayPageProps): React
     });
   }, []);
 
+  const selectTemplate = useCallback(async (templateId: WritingTemplateId): Promise<void> => {
+    const nextWriting = await window.api.writing.getWritingAttempt({ templateId });
+    setSelectedTemplateId(templateId);
+    setWriting(nextWriting);
+    setContent(nextWriting.activeRevision?.content ?? '');
+    setUserGoal(nextWriting.userGoal ?? '');
+    lastSavedContentRef.current = nextWriting.activeRevision?.content ?? '';
+    setReviewPreview(null);
+    setLatestReviewRun(null);
+    setReviewState('idle');
+    setReviewError(null);
+    setCompletedRewritePractice(null);
+    setRewritePracticeInput('');
+    setStarterPromptError(null);
+    setStarterPromptState('idle');
+  }, []);
+
   const saveContent = useCallback(async (nextContent: string): Promise<void> => {
     setSaveState('saving');
     setSaveError(null);
 
     try {
-      const savedJournal = await window.api.journal.saveToday({ content: nextContent });
-      lastSavedContentRef.current = savedJournal.activeRevision?.content ?? nextContent;
-      setJournal(savedJournal);
-      if (savedJournal.staleReview) {
+      const savedWriting = await window.api.writing.saveWritingAttempt({ templateId: selectedTemplateId, content: nextContent, userGoal });
+      lastSavedContentRef.current = savedWriting.activeRevision?.content ?? nextContent;
+      setWriting(savedWriting);
+      if (savedWriting.staleReview) {
         setReviewPreview(null);
         setLatestReviewRun(null);
       }
@@ -158,7 +182,7 @@ function TodayPage({ initialJournal, settings, startup }: TodayPageProps): React
       setSaveError(message);
       setSaveState('error');
     }
-  }, []);
+  }, [selectedTemplateId, userGoal]);
 
   useEffect(() => {
     if (content === lastSavedContentRef.current) {
@@ -171,12 +195,12 @@ function TodayPage({ initialJournal, settings, startup }: TodayPageProps): React
     }, AUTOSAVE_DELAY_MS);
 
     return () => window.clearTimeout(timeoutId);
-  }, [content, saveContent]);
+  }, [content, saveContent, userGoal]);
 
-  const startReviewForJournal = useCallback(async (targetJournal: TodayJournalSnapshot): Promise<void> => {
-    if (!targetJournal.activeRevision) {
+  const startReviewForWriting = useCallback(async (targetWriting: WritingAttemptSnapshot): Promise<void> => {
+    if (!targetWriting.activeRevision) {
       setReviewState('failed');
-      setReviewError('Save your journal before review.');
+      setReviewError('Save your writing before review.');
       return;
     }
 
@@ -191,8 +215,8 @@ function TodayPage({ initialJournal, settings, startup }: TodayPageProps): React
 
     try {
       const result = await window.api.review.start({
-        journalEntryId: targetJournal.entryId,
-        journalRevisionId: targetJournal.activeRevision.id,
+        writingAttemptId: targetWriting.attemptId,
+        writingRevisionId: targetWriting.activeRevision.id,
       });
 
       activeReviewRef.current = false;
@@ -215,7 +239,7 @@ function TodayPage({ initialJournal, settings, startup }: TodayPageProps): React
         const preview = await window.api.review.getPreview({ reviewRunId: result.reviewRun.id });
         setReviewPreview(preview);
         setReviewState(preview ? 'ready' : 'failed');
-        setJournal(await window.api.journal.getToday());
+        setWriting(await window.api.writing.getWritingAttempt({ templateId: targetWriting.templateId }));
         if (!preview) {
           setReviewError('Review preview is unavailable.');
         }
@@ -232,17 +256,50 @@ function TodayPage({ initialJournal, settings, startup }: TodayPageProps): React
 
   const reviewCurrentContent = useCallback(async (): Promise<void> => {
     try {
-      const savedJournal = await window.api.journal.saveToday({ content });
-      lastSavedContentRef.current = savedJournal.activeRevision?.content ?? content;
-      setJournal(savedJournal);
+      const savedWriting = await window.api.writing.saveWritingAttempt({ templateId: selectedTemplateId, content, userGoal });
+      lastSavedContentRef.current = savedWriting.activeRevision?.content ?? content;
+      setWriting(savedWriting);
       setSaveState('saved');
-      await startReviewForJournal(savedJournal);
+      await startReviewForWriting(savedWriting);
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Review failed.';
       setReviewState('failed');
       setReviewError(message);
     }
-  }, [content, startReviewForJournal]);
+  }, [content, selectedTemplateId, startReviewForWriting, userGoal]);
+
+  const generateStarterPrompt = useCallback(async (): Promise<void> => {
+    setStarterPromptState('generating');
+    setStarterPromptError(null);
+    const result = await window.api.writing.generateStarterPrompt({ templateId: selectedTemplateId, userGoal });
+
+    if (result.disclosureRequired) {
+      setStarterPromptState('idle');
+      setShowStarterDisclosure(true);
+      return;
+    }
+
+    if (result.success && result.writing) {
+      setWriting(result.writing);
+      setUserGoal(result.writing.userGoal ?? userGoal);
+      setStarterPromptState('idle');
+      return;
+    }
+
+    setStarterPromptState('error');
+    setStarterPromptError(result.error ?? 'Starter prompt generation failed.');
+  }, [selectedTemplateId, userGoal]);
+
+  const acknowledgeStarterDisclosureAndGenerate = useCallback(async (): Promise<void> => {
+    await window.api.writing.acknowledgeStarterPromptDisclosure({ acknowledged: true });
+    setShowStarterDisclosure(false);
+    await generateStarterPrompt();
+  }, [generateStarterPrompt]);
+
+  const skipStarterPrompt = useCallback((): void => {
+    setStarterPromptError(null);
+    setStarterPromptState('idle');
+  }, []);
 
   const saveReview = useCallback(async (): Promise<void> => {
     if (!reviewPreview) {
@@ -257,8 +314,8 @@ function TodayPage({ initialJournal, settings, startup }: TodayPageProps): React
       revealedWithoutAttempt: modelAnswerRevealed,
     });
 
-    if (result.success && result.journal) {
-      setJournal(result.journal);
+    if (result.success && result.writing) {
+      setWriting(result.writing);
       setReviewState('saved');
       return;
     }
@@ -268,43 +325,43 @@ function TodayPage({ initialJournal, settings, startup }: TodayPageProps): React
   }, [modelAnswerRevealed, reviewPreview, selfRepairAttempt]);
 
   const completePendingRewritePractice = useCallback(async (): Promise<void> => {
-    if (!journal.pendingRewritePractice) {
+    if (!writing.pendingRewritePractice) {
       return;
     }
 
     setRewritePracticeError(null);
-    const result = await window.api.journal.completeRewritePractice({
-      rewriteTaskId: journal.pendingRewritePractice.id,
+    const result = await window.api.writing.completeRewritePractice({
+      rewriteTaskId: writing.pendingRewritePractice.id,
       userRewriteText: rewritePracticeInput,
     });
 
-    if (result.success && result.journal && result.rewritePractice) {
-      setJournal(result.journal);
+    if (result.success && result.writing && result.rewritePractice) {
+      setWriting(result.writing);
       setCompletedRewritePractice(result.rewritePractice);
       setRewritePracticeInput(result.rewritePractice.userRewriteText ?? rewritePracticeInput.trim());
       return;
     }
 
     setRewritePracticeError(result.error ?? 'Unable to complete rewrite practice.');
-  }, [journal.pendingRewritePractice, rewritePracticeInput]);
+  }, [writing.pendingRewritePractice, rewritePracticeInput]);
 
   const skipPendingRewritePractice = useCallback(async (): Promise<void> => {
-    if (!journal.pendingRewritePractice) {
+    if (!writing.pendingRewritePractice) {
       return;
     }
 
     setRewritePracticeError(null);
-    const result = await window.api.journal.skipRewritePractice({ rewriteTaskId: journal.pendingRewritePractice.id });
+    const result = await window.api.writing.skipRewritePractice({ rewriteTaskId: writing.pendingRewritePractice.id });
 
-    if (result.success && result.journal) {
-      setJournal(result.journal);
+    if (result.success && result.writing) {
+      setWriting(result.writing);
       setCompletedRewritePractice(null);
       setRewritePracticeInput('');
       return;
     }
 
     setRewritePracticeError(result.error ?? 'Unable to skip rewrite practice.');
-  }, [journal.pendingRewritePractice]);
+  }, [writing.pendingRewritePractice]);
 
   const acknowledgeDisclosureAndReview = useCallback(async (): Promise<void> => {
     await window.api.review.acknowledgeDisclosure({ acknowledged: true });
@@ -374,20 +431,38 @@ function TodayPage({ initialJournal, settings, startup }: TodayPageProps): React
   return (
     <main className="app-orb-field min-h-screen overflow-hidden bg-base-200 p-4 text-base-content md:p-6">
       <div className="mx-auto flex h-[calc(100vh-2rem)] max-w-[96rem] flex-col gap-4 md:h-[calc(100vh-3rem)]">
-        <TodayHeader startup={startup} status={appStatus} onOpenSettings={() => setShowSettingsDrawer(true)} />
+        <PracticeHeader selectedTemplateTitle={writing.template.title} startup={startup} status={appStatus} onOpenSettings={() => setShowSettingsDrawer(true)} />
+
+        <PracticeTemplatePicker
+          templates={WRITING_TEMPLATES}
+          selectedTemplateId={selectedTemplateId}
+          onSelectTemplate={(templateId) => {
+            void selectTemplate(templateId);
+          }}
+        />
 
         <div className="grid min-h-0 flex-1 gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(20rem,24rem)]">
-          <JournalEditorCard
+          <WritingEditorCard
+            template={writing.template}
+            generatedPrompt={writing.generatedPrompt}
+            userGoal={userGoal}
+            starterPromptState={starterPromptState}
+            starterPromptError={starterPromptError}
             content={content}
-            lastAutosaveAt={journal.lastAutosaveAt}
+            lastAutosaveAt={writing.lastAutosaveAt}
             saveState={saveState}
             saveError={saveError}
             highlightedContent={highlightedContent}
             highlightedCorrections={highlightedCorrections}
             onContentChange={setContent}
+            onUserGoalChange={setUserGoal}
+            onGenerateStarterPrompt={() => {
+              void generateStarterPrompt();
+            }}
+            onSkipStarterPrompt={skipStarterPrompt}
           />
           <LearningPanel
-            journal={journal}
+            writing={writing}
             hasWritten={hasWritten}
             saveState={saveState}
             reviewState={reviewState}
@@ -458,9 +533,21 @@ function TodayPage({ initialJournal, settings, startup }: TodayPageProps): React
       {showDisclosure ? (
         <ReviewDisclosureDialog
           settings={appSettings}
+          mode="review"
           onCancel={() => setShowDisclosure(false)}
           onAcknowledge={() => {
             void acknowledgeDisclosureAndReview();
+          }}
+        />
+      ) : null}
+
+      {showStarterDisclosure ? (
+        <ReviewDisclosureDialog
+          settings={appSettings}
+          mode="starter"
+          onCancel={() => setShowStarterDisclosure(false)}
+          onAcknowledge={() => {
+            void acknowledgeStarterDisclosureAndGenerate();
           }}
         />
       ) : null}

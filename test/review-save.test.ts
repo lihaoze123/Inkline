@@ -1,8 +1,8 @@
 import { describe, expect, it, vi } from 'vitest';
 import {
   corrections,
-  journalEntries,
-  journalRevisions,
+  writingAttempts,
+  writingRevisions,
   referenceRewrites,
   reviewRuns,
   rewriteTasks,
@@ -10,8 +10,8 @@ import {
 } from '../src/main/db/schema';
 import type {
   corrections as correctionsTable,
-  journalEntries as journalEntriesTable,
-  journalRevisions as journalRevisionsTable,
+  writingAttempts as writingAttemptsTable,
+  writingRevisions as writingRevisionsTable,
   referenceRewrites as referenceRewritesTable,
   reviewRuns as reviewRunsTable,
   rewriteTasks as rewriteTasksTable,
@@ -23,8 +23,8 @@ import type { PreviewOperationsSnapshot, SaveReviewOutput } from '../src/shared/
 
 type AppDatabase = typeof appDatabase;
 
-type JournalEntryRow = typeof journalEntriesTable.$inferSelect;
-type JournalRevisionRow = typeof journalRevisionsTable.$inferSelect;
+type WritingAttemptRow = typeof writingAttemptsTable.$inferSelect;
+type WritingRevisionRow = typeof writingRevisionsTable.$inferSelect;
 type ReviewRunRow = typeof reviewRunsTable.$inferSelect;
 type CorrectionRow = typeof correctionsTable.$inferSelect;
 type SelfRepairAttemptRow = typeof selfRepairAttemptsTable.$inferSelect;
@@ -32,8 +32,8 @@ type ReferenceRewriteRow = typeof referenceRewritesTable.$inferSelect;
 type RewriteTaskRow = typeof rewriteTasksTable.$inferSelect;
 
 type StoredRow =
-  | JournalEntryRow
-  | JournalRevisionRow
+  | WritingAttemptRow
+  | WritingRevisionRow
   | ReviewRunRow
   | CorrectionRow
   | SelfRepairAttemptRow
@@ -41,8 +41,8 @@ type StoredRow =
   | RewriteTaskRow;
 
 type TableName =
-  | 'journalEntries'
-  | 'journalRevisions'
+  | 'writingAttempts'
+  | 'writingRevisions'
   | 'reviewRuns'
   | 'corrections'
   | 'selfRepairAttempts'
@@ -50,8 +50,8 @@ type TableName =
   | 'rewriteTasks';
 
 type RowStore = {
-  journalEntries: JournalEntryRow[];
-  journalRevisions: JournalRevisionRow[];
+  writingAttempts: WritingAttemptRow[];
+  writingRevisions: WritingRevisionRow[];
   reviewRuns: ReviewRunRow[];
   corrections: CorrectionRow[];
   selfRepairAttempts: SelfRepairAttemptRow[];
@@ -68,8 +68,8 @@ vi.mock('../src/main/db/client', () => ({
 const now = new Date('2026-04-29T12:00:00.000Z');
 vi.setSystemTime(now);
 const tableNames = new Map<object, TableName>([
-  [journalEntries, 'journalEntries'],
-  [journalRevisions, 'journalRevisions'],
+  [writingAttempts, 'writingAttempts'],
+  [writingRevisions, 'writingRevisions'],
   [reviewRuns, 'reviewRuns'],
   [corrections, 'corrections'],
   [selfRepairAttempts, 'selfRepairAttempts'],
@@ -149,28 +149,31 @@ class FakeReviewDatabase {
     };
   }
 
-  seedJournal(activeHash = 'hash_a'): void {
-    this.store.journalEntries.push({
+  seedWriting(activeHash = 'hash_a'): void {
+    this.store.writingAttempts.push({
       id: 'journal_1',
       dateKey: '2026-04-29',
+      templateId: 'journal',
+      generatedPromptJson: null,
+      userGoal: null,
       activeRevisionId: activeHash === 'hash_a' ? 'revision_reviewed' : 'revision_active',
       lastReviewRunId: null,
       reviewedAt: null,
       createdAt: now,
       updatedAt: now,
     });
-    this.store.journalRevisions.push({
+    this.store.writingRevisions.push({
       id: 'revision_reviewed',
-      journalEntryId: 'journal_1',
+      writingAttemptId: 'journal_1',
       content: 'Today I go home.',
       contentHash: 'hash_a',
       createdAt: now,
     });
 
     if (activeHash !== 'hash_a') {
-      this.store.journalRevisions.push({
+      this.store.writingRevisions.push({
         id: 'revision_active',
-        journalEntryId: 'journal_1',
+        writingAttemptId: 'journal_1',
         content: 'Today I went home.',
         contentHash: activeHash,
         createdAt: now,
@@ -181,8 +184,8 @@ class FakeReviewDatabase {
   seedReadyReview(operations: PreviewOperationsSnapshot): void {
     this.store.reviewRuns.push({
       id: 'review_1',
-      journalEntryId: 'journal_1',
-      journalRevisionId: 'revision_reviewed',
+      writingAttemptId: 'journal_1',
+      writingRevisionId: 'revision_reviewed',
       contentHash: 'hash_a',
       status: 'review_ready',
       validationStatus: 'valid',
@@ -200,7 +203,7 @@ class FakeReviewDatabase {
   }
 
   setLastReviewRunId(reviewRunId: string): void {
-    const entry = this.store.journalEntries.find((candidate) => candidate.id === 'journal_1');
+    const entry = this.store.writingAttempts.find((candidate) => candidate.id === 'journal_1');
     if (entry) {
       entry.lastReviewRunId = reviewRunId;
     }
@@ -210,8 +213,8 @@ class FakeReviewDatabase {
     return this.store.reviewRuns.find((candidate) => candidate.id === 'review_1');
   }
 
-  journalEntry(): JournalEntryRow | undefined {
-    return this.store.journalEntries.find((candidate) => candidate.id === 'journal_1');
+  writingAttempt(): WritingAttemptRow | undefined {
+    return this.store.writingAttempts.find((candidate) => candidate.id === 'journal_1');
   }
 
   count(table: TableName): number {
@@ -272,7 +275,7 @@ class FakeReviewDatabase {
       return undefined;
     }
 
-    Object.assign(row, patch, table === 'journalEntries' || table === 'reviewRuns' ? { updatedAt: now } : {});
+    Object.assign(row, patch, table === 'writingAttempts' || table === 'reviewRuns' ? { updatedAt: now } : {});
     return row;
   }
 }
@@ -282,13 +285,23 @@ async function loadSaveReviewRun(): Promise<typeof saveReviewRunFunction> {
   return module.saveReviewRun;
 }
 
-function currentJournal(): NonNullable<SaveReviewOutput['journal']> {
+function currentWriting(): NonNullable<SaveReviewOutput['writing']> {
   return {
-    entryId: 'journal_1',
+    attemptId: 'journal_1',
     dateKey: '2026-04-29',
+    templateId: 'journal',
+    template: {
+      id: 'journal',
+      title: 'Journal',
+      description: 'Reflect on your day, thoughts, or experiences while keeping the existing habit-writing use case.',
+      starterPromptBehavior: 'Generate a reflective English journaling prompt.',
+      reviewFocus: 'Clear daily expression, natural sentence flow, and transferable grammar or collocation patterns.',
+    },
+    generatedPrompt: null,
+    userGoal: null,
     activeRevision: {
       id: 'revision_reviewed',
-      journalEntryId: 'journal_1',
+      writingAttemptId: 'journal_1',
       content: 'Today I go home.',
       contentHash: 'hash_a',
       createdAt: now.getTime(),
@@ -356,24 +369,24 @@ function baseOperations(overrides: Partial<PreviewOperationsSnapshot> = {}): Pre
 describe('saveReviewRun transaction', () => {
   it('saves review artifacts atomically and is idempotent', async () => {
     const database = new FakeReviewDatabase();
-    database.seedJournal();
+    database.seedWriting();
     database.seedReadyReview(baseOperations());
     const saveReviewRun = await loadSaveReviewRun();
 
     const firstSave = saveReviewRun(
       { reviewRunId: 'review_1', selfRepairAttemptText: 'I went home', revealedWithoutAttempt: false },
-      { database: database.asAppDatabase(), getTodayJournalSnapshot: currentJournal }
+      { database: database.asAppDatabase(), getWritingAttemptSnapshot: currentWriting }
     );
     const secondSave = saveReviewRun(
       { reviewRunId: 'review_1', selfRepairAttemptText: 'I went home', revealedWithoutAttempt: false },
-      { database: database.asAppDatabase(), getTodayJournalSnapshot: currentJournal }
+      { database: database.asAppDatabase(), getWritingAttemptSnapshot: currentWriting }
     );
 
     expect(firstSave.success).toBe(true);
     expect(secondSave.success).toBe(true);
     expect(secondSave.reviewRun?.status).toBe('review_saved');
-    expect(database.journalEntry()?.lastReviewRunId).toBe('review_1');
-    expect(database.journalEntry()?.reviewedAt).toBeInstanceOf(Date);
+    expect(database.writingAttempt()?.lastReviewRunId).toBe('review_1');
+    expect(database.writingAttempt()?.reviewedAt).toBeInstanceOf(Date);
     expect(database.count('corrections')).toBe(1);
     expect(database.count('selfRepairAttempts')).toBe(1);
     expect(database.count('referenceRewrites')).toBe(1);
@@ -391,12 +404,12 @@ describe('saveReviewRun transaction', () => {
 
   it('rolls back partial writes when one transaction step fails', async () => {
     const database = new FakeReviewDatabase();
-    database.seedJournal();
+    database.seedWriting();
     database.seedReadyReview(baseOperations());
     database.failOnInsertTable = 'referenceRewrites';
     const saveReviewRun = await loadSaveReviewRun();
 
-    const result = saveReviewRun({ reviewRunId: 'review_1' }, { database: database.asAppDatabase(), getTodayJournalSnapshot: currentJournal });
+    const result = saveReviewRun({ reviewRunId: 'review_1' }, { database: database.asAppDatabase(), getWritingAttemptSnapshot: currentWriting });
 
     expect(result.success).toBe(false);
     expect(database.reviewRun()?.status).toBe('review_ready');
@@ -408,7 +421,7 @@ describe('saveReviewRun transaction', () => {
 
   it('excludes low-confidence corrections from saved corrections and rewrite practice', async () => {
     const database = new FakeReviewDatabase();
-    database.seedJournal();
+    database.seedWriting();
     database.seedReadyReview(baseOperations({
       corrections: [
         ...baseOperations().corrections,
@@ -442,7 +455,7 @@ describe('saveReviewRun transaction', () => {
     }));
     const saveReviewRun = await loadSaveReviewRun();
 
-    const result = saveReviewRun({ reviewRunId: 'review_1' }, { database: database.asAppDatabase(), getTodayJournalSnapshot: currentJournal });
+    const result = saveReviewRun({ reviewRunId: 'review_1' }, { database: database.asAppDatabase(), getWritingAttemptSnapshot: currentWriting });
 
     if (!result.success) {
       throw new Error(result.error);
@@ -455,7 +468,7 @@ describe('saveReviewRun transaction', () => {
 
   it('creates at most one D+1 rewrite task from a saved review', async () => {
     const database = new FakeReviewDatabase();
-    database.seedJournal();
+    database.seedWriting();
     database.seedReadyReview(baseOperations({
       rewritePractice: [
         ...baseOperations().rewritePractice,
@@ -472,7 +485,7 @@ describe('saveReviewRun transaction', () => {
     }));
     const saveReviewRun = await loadSaveReviewRun();
 
-    const result = saveReviewRun({ reviewRunId: 'review_1' }, { database: database.asAppDatabase(), getTodayJournalSnapshot: currentJournal });
+    const result = saveReviewRun({ reviewRunId: 'review_1' }, { database: database.asAppDatabase(), getWritingAttemptSnapshot: currentWriting });
 
     if (!result.success) {
       throw new Error(result.error);
@@ -483,7 +496,7 @@ describe('saveReviewRun transaction', () => {
 
   it('does not create a rewrite task unless it practices the focus correction', async () => {
     const database = new FakeReviewDatabase();
-    database.seedJournal();
+    database.seedWriting();
     database.seedReadyReview(baseOperations({
       corrections: [
         ...baseOperations().corrections,
@@ -516,7 +529,7 @@ describe('saveReviewRun transaction', () => {
     }));
     const saveReviewRun = await loadSaveReviewRun();
 
-    const result = saveReviewRun({ reviewRunId: 'review_1' }, { database: database.asAppDatabase(), getTodayJournalSnapshot: currentJournal });
+    const result = saveReviewRun({ reviewRunId: 'review_1' }, { database: database.asAppDatabase(), getWritingAttemptSnapshot: currentWriting });
 
     if (!result.success) {
       throw new Error(result.error);
@@ -526,24 +539,24 @@ describe('saveReviewRun transaction', () => {
 
   it('keeps the saved review pointer unchanged when the preview is stale before save', async () => {
     const database = new FakeReviewDatabase();
-    database.seedJournal('hash_b');
+    database.seedWriting('hash_b');
     database.setLastReviewRunId('older_review');
     database.seedReadyReview(baseOperations());
     const saveReviewRun = await loadSaveReviewRun();
 
-    const result = saveReviewRun({ reviewRunId: 'review_1' }, { database: database.asAppDatabase(), getTodayJournalSnapshot: currentJournal });
+    const result = saveReviewRun({ reviewRunId: 'review_1' }, { database: database.asAppDatabase(), getWritingAttemptSnapshot: currentWriting });
 
     if (!result.success) {
       throw new Error(result.error);
     }
     expect(result).toMatchObject({ success: true });
     expect(database.reviewRun()?.status).toBe('stale');
-    expect(database.journalEntry()?.lastReviewRunId).toBe('older_review');
+    expect(database.writingAttempt()?.lastReviewRunId).toBe('older_review');
   });
 
   it('rejects a review that lacks one anchored focus correction', async () => {
     const database = new FakeReviewDatabase();
-    database.seedJournal();
+    database.seedWriting();
     database.seedReadyReview(baseOperations({
       corrections: [
         {
@@ -555,7 +568,7 @@ describe('saveReviewRun transaction', () => {
     }));
     const saveReviewRun = await loadSaveReviewRun();
 
-    const result = saveReviewRun({ reviewRunId: 'review_1' }, { database: database.asAppDatabase(), getTodayJournalSnapshot: currentJournal });
+    const result = saveReviewRun({ reviewRunId: 'review_1' }, { database: database.asAppDatabase(), getWritingAttemptSnapshot: currentWriting });
 
     expect(result.success).toBe(false);
     expect(database.reviewRun()?.status).toBe('review_ready');
@@ -568,8 +581,8 @@ describe('saveReviewRun transaction', () => {
 
 function emptyStore(): RowStore {
   return {
-    journalEntries: [],
-    journalRevisions: [],
+    writingAttempts: [],
+    writingRevisions: [],
     reviewRuns: [],
     corrections: [],
     selfRepairAttempts: [],
@@ -580,8 +593,8 @@ function emptyStore(): RowStore {
 
 function cloneStore(store: RowStore): RowStore {
   return {
-    journalEntries: store.journalEntries.map((row) => ({ ...row, createdAt: cloneDate(row.createdAt), updatedAt: cloneDate(row.updatedAt), reviewedAt: cloneNullableDate(row.reviewedAt) })),
-    journalRevisions: store.journalRevisions.map((row) => ({ ...row, createdAt: cloneDate(row.createdAt) })),
+    writingAttempts: store.writingAttempts.map((row) => ({ ...row, createdAt: cloneDate(row.createdAt), updatedAt: cloneDate(row.updatedAt), reviewedAt: cloneNullableDate(row.reviewedAt) })),
+    writingRevisions: store.writingRevisions.map((row) => ({ ...row, createdAt: cloneDate(row.createdAt) })),
     reviewRuns: store.reviewRuns.map((row) => ({ ...row, createdAt: cloneDate(row.createdAt), updatedAt: cloneDate(row.updatedAt) })),
     corrections: store.corrections.map((row) => ({ ...row })),
     selfRepairAttempts: store.selfRepairAttempts.map((row) => ({ ...row, createdAt: cloneDate(row.createdAt) })),

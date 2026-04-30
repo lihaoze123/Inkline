@@ -1,14 +1,14 @@
 import { z } from 'zod';
 import { validationStatusSchema, reviewOutputSchema, correctionCategorySchema, confidenceSchema, correctionStatusSchema } from '../review-contract/schemas';
-import { todayJournalSnapshotSchema } from './journal';
+import { writingAttemptSnapshotSchema } from './writing';
 
 export const acknowledgeReviewDisclosureInputSchema = z.object({
   acknowledged: z.literal(true),
 });
 
 export const startReviewInputSchema = z.object({
-  journalEntryId: z.string().min(1),
-  journalRevisionId: z.string().min(1),
+  writingAttemptId: z.string().min(1),
+  writingRevisionId: z.string().min(1),
 });
 
 export const reviewProgressPhaseSchema = z.enum(['preparing', 'requesting', 'waiting', 'checking', 'building_preview']);
@@ -64,8 +64,8 @@ export const reviewProgressEventSchema = z.object({
 
 export const reviewRunSnapshotSchema = z.object({
   id: z.string().min(1),
-  journalEntryId: z.string().min(1),
-  journalRevisionId: z.string().min(1).nullable(),
+  writingAttemptId: z.string().min(1),
+  writingRevisionId: z.string().min(1).nullable(),
   contentHash: z.string().min(1),
   status: z.enum(['draft', 'reviewing', 'review_ready', 'review_saved', 'review_failed', 'stale', 'discarded']),
   validationStatus: validationStatusSchema.nullable(),
@@ -129,8 +129,8 @@ export const reviewPreviewSnapshotSchema = z.object({
   reviewedContent: z.string(),
   parsedOutput: reviewOutputSchema,
   operations: previewOperationsSnapshotSchema,
-  currentJournalContentHash: z.string().min(1).nullable(),
-  isStaleForCurrentJournal: z.boolean(),
+  currentWritingContentHash: z.string().min(1).nullable(),
+  isStaleForCurrentWriting: z.boolean(),
 });
 
 export const getReviewPreviewInputSchema = z.object({
@@ -146,7 +146,7 @@ export const saveReviewInputSchema = z.object({
 export const saveReviewOutputSchema = z.object({
   success: z.boolean(),
   reviewRun: reviewRunSnapshotSchema.optional(),
-  journal: todayJournalSnapshotSchema.optional(),
+  writing: writingAttemptSnapshotSchema.optional(),
   error: z.string().optional(),
 });
 

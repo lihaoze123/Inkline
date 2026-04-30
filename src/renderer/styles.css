@@ -94,7 +94,7 @@ textarea:hover::-webkit-scrollbar-thumb {
   background: var(--color-primary);
 }
 
-.journal-writing-surface {
+.writing-practice-surface {
   font-family: "Iowan Old Style", "Palatino Linotype", Georgia, ui-serif, serif;
 }
 

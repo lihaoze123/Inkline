@@ -1,25 +1,25 @@
 import { describe, expect, it, vi } from 'vitest';
-import { journalEntries, journalRevisions, reviewRuns, rewriteTasks } from '../src/main/db/schema';
+import { writingAttempts, writingRevisions, reviewRuns, rewriteTasks } from '../src/main/db/schema';
 import type {
-  journalEntries as journalEntriesTable,
-  journalRevisions as journalRevisionsTable,
+  writingAttempts as writingAttemptsTable,
+  writingRevisions as writingRevisionsTable,
   reviewRuns as reviewRunsTable,
   rewriteTasks as rewriteTasksTable,
 } from '../src/main/db/schema';
 import type { db as appDatabase } from '../src/main/db/client';
-import type { completeRewritePractice as completeRewritePracticeFunction, skipRewritePractice as skipRewritePracticeFunction } from '../src/main/services/journal/service';
+import type { completeRewritePractice as completeRewritePracticeFunction, skipRewritePractice as skipRewritePracticeFunction } from '../src/main/services/writing/service';
 
 type AppDatabase = typeof appDatabase;
-type JournalEntryRow = typeof journalEntriesTable.$inferSelect;
-type JournalRevisionRow = typeof journalRevisionsTable.$inferSelect;
+type WritingAttemptRow = typeof writingAttemptsTable.$inferSelect;
+type WritingRevisionRow = typeof writingRevisionsTable.$inferSelect;
 type ReviewRunRow = typeof reviewRunsTable.$inferSelect;
 type RewriteTaskRow = typeof rewriteTasksTable.$inferSelect;
-type StoredRow = JournalEntryRow | JournalRevisionRow | ReviewRunRow | RewriteTaskRow;
-type TableName = 'journalEntries' | 'journalRevisions' | 'reviewRuns' | 'rewriteTasks';
+type StoredRow = WritingAttemptRow | WritingRevisionRow | ReviewRunRow | RewriteTaskRow;
+type TableName = 'writingAttempts' | 'writingRevisions' | 'reviewRuns' | 'rewriteTasks';
 
 type RowStore = {
-  journalEntries: JournalEntryRow[];
-  journalRevisions: JournalRevisionRow[];
+  writingAttempts: WritingAttemptRow[];
+  writingRevisions: WritingRevisionRow[];
   reviewRuns: ReviewRunRow[];
   rewriteTasks: RewriteTaskRow[];
 };
@@ -34,13 +34,13 @@ const now = new Date('2026-04-30T12:00:00.000Z');
 vi.setSystemTime(now);
 
 const tableNames = new Map<object, TableName>([
-  [journalEntries, 'journalEntries'],
-  [journalRevisions, 'journalRevisions'],
+  [writingAttempts, 'writingAttempts'],
+  [writingRevisions, 'writingRevisions'],
   [reviewRuns, 'reviewRuns'],
   [rewriteTasks, 'rewriteTasks'],
 ]);
 
-class FakeJournalDatabase {
+class FakeWritingDatabase {
   private store: RowStore = emptyStore();
 
   select(): {
@@ -87,27 +87,30 @@ class FakeJournalDatabase {
     this.store = emptyStore();
   }
 
-  seedTodayWithPendingRewrite(): void {
-    this.store.journalEntries.push({
+  seedPracticeWithPendingRewrite(): void {
+    this.store.writingAttempts.push({
       id: 'journal_1',
       dateKey: '2026-04-30',
+      templateId: 'journal',
+      generatedPromptJson: null,
+      userGoal: null,
       activeRevisionId: 'revision_1',
       lastReviewRunId: null,
       reviewedAt: null,
       createdAt: now,
       updatedAt: now,
     });
-    this.store.journalRevisions.push({
+    this.store.writingRevisions.push({
       id: 'revision_1',
-      journalEntryId: 'journal_1',
+      writingAttemptId: 'journal_1',
       content: 'Today I go home.',
       contentHash: 'hash_a',
       createdAt: now,
     });
     this.store.reviewRuns.push({
       id: 'review_1',
-      journalEntryId: 'journal_1',
-      journalRevisionId: 'revision_1',
+      writingAttemptId: 'journal_1',
+      writingRevisionId: 'revision_1',
       contentHash: 'hash_a',
       status: 'review_saved',
       validationStatus: 'valid',
@@ -144,8 +147,8 @@ class FakeJournalDatabase {
     }
 
     const value = extractId(condition);
-    if (table === 'journalEntries') {
-      return new QueryResult(this.store.journalEntries.filter((row) => row.id === value || row.dateKey === value));
+    if (table === 'writingAttempts') {
+      return new QueryResult(this.store.writingAttempts.filter((row) => row.id === value || row.dateKey === value));
     }
 
     return new QueryResult(rows.filter((row) => row.id === value));
@@ -157,7 +160,7 @@ class FakeJournalDatabase {
       return undefined;
     }
 
-    Object.assign(row, patch, table === 'journalEntries' || table === 'reviewRuns' ? { updatedAt: now } : {});
+    Object.assign(row, patch, table === 'writingAttempts' || table === 'reviewRuns' ? { updatedAt: now } : {});
     return row;
   }
 }
@@ -178,28 +181,28 @@ class QueryResult {
   }
 }
 
-const fakeDatabase = new FakeJournalDatabase();
+const fakeDatabase = new FakeWritingDatabase();
 
 async function loadCompleteRewritePractice(): Promise<typeof completeRewritePracticeFunction> {
-  const module = await import('../src/main/services/journal/service');
+  const module = await import('../src/main/services/writing/service');
   return module.completeRewritePractice;
 }
 
 async function loadSkipRewritePractice(): Promise<typeof skipRewritePracticeFunction> {
-  const module = await import('../src/main/services/journal/service');
+  const module = await import('../src/main/services/writing/service');
   return module.skipRewritePractice;
 }
 
 describe('rewrite practice service updates', () => {
   it('returns the completed rewrite practice even after it is no longer pending for Today', async () => {
     fakeDatabase.reset();
-    fakeDatabase.seedTodayWithPendingRewrite();
+    fakeDatabase.seedPracticeWithPendingRewrite();
     const completeRewritePractice = await loadCompleteRewritePractice();
 
     const result = completeRewritePractice({ rewriteTaskId: 'rewrite_1', userRewriteText: ' I went home. ' });
 
     expect(result.success).toBe(true);
-    expect(result.journal?.pendingRewritePractice).toBeNull();
+    expect(result.writing?.pendingRewritePractice).toBeNull();
     expect(result.rewritePractice).toMatchObject({
       id: 'rewrite_1',
       status: 'completed',
@@ -213,15 +216,15 @@ describe('rewrite practice service updates', () => {
     });
   });
 
-  it('removes skipped rewrite practice from the pending Today slot', async () => {
+  it('removes skipped rewrite practice from the pending practice slot', async () => {
     fakeDatabase.reset();
-    fakeDatabase.seedTodayWithPendingRewrite();
+    fakeDatabase.seedPracticeWithPendingRewrite();
     const skipRewritePractice = await loadSkipRewritePractice();
 
     const result = skipRewritePractice({ rewriteTaskId: 'rewrite_1' });
 
     expect(result.success).toBe(true);
-    expect(result.journal?.pendingRewritePractice).toBeNull();
+    expect(result.writing?.pendingRewritePractice).toBeNull();
     expect(result.rewritePractice).toMatchObject({ id: 'rewrite_1', status: 'skipped' });
     expect(fakeDatabase.rewriteTask('rewrite_1')).toMatchObject({ status: 'skipped', skippedAt: now });
   });
@@ -248,8 +251,8 @@ function createPendingRewriteTask(id: string): RewriteTaskRow {
 
 function emptyStore(): RowStore {
   return {
-    journalEntries: [],
-    journalRevisions: [],
+    writingAttempts: [],
+    writingRevisions: [],
     reviewRuns: [],
     rewriteTasks: [],
   };

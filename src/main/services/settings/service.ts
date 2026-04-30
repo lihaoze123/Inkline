@@ -6,7 +6,7 @@ import { setProviderConfigInputSchema, type SettingsSnapshot, type SetProviderCo
 export const OPENAI_COMPATIBLE_PROVIDER = 'OpenAI-compatible';
 export const DEFAULT_OPENAI_COMPATIBLE_BASE_URL = 'https://api.openai.com/v1';
 export const DEFAULT_OPENAI_COMPATIBLE_MODEL = 'gpt-4o-mini';
-const REVIEW_CONTEXT_DESCRIPTION = 'Current entry and selected learning history will be sent when Review is clicked.';
+const REVIEW_CONTEXT_DESCRIPTION = 'Selected template, prompt or goal context, current writing, and selected learning history will be sent when Review is clicked.';
 
 export type ReviewSettingsSnapshot = Pick<SettingsSnapshot, 'provider' | 'baseUrl' | 'model' | 'rawResponseStorageEnabled' | 'providerApiKeyStatus'>;
 

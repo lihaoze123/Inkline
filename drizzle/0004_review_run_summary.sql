@@ -1,1 +1,2 @@
-ALTER TABLE `review_runs` ADD `summary_json` text;
+-- Superseded by the development-stage foundation rebuild in 0000_foundation.sql.
+SELECT 1;

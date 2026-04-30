@@ -14,17 +14,28 @@ import {
 } from '../../shared/types/review';
 import { startupStatusSchema, type StartupStatus } from '../../shared/types/app';
 import {
+  acknowledgeStarterPromptDisclosureInputSchema,
   completeRewritePracticeInputSchema,
+  generateStarterPromptInputSchema,
+  generateStarterPromptResultSchema,
+  getWritingAttemptInputSchema,
   rewritePracticeUpdateResultSchema,
-  saveTodayJournalInputSchema,
-  saveTodayJournalResultSchema,
+  saveWritingAttemptInputSchema,
+  saveWritingAttemptResultSchema,
   skipRewritePracticeInputSchema,
-  todayJournalSnapshotSchema,
-} from '../../shared/types/journal';
+  writingAttemptSnapshotSchema,
+} from '../../shared/types/writing';
 import { getDatabasePath } from '../db/client';
 import type { MigrationResult } from '../db/migrate';
 import { deleteProviderApiKey, getProviderKeyStatus, setProviderApiKey } from '../services/credentials/service';
-import { completeRewritePractice, getTodayJournal, saveTodayJournal, skipRewritePractice } from '../services/journal/service';
+import {
+  acknowledgeStarterPromptDisclosure,
+  completeRewritePractice,
+  generateStarterPrompt,
+  getWritingAttempt,
+  saveWritingAttempt,
+  skipRewritePractice,
+} from '../services/writing/service';
 import { acknowledgeReviewDisclosure } from '../services/review/lib/disclosure';
 import { getReviewPreview } from '../services/review/procedures/preview';
 import { saveReviewRun } from '../services/review/procedures/save';
@@ -40,21 +51,36 @@ export function registerIpcHandlers(migrationResult: MigrationResult): void {
     });
   });
 
-  ipcMain.handle(IPC_CHANNELS.JOURNAL.GET_TODAY, (): unknown => {
-    return todayJournalSnapshotSchema.parse(getTodayJournal());
+  ipcMain.handle(IPC_CHANNELS.WRITING.GET_CURRENT_ATTEMPT, (): unknown => {
+    return writingAttemptSnapshotSchema.parse(getWritingAttempt());
   });
 
-  ipcMain.handle(IPC_CHANNELS.JOURNAL.SAVE_TODAY, (_event, input: unknown): unknown => {
-    const parsedInput = saveTodayJournalInputSchema.parse(input);
-    return saveTodayJournalResultSchema.parse(saveTodayJournal(parsedInput));
+  ipcMain.handle(IPC_CHANNELS.WRITING.GET_WRITING_ATTEMPT, (_event, input: unknown): unknown => {
+    const parsedInput = getWritingAttemptInputSchema.parse(input);
+    return writingAttemptSnapshotSchema.parse(getWritingAttempt(parsedInput));
   });
 
-  ipcMain.handle(IPC_CHANNELS.JOURNAL.COMPLETE_REWRITE_PRACTICE, (_event, input: unknown): unknown => {
+  ipcMain.handle(IPC_CHANNELS.WRITING.GENERATE_STARTER_PROMPT, async (_event, input: unknown): Promise<unknown> => {
+    const parsedInput = generateStarterPromptInputSchema.parse(input);
+    return generateStarterPromptResultSchema.parse(await generateStarterPrompt(parsedInput));
+  });
+
+  ipcMain.handle(IPC_CHANNELS.WRITING.ACKNOWLEDGE_STARTER_PROMPT_DISCLOSURE, async (_event, input: unknown): Promise<boolean> => {
+    acknowledgeStarterPromptDisclosureInputSchema.parse(input);
+    return acknowledgeStarterPromptDisclosure();
+  });
+
+  ipcMain.handle(IPC_CHANNELS.WRITING.SAVE_WRITING_ATTEMPT, (_event, input: unknown): unknown => {
+    const parsedInput = saveWritingAttemptInputSchema.parse(input);
+    return saveWritingAttemptResultSchema.parse(saveWritingAttempt(parsedInput));
+  });
+
+  ipcMain.handle(IPC_CHANNELS.WRITING.COMPLETE_REWRITE_PRACTICE, (_event, input: unknown): unknown => {
     const parsedInput = completeRewritePracticeInputSchema.parse(input);
     return rewritePracticeUpdateResultSchema.parse(completeRewritePractice(parsedInput));
   });
 
-  ipcMain.handle(IPC_CHANNELS.JOURNAL.SKIP_REWRITE_PRACTICE, (_event, input: unknown): unknown => {
+  ipcMain.handle(IPC_CHANNELS.WRITING.SKIP_REWRITE_PRACTICE, (_event, input: unknown): unknown => {
     const parsedInput = skipRewritePracticeInputSchema.parse(input);
     return rewritePracticeUpdateResultSchema.parse(skipRewritePractice(parsedInput));
   });

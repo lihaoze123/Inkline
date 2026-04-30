@@ -27,7 +27,15 @@ export const errorPatternSchema = z.object({
 
 export const reviewInputSchema = z.object({
   date: z.string().min(1),
-  journalContent: z.string(),
+  writingContent: z.string(),
+  writingTemplate: z.object({
+    id: z.enum(['journal', 'cet4', 'cet6', 'free']),
+    title: z.string().min(1),
+    reviewFocus: z.string().min(1),
+    scenarioContext: z.string().optional(),
+  }).optional(),
+  generatedPrompt: z.string().nullable().optional(),
+  userGoal: z.string().nullable().optional(),
   contentHash: z.string().min(1),
   existingPatterns: z.array(errorPatternSchema),
   recentExamples: z.array(z.string()).optional(),

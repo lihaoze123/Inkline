@@ -1,0 +1,22 @@
+{"file":".trellis/spec/product/index.md","reason":"Product-level requirements for the writing practice repositioning."}
+{"file":".trellis/spec/product/mvp-scope.md","reason":"MVP boundaries and out-of-scope constraints for writing practice."}
+{"file":".trellis/spec/product/learning-flow.md","reason":"Existing focused feedback and D+1 rewrite learning loop to preserve."}
+{"file":".trellis/spec/product/data-model-contract.md","reason":"Persistence/data model contracts affected by journal-to-writing generalization."}
+{"file":".trellis/spec/product/review-agent-contract.md","reason":"Review prompt/input/output contract for template-aware AI feedback."}
+{"file":".trellis/spec/product/privacy-security.md","reason":"AI provider disclosure and user-content privacy boundaries."}
+{"file":".trellis/spec/product/validation-and-testing.md","reason":"Testing and validation expectations for product behavior."}
+{"file":".trellis/spec/frontend/index.md","reason":"Frontend conventions for implementing the Practice entry and editor flow."}
+{"file":".trellis/spec/frontend/components.md","reason":"Component structure expectations for UI changes."}
+{"file":".trellis/spec/frontend/state-management.md","reason":"State management expectations for per-template drafts and generation state."}
+{"file":".trellis/spec/frontend/ipc-electron.md","reason":"Renderer/preload IPC expectations for new writing-oriented channels."}
+{"file":".trellis/spec/backend/index.md","reason":"Backend conventions for services, IPC handlers, and persistence changes."}
+{"file":".trellis/spec/backend/database.md","reason":"Database/schema guidance for development-stage schema rebuild."}
+{"file":".trellis/spec/backend/api-patterns.md","reason":"API and service patterns for writing attempt and prompt generation flows."}
+{"file":".trellis/spec/backend/error-handling.md","reason":"Error handling for AI generation/review failures and retry UI."}
+{"file":".trellis/spec/backend/type-safety.md","reason":"Type-safety expectations across main/preload/shared layers."}
+{"file":".trellis/spec/shared/typescript.md","reason":"Shared TypeScript conventions for renamed types and contracts."}
+{"file":".trellis/spec/shared/code-quality.md","reason":"General code quality and reuse expectations for broad refactor."}
+{"file":".trellis/spec/guides/pre-implementation-checklist.md","reason":"Pre-development checklist for avoiding cross-layer drift."}
+{"file":".trellis/spec/guides/cross-layer-thinking-guide.md","reason":"Cross-layer consistency guidance for shared types, IPC, services, and UI."}
+{"file":".trellis/spec/guides/db-schema-change-guide.md","reason":"Schema change guidance for replacing journal persistence in development."}
+{"file":".trellis/tasks/04-30-broader-writing-cet-practice/research/current-writing-workflow.md","reason":"Research summary of the existing journal-centered workflow and relevant files."}

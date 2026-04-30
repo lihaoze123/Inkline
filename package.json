@@ -1,7 +1,7 @@
 {
   "name": "english-coach",
   "version": "0.1.0",
-  "description": "Local-first English journal coach desktop app.",
+  "description": "Local-first AI writing practice desktop app.",
   "private": true,
   "type": "module",
   "main": ".vite/build/index.cjs",

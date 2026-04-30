@@ -1,16 +1,22 @@
-import { getLocalDateKey } from '../../../../shared/journal/content';
+import { getLocalDateKey } from '../../../../shared/writing/content';
 import { reviewInputSchema, type ErrorPattern, type ReviewInput } from '../../../../shared/review-contract/schemas';
 import { V0_1_REVIEW_CAPS } from '../types';
 
 export function buildBoundedReviewInput(params: {
-  journalContent: string;
+  writingContent: string;
   contentHash: string;
   date?: string;
   existingPatterns: ErrorPattern[];
+  writingTemplate?: ReviewInput['writingTemplate'];
+  generatedPrompt?: string | null;
+  userGoal?: string | null;
 }): ReviewInput {
   const input = {
     date: params.date ?? getLocalDateKey(),
-    journalContent: params.journalContent,
+    writingContent: params.writingContent,
+    writingTemplate: params.writingTemplate,
+    generatedPrompt: params.generatedPrompt ?? null,
+    userGoal: params.userGoal ?? null,
     contentHash: params.contentHash,
     existingPatterns: params.existingPatterns
       .filter((pattern) => pattern.category !== 'spelling')

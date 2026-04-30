@@ -37,7 +37,7 @@ function createD1RewritePractice(createdAt: number): RewritePracticeRecord {
   };
 }
 
-function selectTodayPractice(tasks: RewritePracticeRecord[], now: number): RewritePracticeRecord | null {
+function selectPracticeSlot(tasks: RewritePracticeRecord[], now: number): RewritePracticeRecord | null {
   return tasks
     .filter((task) => task.status === 'pending')
     .filter((task) => task.practiceKind === 'rewrite_original' && task.spacedStage === 'D+1')
@@ -78,13 +78,13 @@ describe('D+1 rewrite practice contract', () => {
     expect(task.dueAt).toBe(createdAt + ONE_DAY_MS);
   });
 
-  it('returns one due pending rewrite practice for Today', () => {
+  it('returns one due pending rewrite practice for the practice slot', () => {
     const createdAt = Date.UTC(2026, 3, 29, 12);
     const notDue = createD1RewritePractice(createdAt + ONE_DAY_MS);
     const due = createD1RewritePractice(createdAt);
     due.id = 'rewrite_due';
 
-    expect(selectTodayPractice([notDue, due], createdAt + ONE_DAY_MS)).toMatchObject({ id: 'rewrite_due' });
+    expect(selectPracticeSlot([notDue, due], createdAt + ONE_DAY_MS)).toMatchObject({ id: 'rewrite_due' });
   });
 
   it('stores user rewrite and marks the task completed', () => {
@@ -104,13 +104,13 @@ describe('D+1 rewrite practice contract', () => {
     expect(skipped.skippedAt).toBe(now);
   });
 
-  it('de-prioritizes tasks older than 7 days from the Today slot', () => {
+  it('de-prioritizes tasks older than 7 days from the practice slot', () => {
     const now = Date.UTC(2026, 4, 8, 12);
     const staleTask = createD1RewritePractice(now - MAX_AGE_MS - 1);
     const freshTask = createD1RewritePractice(now - ONE_DAY_MS);
     freshTask.id = 'fresh_rewrite';
 
-    expect(selectTodayPractice([staleTask], now)).toBeNull();
-    expect(selectTodayPractice([staleTask, freshTask], now)).toMatchObject({ id: 'fresh_rewrite' });
+    expect(selectPracticeSlot([staleTask], now)).toBeNull();
+    expect(selectPracticeSlot([staleTask, freshTask], now)).toMatchObject({ id: 'fresh_rewrite' });
   });
 });

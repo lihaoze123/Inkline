@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { locateAnchor, normalizeJournalContent, type AnchorLocation } from './anchoring';
+import { locateAnchor, normalizeWritingContent, type AnchorLocation } from './anchoring';
 import { reviewOutputSchema, type CorrectionStatus, type ErrorPattern, type ReviewInput, type ReviewOutput, type ValidationStatus } from './schemas';
 
 export type ValidationIssueSeverity = 'error' | 'warning';
@@ -120,17 +120,17 @@ export function validateReviewResult(
   const correctionCount = output.corrections.length;
   const existingPatternIds = new Set(input.existingPatterns.map((pattern) => pattern.id));
   const normalizedContentHash = input.contentHash;
-  const actualContentHash = hashNormalizedContent(input.journalContent);
+  const actualContentHash = hashNormalizedContent(input.writingContent);
   if (normalizedContentHash !== actualContentHash) {
     issues.push({
       severity: 'error',
       code: 'content_hash_mismatch',
-      message: 'contentHash does not match normalized journal content',
+      message: 'contentHash does not match normalized writing content',
     });
   }
 
   const anchoredCorrections = output.corrections.map((correction, correctionIndex): AnchoredCorrectionOperation => {
-    const anchorResult = locateAnchor(input.journalContent, correction.anchor);
+    const anchorResult = locateAnchor(input.writingContent, correction.anchor);
     const anchorLocation = anchorResult.success === true ? anchorResult.location : null;
 
     if (anchorResult.success === false) {
@@ -142,7 +142,7 @@ export function validateReviewResult(
       });
     }
 
-    if (anchorLocation && normalizeJournalContent(correction.originalText) !== anchorLocation.matchedText) {
+    if (anchorLocation && normalizeWritingContent(correction.originalText) !== anchorLocation.matchedText) {
       issues.push({
         severity: 'warning',
         code: 'original_text_mismatch',
@@ -425,7 +425,7 @@ function patternOperation(correction: AnchoredCorrectionOperation, existingPatte
 }
 
 function hashNormalizedContent(content: string): string {
-  return createHash('sha256').update(normalizeJournalContent(content)).digest('hex');
+  return createHash('sha256').update(normalizeWritingContent(content)).digest('hex');
 }
 
 function normalizePatternKey(category: string, rule: string): string {

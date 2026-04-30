@@ -3,13 +3,17 @@ import { IPC_CHANNELS } from '../shared/constants/channels';
 import type { StartupStatus } from '../shared/types/app';
 import type { ProviderCredentialMutationResult, ProviderKeyStatus, SetProviderApiKeyInput } from '../shared/types/credentials';
 import type {
+  AcknowledgeStarterPromptDisclosureInput,
   CompleteRewritePracticeInput,
+  GenerateStarterPromptInput,
+  GenerateStarterPromptResult,
+  GetWritingAttemptInput,
   RewritePracticeUpdateResult,
-  SaveTodayJournalInput,
-  SaveTodayJournalResult,
+  SaveWritingAttemptInput,
+  SaveWritingAttemptResult,
   SkipRewritePracticeInput,
-  TodayJournalSnapshot,
-} from '../shared/types/journal';
+  WritingAttemptSnapshot,
+} from '../shared/types/writing';
 import type {
   AcknowledgeReviewDisclosureInput,
   GetReviewPreviewInput,
@@ -26,14 +30,20 @@ const api = {
   app: {
     getStartupStatus: (): Promise<StartupStatus> => ipcRenderer.invoke(IPC_CHANNELS.APP.GET_STARTUP_STATUS),
   },
-  journal: {
-    getToday: (): Promise<TodayJournalSnapshot> => ipcRenderer.invoke(IPC_CHANNELS.JOURNAL.GET_TODAY),
-    saveToday: (input: SaveTodayJournalInput): Promise<SaveTodayJournalResult> =>
-      ipcRenderer.invoke(IPC_CHANNELS.JOURNAL.SAVE_TODAY, input),
+  writing: {
+    getCurrentAttempt: (): Promise<WritingAttemptSnapshot> => ipcRenderer.invoke(IPC_CHANNELS.WRITING.GET_CURRENT_ATTEMPT),
+    getWritingAttempt: (input: GetWritingAttemptInput): Promise<WritingAttemptSnapshot> =>
+      ipcRenderer.invoke(IPC_CHANNELS.WRITING.GET_WRITING_ATTEMPT, input),
+    generateStarterPrompt: (input: GenerateStarterPromptInput): Promise<GenerateStarterPromptResult> =>
+      ipcRenderer.invoke(IPC_CHANNELS.WRITING.GENERATE_STARTER_PROMPT, input),
+    acknowledgeStarterPromptDisclosure: (input: AcknowledgeStarterPromptDisclosureInput): Promise<boolean> =>
+      ipcRenderer.invoke(IPC_CHANNELS.WRITING.ACKNOWLEDGE_STARTER_PROMPT_DISCLOSURE, input),
+    saveWritingAttempt: (input: SaveWritingAttemptInput): Promise<SaveWritingAttemptResult> =>
+      ipcRenderer.invoke(IPC_CHANNELS.WRITING.SAVE_WRITING_ATTEMPT, input),
     completeRewritePractice: (input: CompleteRewritePracticeInput): Promise<RewritePracticeUpdateResult> =>
-      ipcRenderer.invoke(IPC_CHANNELS.JOURNAL.COMPLETE_REWRITE_PRACTICE, input),
+      ipcRenderer.invoke(IPC_CHANNELS.WRITING.COMPLETE_REWRITE_PRACTICE, input),
     skipRewritePractice: (input: SkipRewritePracticeInput): Promise<RewritePracticeUpdateResult> =>
-      ipcRenderer.invoke(IPC_CHANNELS.JOURNAL.SKIP_REWRITE_PRACTICE, input),
+      ipcRenderer.invoke(IPC_CHANNELS.WRITING.SKIP_REWRITE_PRACTICE, input),
   },
   settings: {
     get: (): Promise<SettingsSnapshot> => ipcRenderer.invoke(IPC_CHANNELS.SETTINGS.GET),

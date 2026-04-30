@@ -1,7 +1,8 @@
 import { randomUUID } from 'node:crypto';
 import { eq } from 'drizzle-orm';
 import { db } from '../../../db/client';
-import { journalEntries, journalRevisions, reviewRuns } from '../../../db/schema';
+import { writingAttempts, writingRevisions, reviewRuns } from '../../../db/schema';
+import { getWritingTemplate } from '../../../../shared/writing/templates';
 import { validateReviewResult, type PreviewOperations, type ReviewValidationResult } from '../../../../shared/review-contract';
 import {
   reviewProgressEventSchema,
@@ -128,14 +129,14 @@ export async function startReview(input: StartReviewInput, options: StartReviewO
     return { success: false, disclosureRequired: true, error: 'Provider disclosure acknowledgement is required before review.' };
   }
 
-  const revision = db.select().from(journalRevisions).where(eq(journalRevisions.id, parseResult.data.journalRevisionId)).get();
-  if (!revision || revision.journalEntryId !== parseResult.data.journalEntryId) {
-    return { success: false, error: 'Current journal revision was not found.' };
+  const revision = db.select().from(writingRevisions).where(eq(writingRevisions.id, parseResult.data.writingRevisionId)).get();
+  if (!revision || revision.writingAttemptId !== parseResult.data.writingAttemptId) {
+    return { success: false, error: 'Current writing revision was not found.' };
   }
 
-  const entry = db.select().from(journalEntries).where(eq(journalEntries.id, parseResult.data.journalEntryId)).get();
+  const entry = db.select().from(writingAttempts).where(eq(writingAttempts.id, parseResult.data.writingAttemptId)).get();
   if (!entry || entry.activeRevisionId !== revision.id) {
-    return { success: false, error: 'Review requires the current active journal revision.' };
+    return { success: false, error: 'Review requires the current active writing revision.' };
   }
 
   const reviewRunId = createId('review');
@@ -144,14 +145,28 @@ export async function startReview(input: StartReviewInput, options: StartReviewO
   beginPhase(reviewRunId, timingState, 'preparing', options.onProgress);
 
   const settings = options.settings ?? (await getSettingsSnapshot());
-  const reviewInput = buildReviewInput({ journalContent: revision.content, contentHash: revision.contentHash, date: entry.dateKey });
+  const generatedPrompt = entry.generatedPromptJson ? (JSON.parse(entry.generatedPromptJson) as { text?: unknown }).text : null;
+  const template = getWritingTemplate(entry.templateId);
+  const reviewInput = buildReviewInput({
+    writingContent: revision.content,
+    contentHash: revision.contentHash,
+    date: entry.dateKey,
+    writingTemplate: {
+      id: template.id,
+      title: template.title,
+      reviewFocus: template.reviewFocus,
+      scenarioContext: template.scenarioContext,
+    },
+    generatedPrompt: typeof generatedPrompt === 'string' ? generatedPrompt : null,
+    userGoal: entry.userGoal,
+  });
 
   const reviewingRun = db
     .insert(reviewRuns)
     .values({
       id: reviewRunId,
-      journalEntryId: entry.id,
-      journalRevisionId: revision.id,
+      writingAttemptId: entry.id,
+      writingRevisionId: revision.id,
       contentHash: revision.contentHash,
       status: 'reviewing',
       provider: settings.provider,
@@ -215,7 +230,7 @@ export async function startReview(input: StartReviewInput, options: StartReviewO
 
     completeCurrentPhase(reviewRunId, timingState, options.onProgress);
     beginPhase(reviewRunId, timingState, 'building_preview', options.onProgress);
-    const currentEntryForCompletion = db.select().from(journalEntries).where(eq(journalEntries.id, entry.id)).get();
+    const currentEntryForCompletion = db.select().from(writingAttempts).where(eq(writingAttempts.id, entry.id)).get();
     const isStaleAtCompletion = currentEntryForCompletion?.activeRevisionId !== revision.id;
     const resultKind = isStaleAtCompletion
       ? 'stale'
@@ -357,7 +372,7 @@ function userFacingErrorFor(errorCategory: ReviewErrorCategory): string {
     case 'validation_failed':
       return 'AI suggestions could not be used reliably. Try again.';
     case 'stale_content':
-      return 'This review is based on an earlier version of your journal.';
+      return 'This review is based on an earlier version of your writing.';
     case 'missing_config':
       return 'Review needs provider settings before it can run.';
   }

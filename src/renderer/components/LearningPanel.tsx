@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import type { TodayJournalSnapshot } from '@shared/types/journal';
+import type { WritingAttemptSnapshot } from '@shared/types/writing';
 import type {
   PreviewOperationsSnapshot,
   ReviewErrorCategory,
@@ -13,7 +13,7 @@ import { CorrectionCard, getFocusCorrection, patternRule } from './review-utils'
 import type { LearningPanelProps, ReviewProgressModel, ReviewState, SaveState } from './types';
 
 export function LearningPanel({
-  journal,
+  writing,
   hasWritten,
   saveState,
   reviewState,
@@ -41,11 +41,11 @@ export function LearningPanel({
         <h2 id="learning-panel-title" className="mt-1 text-2xl font-semibold tracking-[-0.03em]">Next step</h2>
       </div>
 
-      {journal.staleReview ? <StaleReviewCard onReviewCurrentVersion={onReviewCurrentVersion} /> : null}
+      {writing.staleReview ? <StaleReviewCard onReviewCurrentVersion={onReviewCurrentVersion} /> : null}
 
-      {journal.pendingRewritePractice || completedRewritePractice ? (
+      {writing.pendingRewritePractice || completedRewritePractice ? (
         <RewritePracticeCard
-          practice={completedRewritePractice ?? journal.pendingRewritePractice}
+          practice={completedRewritePractice ?? writing.pendingRewritePractice}
           inputValue={rewritePracticeInput}
           error={rewritePracticeError}
           onInputChange={onRewritePracticeInputChange}
@@ -54,7 +54,7 @@ export function LearningPanel({
         />
       ) : null}
 
-      {!hasWritten ? <BeforeWritingState dateKey={journal.dateKey} hasPendingRewritePractice={Boolean(journal.pendingRewritePractice || completedRewritePractice)} /> : null}
+      {!hasWritten ? <BeforeWritingState dateKey={writing.dateKey} hasPendingRewritePractice={Boolean(writing.pendingRewritePractice || completedRewritePractice)} /> : null}
       {hasWritten && reviewState === 'reviewing' ? <ReviewProgressCard progress={reviewProgress} /> : null}
       {hasWritten && preview ? (
         <ReviewPreview
@@ -70,7 +70,7 @@ export function LearningPanel({
       ) : null}
       {hasWritten && !preview ? (
         <AfterWritingState
-          lastAutosaveAt={journal.lastAutosaveAt}
+          lastAutosaveAt={writing.lastAutosaveAt}
           saveState={saveState}
           reviewState={reviewState}
           reviewError={reviewError}
@@ -86,7 +86,7 @@ export function LearningPanel({
 const reviewPhases: ReviewProgressPhase[] = ['preparing', 'requesting', 'waiting', 'checking', 'building_preview'];
 
 const phaseLabels: Record<ReviewProgressPhase, string> = {
-  preparing: 'Preparing journal',
+  preparing: 'Preparing writing',
   requesting: 'Sending request',
   waiting: 'Waiting for AI',
   checking: 'Checking reliability',
@@ -94,7 +94,7 @@ const phaseLabels: Record<ReviewProgressPhase, string> = {
 };
 
 const phaseDescriptions: Record<ReviewProgressPhase, string> = {
-  preparing: 'Organizing today\'s journal and learning context.',
+  preparing: 'Organizing the current writing and learning context.',
   requesting: 'Packaging the review request for the provider.',
   waiting: 'The provider is generating feedback.',
   checking: 'Validating anchors, confidence, and learning actions.',
@@ -126,7 +126,7 @@ function StaleReviewCard({ onReviewCurrentVersion }: { onReviewCurrentVersion: (
   return (
     <PanelCard tone="warning">
       <h3 className="font-semibold">Review is out of date</h3>
-      <p className="mt-2 text-sm leading-6 text-base-content/65">This review is based on an earlier version of your journal.</p>
+      <p className="mt-2 text-sm leading-6 text-base-content/65">This review is based on an earlier version of your writing.</p>
       <button type="button" className="btn btn-warning btn-sm mt-4 rounded-2xl" onClick={onReviewCurrentVersion}>Review current version</button>
     </PanelCard>
   );
@@ -136,7 +136,7 @@ function BeforeWritingState({ dateKey, hasPendingRewritePractice }: { dateKey: s
   return (
     <PanelCard tone="primary">
       <h3 className="font-semibold">Before writing</h3>
-      <p className="mt-2 text-sm leading-6 text-base-content/65">Today's journal is ready for {dateKey}. Start with free writing; feedback comes later.</p>
+      <p className="mt-2 text-sm leading-6 text-base-content/65">Today's writing is ready for {dateKey}. Start with free writing; feedback comes later.</p>
       <p className="mt-3 text-sm text-base-content/50">{hasPendingRewritePractice ? 'You can practice one saved sentence first, or ignore it and write.' : 'No pending rewrite practice yet.'}</p>
     </PanelCard>
   );
@@ -150,7 +150,7 @@ function RewritePracticeCard({
   onComplete,
   onSkip,
 }: {
-  practice: TodayJournalSnapshot['pendingRewritePractice'];
+  practice: WritingAttemptSnapshot['pendingRewritePractice'];
   inputValue: string;
   error: string | null;
   onInputChange: (value: string) => void;
@@ -277,7 +277,7 @@ function AfterWritingState({
       <p className="mt-2 text-sm leading-6 text-base-content/60">{copy}</p>
       {failedCategory ? <p className="mt-2 text-sm leading-6 text-base-content/55">Retry reviews the current editor content and creates a new review run.</p> : null}
       <button type="button" className={`btn mt-4 w-full rounded-2xl ${failedCategory ? 'btn-error' : 'btn-primary'}`} disabled={reviewDisabled} aria-disabled={reviewDisabled} onClick={onReviewCurrentVersion}>
-        {reviewState === 'reviewing' ? <><span className="loading loading-spinner loading-xs" />Reviewing...</> : failedCategory ? 'Retry current version' : 'Review current journal'}
+        {reviewState === 'reviewing' ? <><span className="loading loading-spinner loading-xs" />Reviewing...</> : failedCategory ? 'Retry current version' : 'Review current writing'}
       </button>
       <p className="mt-3 text-sm text-base-content/50">
         {lastAutosaveAt ? `Last autosave ${formatTime(lastAutosaveAt)}` : 'Autosave will appear here after writing.'}
@@ -327,7 +327,7 @@ function ReviewPreview({
   return (
     <section className="grid gap-4" aria-label="Review preview">
       <ReviewQualitySummary preview={preview} focusPatternTitle={focusPatternTitle} />
-      {preview.isStaleForCurrentJournal ? <button type="button" className="btn btn-warning rounded-2xl" onClick={onReviewCurrentVersion}>Retry current version</button> : null}
+      {preview.isStaleForCurrentWriting ? <button type="button" className="btn btn-warning rounded-2xl" onClick={onReviewCurrentVersion}>Retry current version</button> : null}
 
       <PanelCard tone="primary">
         <p className="text-xs font-semibold uppercase tracking-[0.18em] text-primary/70">Today's focus</p>
@@ -417,7 +417,7 @@ function ReviewQualitySummary({ preview, focusPatternTitle }: { preview: ReviewP
         <SummaryMetric label="References" value={stats.generatedReferenceRewrites} />
       </div>
       <p className="mt-4 text-sm leading-6 text-base-content/65"><strong>Focus:</strong> {focusPatternTitle}</p>
-      {preview.isStaleForCurrentJournal ? <p className="mt-3 rounded-2xl border border-warning/25 bg-warning/10 p-3 text-sm leading-6 text-base-content/65">This preview is based on an earlier journal version. Saving will keep it as stale history; use Retry current version for feedback on your latest writing.</p> : null}
+      {preview.isStaleForCurrentWriting ? <p className="mt-3 rounded-2xl border border-warning/25 bg-warning/10 p-3 text-sm leading-6 text-base-content/65">This preview is based on an earlier writing version. Saving will keep it as stale history; use Retry current version for feedback on your latest writing.</p> : null}
       {hasWarnings ? <p className="mt-3 rounded-2xl border border-warning/25 bg-warning/10 p-3 text-sm leading-6 text-base-content/65">Warnings do not block saving. Low-confidence suggestions are shown separately and will not update learning history.</p> : null}
       <ReviewDetails reviewRun={preview.reviewRun} />
     </PanelCard>
@@ -604,7 +604,7 @@ function failureCopyFor(category: ReviewErrorCategory, reviewError: string | nul
     case 'validation_failed':
       return 'The AI response arrived, but the suggestions could not be anchored or validated reliably.';
     case 'stale_content':
-      return 'This review was based on an earlier journal version.';
+      return 'This review was based on an earlier writing version.';
     case 'provider_error':
       return 'The AI provider could not complete the request. Try again or check Settings.';
   }

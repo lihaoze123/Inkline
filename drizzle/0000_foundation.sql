@@ -1,6 +1,12 @@
-CREATE TABLE `journal_entries` (
+-- Development-stage rebuild/reset assumption:
+-- This project is pre-production. The writing-practice rename intentionally replaces
+-- the old journal_* foundation schema instead of preserving local journal data.
+CREATE TABLE `writing_attempts` (
   `id` text PRIMARY KEY NOT NULL,
   `date_key` text NOT NULL,
+  `template_id` text DEFAULT 'journal' NOT NULL,
+  `generated_prompt_json` text,
+  `user_goal` text,
   `active_revision_id` text,
   `last_review_run_id` text,
   `reviewed_at` integer,
@@ -8,21 +14,21 @@ CREATE TABLE `journal_entries` (
   `updated_at` integer DEFAULT (unixepoch() * 1000) NOT NULL
 );
 --> statement-breakpoint
-CREATE UNIQUE INDEX `journal_entries_date_key_unique` ON `journal_entries` (`date_key`);
+CREATE UNIQUE INDEX `writing_attempts_date_template_unique` ON `writing_attempts` (`date_key`, `template_id`);
 --> statement-breakpoint
-CREATE TABLE `journal_revisions` (
+CREATE TABLE `writing_revisions` (
   `id` text PRIMARY KEY NOT NULL,
-  `journal_entry_id` text NOT NULL,
+  `writing_attempt_id` text NOT NULL,
   `content` text NOT NULL,
   `content_hash` text NOT NULL,
   `created_at` integer DEFAULT (unixepoch() * 1000) NOT NULL,
-  FOREIGN KEY (`journal_entry_id`) REFERENCES `journal_entries`(`id`) ON UPDATE no action ON DELETE cascade
+  FOREIGN KEY (`writing_attempt_id`) REFERENCES `writing_attempts`(`id`) ON UPDATE no action ON DELETE cascade
 );
 --> statement-breakpoint
 CREATE TABLE `review_runs` (
   `id` text PRIMARY KEY NOT NULL,
-  `journal_entry_id` text NOT NULL,
-  `journal_revision_id` text,
+  `writing_attempt_id` text NOT NULL,
+  `writing_revision_id` text,
   `content_hash` text NOT NULL,
   `status` text DEFAULT 'draft' NOT NULL,
   `validation_status` text,
@@ -30,10 +36,14 @@ CREATE TABLE `review_runs` (
   `model` text NOT NULL,
   `input_snapshot_json` text,
   `raw_output_json` text,
+  `parsed_output_json` text,
+  `preview_operations_json` text,
+  `validation_errors_json` text,
+  `summary_json` text,
   `created_at` integer DEFAULT (unixepoch() * 1000) NOT NULL,
   `updated_at` integer DEFAULT (unixepoch() * 1000) NOT NULL,
-  FOREIGN KEY (`journal_entry_id`) REFERENCES `journal_entries`(`id`) ON UPDATE no action ON DELETE cascade,
-  FOREIGN KEY (`journal_revision_id`) REFERENCES `journal_revisions`(`id`) ON UPDATE no action ON DELETE set null
+  FOREIGN KEY (`writing_attempt_id`) REFERENCES `writing_attempts`(`id`) ON UPDATE no action ON DELETE cascade,
+  FOREIGN KEY (`writing_revision_id`) REFERENCES `writing_revisions`(`id`) ON UPDATE no action ON DELETE set null
 );
 --> statement-breakpoint
 CREATE TABLE `corrections` (
@@ -75,10 +85,15 @@ CREATE TABLE `rewrite_tasks` (
   `review_run_id` text NOT NULL,
   `original_sentence` text DEFAULT '' NOT NULL,
   `focus_pattern` text DEFAULT '' NOT NULL,
+  `native_model_sentence` text DEFAULT '' NOT NULL,
   `prompt` text NOT NULL,
   `kind` text DEFAULT 'rewrite_original' NOT NULL,
+  `spaced_stage` text DEFAULT 'D+1' NOT NULL,
   `status` text DEFAULT 'pending' NOT NULL,
+  `user_rewrite_text` text,
   `due_at` integer,
+  `completed_at` integer,
+  `skipped_at` integer,
   `created_at` integer DEFAULT (unixepoch() * 1000) NOT NULL,
   FOREIGN KEY (`review_run_id`) REFERENCES `review_runs`(`id`) ON UPDATE no action ON DELETE cascade
 );

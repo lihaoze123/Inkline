@@ -3,8 +3,8 @@ import { eq } from 'drizzle-orm';
 import { db } from '../../../db/client';
 import {
   corrections,
-  journalEntries,
-  journalRevisions,
+  writingAttempts,
+  writingRevisions,
   referenceRewrites,
   reviewRuns,
   rewriteTasks,
@@ -16,7 +16,7 @@ import {
   type SaveReviewInput,
   type SaveReviewOutput,
 } from '../../../../shared/types/review';
-import { getTodayJournal } from '../../journal/service';
+import { getWritingAttempt } from '../../writing/service';
 import { reviewRunToSnapshot } from '../lib/snapshots';
 
 function createId(prefix: string): string {
@@ -25,8 +25,13 @@ function createId(prefix: string): string {
 
 type SaveReviewOptions = {
   database?: typeof db;
-  getTodayJournalSnapshot?: () => NonNullable<SaveReviewOutput['journal']>;
+  getWritingAttemptSnapshot?: () => NonNullable<SaveReviewOutput['writing']>;
 };
+
+function getWritingSnapshotForReviewRun(reviewRun: typeof reviewRuns.$inferSelect, database: typeof db): NonNullable<SaveReviewOutput['writing']> {
+  const entry = database.select().from(writingAttempts).where(eq(writingAttempts.id, reviewRun.writingAttemptId)).get();
+  return entry ? getWritingAttempt({ templateId: entry.templateId }) : getWritingAttempt();
+}
 
 export function saveReviewRun(input: SaveReviewInput, options: SaveReviewOptions = {}): SaveReviewOutput {
   const parseResult = saveReviewInputSchema.safeParse(input);
@@ -35,7 +40,7 @@ export function saveReviewRun(input: SaveReviewInput, options: SaveReviewOptions
   }
 
   const database = options.database ?? db;
-  const getTodayJournalSnapshot = options.getTodayJournalSnapshot ?? getTodayJournal;
+  const getWritingAttemptSnapshot = options.getWritingAttemptSnapshot ?? getWritingAttempt;
 
   try {
     const savedRun = database.transaction((tx) => {
@@ -63,9 +68,9 @@ export function saveReviewRun(input: SaveReviewInput, options: SaveReviewOptions
         throw new Error('Review must contain exactly one anchored focus correction.');
       }
 
-      const activeEntry = tx.select().from(journalEntries).where(eq(journalEntries.id, reviewRun.journalEntryId)).get();
+      const activeEntry = tx.select().from(writingAttempts).where(eq(writingAttempts.id, reviewRun.writingAttemptId)).get();
       const activeRevision = activeEntry?.activeRevisionId
-        ? tx.select().from(journalRevisions).where(eq(journalRevisions.id, activeEntry.activeRevisionId)).get()
+        ? tx.select().from(writingRevisions).where(eq(writingRevisions.id, activeEntry.activeRevisionId)).get()
         : undefined;
       const saveAsStaleHistory = activeRevision?.contentHash !== reviewRun.contentHash;
       const correctionIdByIndex = new Map<number, string>();
@@ -153,16 +158,20 @@ export function saveReviewRun(input: SaveReviewInput, options: SaveReviewOptions
 
       if (!saveAsStaleHistory) {
         tx
-          .update(journalEntries)
+          .update(writingAttempts)
           .set({ lastReviewRunId: reviewRun.id, reviewedAt: new Date() })
-          .where(eq(journalEntries.id, reviewRun.journalEntryId))
+          .where(eq(writingAttempts.id, reviewRun.writingAttemptId))
           .run();
       }
 
       return finalRun;
     });
 
-    return { success: true, reviewRun: reviewRunToSnapshot(savedRun), journal: getTodayJournalSnapshot() };
+    return {
+      success: true,
+      reviewRun: reviewRunToSnapshot(savedRun),
+      writing: options.getWritingAttemptSnapshot ? getWritingAttemptSnapshot() : getWritingSnapshotForReviewRun(savedRun, database),
+    };
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unable to save review.';
     return { success: false, error: message };

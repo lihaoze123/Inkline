@@ -2,11 +2,14 @@ export const IPC_CHANNELS = {
   APP: {
     GET_STARTUP_STATUS: 'app:getStartupStatus',
   },
-  JOURNAL: {
-    GET_TODAY: 'journal:getToday',
-    SAVE_TODAY: 'journal:saveToday',
-    COMPLETE_REWRITE_PRACTICE: 'journal:completeRewritePractice',
-    SKIP_REWRITE_PRACTICE: 'journal:skipRewritePractice',
+  WRITING: {
+    GET_CURRENT_ATTEMPT: 'practice:getCurrentAttempt',
+    GET_WRITING_ATTEMPT: 'practice:getWritingAttempt',
+    SAVE_WRITING_ATTEMPT: 'practice:saveWritingAttempt',
+    GENERATE_STARTER_PROMPT: 'practice:generateStarterPrompt',
+    ACKNOWLEDGE_STARTER_PROMPT_DISCLOSURE: 'practice:acknowledgeStarterPromptDisclosure',
+    COMPLETE_REWRITE_PRACTICE: 'practice:completeRewritePractice',
+    SKIP_REWRITE_PRACTICE: 'practice:skipRewritePractice',
   },
   SETTINGS: {
     GET: 'settings:get',

@@ -1,11 +1,16 @@
 import { sql } from 'drizzle-orm';
 import { integer, sqliteTable, text, uniqueIndex } from 'drizzle-orm/sqlite-core';
 
-export const journalEntries = sqliteTable(
-  'journal_entries',
+export const writingAttempts = sqliteTable(
+  'writing_attempts',
   {
     id: text('id').primaryKey(),
     dateKey: text('date_key').notNull(),
+    templateId: text('template_id', { enum: ['journal', 'cet4', 'cet6', 'free'] })
+      .notNull()
+      .default('journal'),
+    generatedPromptJson: text('generated_prompt_json'),
+    userGoal: text('user_goal'),
     activeRevisionId: text('active_revision_id'),
     lastReviewRunId: text('last_review_run_id'),
     reviewedAt: integer('reviewed_at', { mode: 'timestamp_ms' }),
@@ -17,14 +22,14 @@ export const journalEntries = sqliteTable(
       .default(sql`(unixepoch() * 1000)`)
       .$onUpdate(() => new Date()),
   },
-  (table) => [uniqueIndex('journal_entries_date_key_unique').on(table.dateKey)]
+  (table) => [uniqueIndex('writing_attempts_date_template_unique').on(table.dateKey, table.templateId)]
 );
 
-export const journalRevisions = sqliteTable('journal_revisions', {
+export const writingRevisions = sqliteTable('writing_revisions', {
   id: text('id').primaryKey(),
-  journalEntryId: text('journal_entry_id')
+  writingAttemptId: text('writing_attempt_id')
     .notNull()
-    .references(() => journalEntries.id, { onDelete: 'cascade' }),
+    .references(() => writingAttempts.id, { onDelete: 'cascade' }),
   content: text('content').notNull(),
   contentHash: text('content_hash').notNull(),
   createdAt: integer('created_at', { mode: 'timestamp_ms' })
@@ -34,10 +39,10 @@ export const journalRevisions = sqliteTable('journal_revisions', {
 
 export const reviewRuns = sqliteTable('review_runs', {
   id: text('id').primaryKey(),
-  journalEntryId: text('journal_entry_id')
+  writingAttemptId: text('writing_attempt_id')
     .notNull()
-    .references(() => journalEntries.id, { onDelete: 'cascade' }),
-  journalRevisionId: text('journal_revision_id').references(() => journalRevisions.id, { onDelete: 'set null' }),
+    .references(() => writingAttempts.id, { onDelete: 'cascade' }),
+  writingRevisionId: text('writing_revision_id').references(() => writingRevisions.id, { onDelete: 'set null' }),
   contentHash: text('content_hash').notNull(),
   status: text('status', {
     enum: ['draft', 'reviewing', 'review_ready', 'review_saved', 'review_failed', 'stale', 'discarded'],
@@ -133,9 +138,9 @@ export const rewriteTasks = sqliteTable('rewrite_tasks', {
     .default(sql`(unixepoch() * 1000)`),
 });
 
-export type JournalEntry = typeof journalEntries.$inferSelect;
-export type InsertJournalEntry = typeof journalEntries.$inferInsert;
-export type JournalRevision = typeof journalRevisions.$inferSelect;
-export type InsertJournalRevision = typeof journalRevisions.$inferInsert;
+export type WritingAttempt = typeof writingAttempts.$inferSelect;
+export type InsertWritingAttempt = typeof writingAttempts.$inferInsert;
+export type WritingRevision = typeof writingRevisions.$inferSelect;
+export type InsertWritingRevision = typeof writingRevisions.$inferInsert;
 export type ReviewRun = typeof reviewRuns.$inferSelect;
 export type InsertReviewRun = typeof reviewRuns.$inferInsert;

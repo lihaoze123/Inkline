@@ -1,0 +1,14 @@
+{"file":".trellis/spec/product/mvp-scope.md","reason":"Verify implementation stays within MVP scope and preserves writing-practice positioning."}
+{"file":".trellis/spec/product/learning-flow.md","reason":"Verify focused feedback and D+1 rewrite loop still work."}
+{"file":".trellis/spec/product/data-model-contract.md","reason":"Verify persistence/schema changes match product data model contracts."}
+{"file":".trellis/spec/product/review-agent-contract.md","reason":"Verify review input is template-aware and output contract is preserved."}
+{"file":".trellis/spec/product/privacy-security.md","reason":"Verify AI provider disclosure and privacy boundaries for starter prompt generation."}
+{"file":".trellis/spec/product/validation-and-testing.md","reason":"Verify tests and manual validation cover required product flows."}
+{"file":".trellis/spec/frontend/quality.md","reason":"Check frontend quality, accessibility, and interaction behavior."}
+{"file":".trellis/spec/frontend/ipc-electron.md","reason":"Check renderer/preload IPC consistency."}
+{"file":".trellis/spec/backend/quality.md","reason":"Check backend quality expectations for services and handlers."}
+{"file":".trellis/spec/backend/database.md","reason":"Check schema rebuild/data reset handling is explicit and coherent."}
+{"file":".trellis/spec/shared/typescript.md","reason":"Check shared typing and TypeScript quality."}
+{"file":".trellis/spec/shared/code-quality.md","reason":"Check overall code reuse and maintainability."}
+{"file":".trellis/spec/guides/cross-layer-thinking-guide.md","reason":"Review cross-layer consistency across UI, shared contracts, IPC, services, and DB."}
+{"file":".trellis/tasks/04-30-broader-writing-cet-practice/research/current-writing-workflow.md","reason":"Verify implementation preserves the existing workflow documented in research."}

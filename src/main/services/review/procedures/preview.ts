@@ -1,6 +1,6 @@
 import { eq } from 'drizzle-orm';
 import { db } from '../../../db/client';
-import { journalEntries, journalRevisions, reviewRuns } from '../../../db/schema';
+import { writingAttempts, writingRevisions, reviewRuns } from '../../../db/schema';
 import {
   getReviewPreviewInputSchema,
   previewOperationsSnapshotSchema,
@@ -22,12 +22,12 @@ export function getReviewPreview(input: GetReviewPreviewInput): ReviewPreviewSna
     return null;
   }
 
-  const revision = reviewRun.journalRevisionId
-    ? db.select().from(journalRevisions).where(eq(journalRevisions.id, reviewRun.journalRevisionId)).get()
+  const revision = reviewRun.writingRevisionId
+    ? db.select().from(writingRevisions).where(eq(writingRevisions.id, reviewRun.writingRevisionId)).get()
     : undefined;
-  const entry = db.select().from(journalEntries).where(eq(journalEntries.id, reviewRun.journalEntryId)).get();
+  const entry = db.select().from(writingAttempts).where(eq(writingAttempts.id, reviewRun.writingAttemptId)).get();
   const activeRevision = entry?.activeRevisionId
-    ? db.select().from(journalRevisions).where(eq(journalRevisions.id, entry.activeRevisionId)).get()
+    ? db.select().from(writingRevisions).where(eq(writingRevisions.id, entry.activeRevisionId)).get()
     : undefined;
 
   if (!revision || !entry) {
@@ -39,7 +39,7 @@ export function getReviewPreview(input: GetReviewPreviewInput): ReviewPreviewSna
     reviewedContent: revision.content,
     parsedOutput: reviewOutputSchema.parse(JSON.parse(reviewRun.parsedOutputJson) as unknown),
     operations: previewOperationsSnapshotSchema.parse(JSON.parse(reviewRun.previewOperationsJson) as unknown),
-    currentJournalContentHash: activeRevision?.contentHash ?? null,
-    isStaleForCurrentJournal: activeRevision?.contentHash !== reviewRun.contentHash,
+    currentWritingContentHash: activeRevision?.contentHash ?? null,
+    isStaleForCurrentWriting: activeRevision?.contentHash !== reviewRun.contentHash,
   });
 }

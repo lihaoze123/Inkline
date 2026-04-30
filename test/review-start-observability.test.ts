@@ -1,10 +1,10 @@
 import { createHash } from 'node:crypto';
 import { describe, expect, it, vi } from 'vitest';
-import { corrections, journalEntries, journalRevisions, reviewRuns } from '../src/main/db/schema';
+import { corrections, writingAttempts, writingRevisions, reviewRuns } from '../src/main/db/schema';
 import type {
   corrections as correctionsTable,
-  journalEntries as journalEntriesTable,
-  journalRevisions as journalRevisionsTable,
+  writingAttempts as writingAttemptsTable,
+  writingRevisions as writingRevisionsTable,
   reviewRuns as reviewRunsTable,
 } from '../src/main/db/schema';
 import type { db as appDatabase } from '../src/main/db/client';
@@ -13,25 +13,25 @@ import type { ReviewAgent } from '../src/main/services/review/types';
 import type { ReviewProgressEvent, ReviewRunSummary } from '../src/shared/types/review';
 
 type AppDatabase = typeof appDatabase;
-type JournalEntryRow = typeof journalEntriesTable.$inferSelect;
-type JournalRevisionRow = typeof journalRevisionsTable.$inferSelect;
+type WritingAttemptRow = typeof writingAttemptsTable.$inferSelect;
+type WritingRevisionRow = typeof writingRevisionsTable.$inferSelect;
 type ReviewRunRow = typeof reviewRunsTable.$inferSelect;
 type CorrectionRow = typeof correctionsTable.$inferSelect;
 
-type TableName = 'journalEntries' | 'journalRevisions' | 'reviewRuns' | 'corrections';
-type StoredRow = JournalEntryRow | JournalRevisionRow | ReviewRunRow | CorrectionRow;
+type TableName = 'writingAttempts' | 'writingRevisions' | 'reviewRuns' | 'corrections';
+type StoredRow = WritingAttemptRow | WritingRevisionRow | ReviewRunRow | CorrectionRow;
 
 type RowStore = {
-  journalEntries: JournalEntryRow[];
-  journalRevisions: JournalRevisionRow[];
+  writingAttempts: WritingAttemptRow[];
+  writingRevisions: WritingRevisionRow[];
   reviewRuns: ReviewRunRow[];
   corrections: CorrectionRow[];
 };
 
 const now = new Date('2026-04-29T12:00:00.000Z');
 const tableNames = new Map<object, TableName>([
-  [journalEntries, 'journalEntries'],
-  [journalRevisions, 'journalRevisions'],
+  [writingAttempts, 'writingAttempts'],
+  [writingRevisions, 'writingRevisions'],
   [reviewRuns, 'reviewRuns'],
   [corrections, 'corrections'],
 ]);
@@ -43,19 +43,22 @@ class FakeStartReviewDatabase {
     this.store = emptyStore();
   }
 
-  seedJournal(): void {
-    this.store.journalEntries.push({
+  seedWriting(): void {
+    this.store.writingAttempts.push({
       id: 'journal_1',
       dateKey: '2026-04-29',
+      templateId: 'journal',
+      generatedPromptJson: null,
+      userGoal: null,
       activeRevisionId: 'revision_1',
       lastReviewRunId: null,
       reviewedAt: null,
       createdAt: now,
       updatedAt: now,
     });
-    this.store.journalRevisions.push({
+    this.store.writingRevisions.push({
       id: 'revision_1',
-      journalEntryId: 'journal_1',
+      writingAttemptId: 'journal_1',
       content: 'Today I go home.',
       contentHash: contentHash('Today I go home.'),
       createdAt: now,
@@ -63,17 +66,17 @@ class FakeStartReviewDatabase {
   }
 
   replaceActiveRevision(content = 'Today I went home already.'): void {
-    const revision: JournalRevisionRow = {
+    const revision: WritingRevisionRow = {
       id: 'revision_2',
-      journalEntryId: 'journal_1',
+      writingAttemptId: 'journal_1',
       content,
       contentHash: contentHash(content),
       createdAt: now,
     };
-    this.store.journalRevisions.push(revision);
-    const entry = this.store.journalEntries.find((candidate) => candidate.id === revision.journalEntryId);
+    this.store.writingRevisions.push(revision);
+    const entry = this.store.writingAttempts.find((candidate) => candidate.id === revision.writingAttemptId);
     if (!entry) {
-      throw new Error('Seeded journal entry was not found.');
+      throw new Error('Seeded writing attempt was not found.');
     }
     entry.activeRevisionId = revision.id;
     entry.updatedAt = now;
@@ -172,7 +175,7 @@ class FakeStartReviewDatabase {
       return undefined;
     }
 
-    Object.assign(row, patch, table === 'reviewRuns' || table === 'journalEntries' ? { updatedAt: now } : {});
+    Object.assign(row, patch, table === 'reviewRuns' || table === 'writingAttempts' ? { updatedAt: now } : {});
     return row;
   }
 }
@@ -239,7 +242,7 @@ function successfulAgent(): ReviewAgent {
 }
 
 function emptyStore(): RowStore {
-  return { journalEntries: [], journalRevisions: [], reviewRuns: [], corrections: [] };
+  return { writingAttempts: [], writingRevisions: [], reviewRuns: [], corrections: [] };
 }
 
 function contentHash(content: string): string {
@@ -284,12 +287,12 @@ function toRecord(value: unknown): Record<string, unknown> {
 describe('startReview observability', () => {
   it('emits real progress events and persists a structured success summary', async () => {
     database.reset();
-    database.seedJournal();
+    database.seedWriting();
     const events: ReviewProgressEvent[] = [];
     const startReview = await loadStartReview();
 
     const result = await startReview(
-      { journalEntryId: 'journal_1', journalRevisionId: 'revision_1' },
+      { writingAttemptId: 'journal_1', writingRevisionId: 'revision_1' },
       {
         agent: successfulAgent(),
         hasDisclosureAcknowledgement: () => true,
@@ -343,12 +346,12 @@ describe('startReview observability', () => {
 
   it('persists categorized failure metadata without raw output', async () => {
     database.reset();
-    database.seedJournal();
+    database.seedWriting();
     const events: ReviewProgressEvent[] = [];
     const startReview = await loadStartReview();
 
     const result = await startReview(
-      { journalEntryId: 'journal_1', journalRevisionId: 'revision_1' },
+      { writingAttemptId: 'journal_1', writingRevisionId: 'revision_1' },
       {
         agent: async () => {
           throw new Error('Provider review request timed out.');
@@ -384,12 +387,12 @@ describe('startReview observability', () => {
 
   it('marks completed reviews stale when the active revision changes while review is in flight', async () => {
     database.reset();
-    database.seedJournal();
+    database.seedWriting();
     const events: ReviewProgressEvent[] = [];
     const startReview = await loadStartReview();
 
     const result = await startReview(
-      { journalEntryId: 'journal_1', journalRevisionId: 'revision_1' },
+      { writingAttemptId: 'journal_1', writingRevisionId: 'revision_1' },
       {
         agent: async (request) => {
           database.replaceActiveRevision();

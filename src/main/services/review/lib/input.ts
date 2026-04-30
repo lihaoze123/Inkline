@@ -5,7 +5,14 @@ import { type ErrorPattern, type ReviewInput } from '../../../../shared/review-c
 import { V0_1_REVIEW_CAPS } from '../types';
 import { buildBoundedReviewInput } from './review-input';
 
-export function buildReviewInput(params: { journalContent: string; contentHash: string; date?: string }): ReviewInput {
+export function buildReviewInput(params: {
+  writingContent: string;
+  contentHash: string;
+  date?: string;
+  writingTemplate?: ReviewInput['writingTemplate'];
+  generatedPrompt?: string | null;
+  userGoal?: string | null;
+}): ReviewInput {
   return buildBoundedReviewInput({ ...params, existingPatterns: selectExistingPatterns() });
 }
 

@@ -1,5 +1,5 @@
 import type { StartupStatus } from '@shared/types/app';
-import type { TodayJournalSnapshot } from '@shared/types/journal';
+import type { WritingAttemptSnapshot, WritingTemplate, WritingTemplateId } from '@shared/types/writing';
 import type { AnchoredCorrectionOperationSnapshot, ReviewPreviewSnapshot, ReviewProgressEvent, ReviewRunSnapshot } from '@shared/types/review';
 import type { SettingsSnapshot } from '@shared/types/settings';
 
@@ -22,7 +22,8 @@ export type AppStatusModel = {
   detail: string;
 };
 
-export type TodayHeaderProps = {
+export type PracticeHeaderProps = {
+  selectedTemplateTitle: string;
   startup: StartupStatus;
   status: AppStatusModel;
   onOpenSettings: () => void;
@@ -53,7 +54,18 @@ export type SettingsDrawerProps = {
   onRawResponseStorageChange: (enabled: boolean) => void;
 };
 
-export type JournalEditorCardProps = {
+export type PracticeTemplatePickerProps = {
+  templates: WritingTemplate[];
+  selectedTemplateId: WritingTemplateId;
+  onSelectTemplate: (templateId: WritingTemplateId) => void;
+};
+
+export type WritingEditorCardProps = {
+  template: WritingTemplate;
+  generatedPrompt: WritingAttemptSnapshot['generatedPrompt'];
+  userGoal: string;
+  starterPromptState: 'idle' | 'generating' | 'error';
+  starterPromptError: string | null;
   content: string;
   lastAutosaveAt: number | null;
   saveState: SaveState;
@@ -61,10 +73,13 @@ export type JournalEditorCardProps = {
   highlightedContent: string | null;
   highlightedCorrections: AnchoredCorrectionOperationSnapshot[];
   onContentChange: (value: string) => void;
+  onUserGoalChange: (value: string) => void;
+  onGenerateStarterPrompt: () => void;
+  onSkipStarterPrompt: () => void;
 };
 
 export type LearningPanelProps = {
-  journal: TodayJournalSnapshot;
+  writing: WritingAttemptSnapshot;
   hasWritten: boolean;
   saveState: SaveState;
   reviewState: ReviewState;
@@ -78,7 +93,7 @@ export type LearningPanelProps = {
   onRevealModelAnswer: () => void;
   onSaveReview: () => void;
   rewritePracticeInput: string;
-  completedRewritePractice: TodayJournalSnapshot['pendingRewritePractice'];
+  completedRewritePractice: WritingAttemptSnapshot['pendingRewritePractice'];
   rewritePracticeError: string | null;
   onRewritePracticeInputChange: (value: string) => void;
   onCompleteRewritePractice: () => void;
@@ -94,6 +109,7 @@ export type RevealAnswerDialogProps = {
 
 export type ReviewDisclosureDialogProps = {
   settings: SettingsSnapshot;
+  mode?: 'review' | 'starter';
   onCancel: () => void;
   onAcknowledge: () => void;
 };

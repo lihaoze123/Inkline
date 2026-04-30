@@ -1,17 +1,18 @@
-import type { TodayHeaderProps } from './types';
+import type { PracticeHeaderProps } from './types';
 
-export function TodayHeader({ startup, status, onOpenSettings }: TodayHeaderProps): React.JSX.Element {
+export function PracticeHeader({ selectedTemplateTitle, startup, status, onOpenSettings }: PracticeHeaderProps): React.JSX.Element {
   return (
     <header className="flex flex-col gap-5 rounded-[2rem] border border-base-300/80 bg-base-100/80 p-5 shadow-xl shadow-primary/5 backdrop-blur md:flex-row md:items-center md:justify-between">
       <div className="space-y-3">
         <div className="flex flex-wrap items-center gap-2">
-          <span className="badge badge-primary badge-soft">Today</span>
+          <span className="badge badge-primary badge-soft">Practice</span>
+          <span className="badge badge-ghost">{selectedTemplateTitle}</span>
           <span className={`badge ${status.toneClassName}`}>{status.label}</span>
         </div>
         <div>
-          <h1 className="text-3xl font-semibold tracking-[-0.04em] text-base-content md:text-5xl">Write freely first.</h1>
+          <h1 className="text-3xl font-semibold tracking-[-0.04em] text-base-content md:text-5xl">Writing Practice</h1>
           <p className="mt-2 max-w-2xl text-sm leading-6 text-base-content/60 md:text-base">
-            A focused journal space with coaching only when you ask for it.
+            Practice writing with focused AI feedback and next-day rewrite drills.
           </p>
         </div>
       </div>

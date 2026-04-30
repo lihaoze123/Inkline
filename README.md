@@ -1,25 +1,28 @@
-# English Coach
+# Writing Practice
 
-English Coach is a local-first desktop app for practicing English through daily journaling. It helps a learner write freely first, then review the entry through a focused feedback loop: save the journal, review the current version, try one self-repair, compare with a reference rewrite, and keep one follow-up rewrite practice for later.
+Writing Practice is a local-first desktop app for practicing English through repeatable writing scenarios. It helps a learner choose a practice template, optionally generate a starter prompt/topic, write independently, review the current writing with focused AI feedback, try one self-repair, compare with a reference rewrite, and keep one follow-up D+1 rewrite practice for later.
 
-The current app is v0.1.0 and focuses on one workflow: today's English journal entry and its review.
+The current app generalizes the original habit-writing flow into a Practice entry surface with Journal, CET-4 Writing, CET-6 Writing, and Free Writing as same-level templates.
 
 ## Current v0.1 features
 
-- Today page with local app/database status.
-- Daily journal editor with autosave.
-- Local SQLite storage for journal entries, revisions, review runs, corrections, self-repair attempts, reference rewrites, and rewrite tasks.
-- Review flow for the active journal revision:
+- Practice page with local app/database status.
+- Template picker for Journal, CET-4 Writing, CET-6 Writing, and Free Writing.
+- Template-aware writing editor with autosave and one current draft per template.
+- Optional AI starter prompt/topic generation, regenerate, retry, and skip behavior.
+- Local SQLite storage for writing attempts, revisions, review runs, corrections, self-repair attempts, reference rewrites, and rewrite tasks.
+- Review flow for the active writing revision:
   - provider disclosure before the first review,
+  - template-aware review context,
   - validated review preview,
   - one focus pattern,
   - hint-first self-repair,
   - top corrections,
   - reference rewrite with "Notice the gap",
   - explicit "Save review and update learning history" action.
-- Anchored correction highlighting against the reviewed journal revision.
-- Stale review handling when the journal changes after review.
-- One D+1 rewrite practice slot on Today, with submit and skip actions.
+- Anchored correction highlighting against the reviewed writing revision.
+- Stale review handling when the writing changes after review.
+- One D+1 rewrite practice slot in Practice, with submit and skip actions.
 - Review contract harness for validating mock review output without depending on live model output.
 - Minimal OpenAI-compatible live review adapter configurable with base URL, model, and an OS-keychain API key.
 
@@ -27,13 +30,14 @@ Review execution is wired through the app-side review boundary and validation fl
 
 ## Privacy and local data
 
-English Coach is local-first by default:
+Writing Practice is local-first by default:
 
 - App data is stored in a local SQLite database at Electron's user data path as `english-coach.sqlite`.
 - Raw model responses are disabled by default.
 - Provider credentials are handled through the OS keychain boundary.
 - The renderer does not receive direct filesystem, database, Electron main-process, or credential access.
-- When review is configured, the app shows a disclosure before sending the current journal entry and selected learning context to the configured model provider.
+- Before first starter prompt/topic generation, the app explains that AI will be called without sending user essay content.
+- When review is configured, the app shows a disclosure before sending the current writing attempt, template context, and selected learning context to the configured model provider.
 
 ## Tech stack
 
@@ -73,14 +77,14 @@ This starts Electron Forge with the Vite-powered main, preload, and renderer bui
 
 Live review uses an OpenAI-compatible `/chat/completions` API.
 
-1. Open the app and find **Live review provider** at the top of Today.
+1. Open the app and find **Live review provider** in Settings.
 2. Set the provider base URL, for example `https://api.openai.com/v1`.
 3. Set the model, for example `gpt-4o-mini` or another model supported by your compatible provider.
 4. Paste your provider API key and click **Save API key**. The key is stored in the OS keychain and is never shown back in the renderer.
 5. Leave **Save raw model responses for debugging** off unless you explicitly want raw provider JSON saved in local review runs.
-6. Write a journal entry and click **Review**. The first review shows a disclosure before sending the current entry and bounded learning context to the configured provider.
+6. Choose a practice template, optionally generate a starter prompt/topic, write independently, and click **Review current writing**. The first review shows a disclosure before sending the current writing and bounded learning context to the configured provider.
 
-If the key is missing or the OS keychain is unavailable, Review returns a recoverable configuration error and local journal/autosave behavior is unaffected.
+If the key is missing or the OS keychain is unavailable, Review returns a recoverable configuration error and local writing/autosave behavior is unaffected.
 
 ## Quality checks
 
@@ -141,6 +145,7 @@ test/         Vitest tests
 
 - Keep documentation and user-facing claims scoped to implemented v0.1 behavior.
 - Review output is preview-only until the user saves it.
-- Journal text is the user's work; corrections are annotations and are not auto-applied.
+- Writing text is the user's work; corrections are annotations and are not auto-applied.
+- The writing-practice schema rebuild is a development-stage reset and is not a production-safe migration for old local journal data.
 - Invalid review output must not update learning history.
 - Documentation in this repository should be written in English.

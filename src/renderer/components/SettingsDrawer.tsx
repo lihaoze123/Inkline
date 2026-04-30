@@ -75,12 +75,12 @@ export function SettingsDrawer({
 
               <section className="rounded-2xl border border-base-300 bg-base-200/50 p-4">
                 <h3 className="font-semibold">Privacy and debug</h3>
-                <p className="mt-1 text-sm leading-6 text-base-content/55">Your journal stays local by default. Review sends the current entry and bounded learning context to your configured provider.</p>
+                <p className="mt-1 text-sm leading-6 text-base-content/55">Your writing stays local by default. Review sends the current writing, template context, and bounded learning context to your configured provider.</p>
                 <label className="mt-4 flex cursor-pointer items-start gap-3 rounded-2xl border border-warning/30 bg-warning/10 p-4">
                   <input className="toggle toggle-warning mt-1" type="checkbox" checked={settings.rawResponseStorageEnabled} onChange={(event) => onRawResponseStorageChange(event.target.checked)} />
                   <span>
                     <span className="block font-medium">Save raw model responses for debugging</span>
-                    <span className="mt-1 block text-sm text-base-content/55">Raw responses may contain journal content and stay local unless explicitly exported later.</span>
+                    <span className="mt-1 block text-sm text-base-content/55">Raw responses may contain writing content and stay local unless explicitly exported later.</span>
                   </span>
                 </label>
               </section>

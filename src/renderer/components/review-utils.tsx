@@ -18,7 +18,7 @@ export function patternRule(correction: AnchoredCorrectionOperationSnapshot): st
   return null;
 }
 
-export function HighlightedJournal({ content, corrections }: { content: string; corrections: AnchoredCorrectionOperationSnapshot[] }): React.JSX.Element {
+export function HighlightedWriting({ content, corrections }: { content: string; corrections: AnchoredCorrectionOperationSnapshot[] }): React.JSX.Element {
   const anchoredCorrections = corrections
     .filter((correction) => correction.status !== 'low_confidence' && correction.startOffset !== null && correction.endOffset !== null)
     .sort((left, right) => (left.startOffset ?? 0) - (right.startOffset ?? 0));

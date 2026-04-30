@@ -33,11 +33,11 @@ function contentHash(content: string): string {
   return createHash('sha256').update(content.replace(/\r\n/g, '\n').replace(/\r/g, '\n')).digest('hex');
 }
 
-function inputFor(journalContent: string): ReviewInput {
+function inputFor(writingContent: string): ReviewInput {
   return {
     date: '2026-04-29',
-    journalContent,
-    contentHash: contentHash(journalContent),
+    writingContent,
+    contentHash: contentHash(writingContent),
     existingPatterns,
     maxCorrections: 5,
     maxReferenceRewrites: 1,
@@ -48,7 +48,7 @@ function inputFor(journalContent: string): ReviewInput {
   };
 }
 
-function validOutputFor(journalContent: string, exact: string, prefix: string, suffix: string, occurrenceIndex = 0): unknown {
+function validOutputFor(writingContent: string, exact: string, prefix: string, suffix: string, occurrenceIndex = 0): unknown {
   return {
     corrections: [
       {
@@ -77,7 +77,7 @@ function validOutputFor(journalContent: string, exact: string, prefix: string, s
     },
     referenceRewrites: [
       {
-        text: journalContent.replace(exact, exact === 'I go to school' ? 'I went to school' : 'I went to the office'),
+        text: writingContent.replace(exact, exact === 'I go to school' ? 'I went to school' : 'I went to the office'),
         noticeTheGap: 'The rewrite changes the verb to past tense.',
       },
     ],
@@ -353,7 +353,7 @@ describe('review contract validation harness', () => {
     expect(result.validationStatus).toBe('invalid');
   });
 
-  it('rejects content hashes that do not match normalized journal content', () => {
+  it('rejects content hashes that do not match normalized writing content', () => {
     const journal = 'Today I go to school.';
     const input = { ...inputFor(journal), contentHash: 'not-the-journal-hash' };
     const result = validateReviewResult(input, validOutputFor(journal, 'I go to school', 'Today ', '.', 0));

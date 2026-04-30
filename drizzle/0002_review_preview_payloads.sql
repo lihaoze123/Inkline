@@ -1,3 +1,2 @@
-ALTER TABLE `review_runs` ADD `parsed_output_json` text;
---> statement-breakpoint
-ALTER TABLE `review_runs` ADD `preview_operations_json` text;
+-- Superseded by the development-stage foundation rebuild in 0000_foundation.sql.
+SELECT 1;

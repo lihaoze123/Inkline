@@ -25,16 +25,16 @@ const CURLY_QUOTE_MAP: Record<string, string> = {
   '”': '"',
 };
 
-export function normalizeJournalContent(content: string): string {
+export function normalizeWritingContent(content: string): string {
   return content.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
 }
 
 export function locateAnchor(content: string, anchor: CorrectionAnchor): AnchorResult {
-  const normalizedContent = normalizeJournalContent(content);
+  const normalizedContent = normalizeWritingContent(content);
   const normalizedAnchor = {
-    exact: normalizeJournalContent(anchor.exact),
-    prefix: normalizeJournalContent(anchor.prefix),
-    suffix: normalizeJournalContent(anchor.suffix),
+    exact: normalizeWritingContent(anchor.exact),
+    prefix: normalizeWritingContent(anchor.prefix),
+    suffix: normalizeWritingContent(anchor.suffix),
     occurrenceIndex: anchor.occurrenceIndex,
   };
 

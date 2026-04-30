@@ -1,11 +1,11 @@
 import { createHash } from 'node:crypto';
 
-export function normalizeJournalContent(content: string): string {
+export function normalizeWritingContent(content: string): string {
   return content.replace(/\r\n?/g, '\n');
 }
 
-export function computeJournalContentHash(content: string): string {
-  return createHash('sha256').update(normalizeJournalContent(content), 'utf8').digest('hex');
+export function computeWritingContentHash(content: string): string {
+  return createHash('sha256').update(normalizeWritingContent(content), 'utf8').digest('hex');
 }
 
 export function getLocalDateKey(date: Date = new Date()): string {

@@ -9,8 +9,8 @@ import type { ReviewRun } from '../../../db/schema';
 export function reviewRunToSnapshot(reviewRun: ReviewRun): ReviewRunSnapshot {
   return reviewRunSnapshotSchema.parse({
     id: reviewRun.id,
-    journalEntryId: reviewRun.journalEntryId,
-    journalRevisionId: reviewRun.journalRevisionId,
+    writingAttemptId: reviewRun.writingAttemptId,
+    writingRevisionId: reviewRun.writingRevisionId,
     contentHash: reviewRun.contentHash,
     status: reviewRun.status,
     validationStatus: reviewRun.validationStatus,
