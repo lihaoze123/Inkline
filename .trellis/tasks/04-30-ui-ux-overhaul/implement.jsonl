@@ -1,0 +1,15 @@
+{"file":".trellis/spec/frontend/index.md","reason":"Frontend task entry point; identifies must-read Electron/React UI guidelines."}
+{"file":".trellis/spec/frontend/components.md","reason":"Shell/page UI should follow component, semantic HTML, empty-state, and scroll container guidance."}
+{"file":".trellis/spec/frontend/css-design.md","reason":"Visual overhaul must follow CSS organization and design-token expectations."}
+{"file":".trellis/spec/frontend/state-management.md","reason":"App shell navigation and page state should follow renderer state-management guidance."}
+{"file":".trellis/spec/frontend/react-pitfalls.md","reason":"Implementation touches React state/effects and must avoid known renderer pitfalls."}
+{"file":".trellis/spec/frontend/type-safety.md","reason":"New page/shell props and component boundaries must remain type-safe."}
+{"file":".trellis/spec/frontend/quality.md","reason":"Implementation should satisfy frontend quality and performance standards."}
+{"file":".trellis/spec/product/index.md","reason":"UI refactor touches practice, templates, review flow, settings, privacy, and rewrite practice."}
+{"file":".trellis/spec/product/mvp-scope.md","reason":"Task must avoid pulling v0.2 learning-assets behavior into this shell-first MVP."}
+{"file":".trellis/spec/product/learning-flow.md","reason":"Practice, feedback, self-repair, coach rewrite, and D+1 rewrite flows must remain reachable."}
+{"file":".trellis/spec/product/privacy-security.md","reason":"Settings/provider disclosure and model-call privacy behavior must be preserved."}
+{"file":".trellis/spec/shared/code-quality.md","reason":"Shared mandatory code quality rules apply to all changes."}
+{"file":".trellis/spec/shared/typescript.md","reason":"New TypeScript components/types should follow shared typing conventions."}
+{"file":".trellis/spec/guides/pre-implementation-checklist.md","reason":"Use before creating new components/types and changing existing values."}
+{"file":".trellis/spec/guides/code-reuse-thinking-guide.md","reason":"UI refactor should reuse existing flows/components before adding abstractions."}

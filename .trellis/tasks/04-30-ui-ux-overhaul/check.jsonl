@@ -1,0 +1,13 @@
+{"file":".trellis/spec/frontend/index.md","reason":"Quality check should validate the task against frontend Electron/React UI guidelines."}
+{"file":".trellis/spec/frontend/components.md","reason":"Check shell/page UI semantics, empty states, scroll behavior, and component quality."}
+{"file":".trellis/spec/frontend/css-design.md","reason":"Check visual/CSS changes against design-token and styling organization guidance."}
+{"file":".trellis/spec/frontend/state-management.md","reason":"Check shell navigation and preserved practice state boundaries."}
+{"file":".trellis/spec/frontend/react-pitfalls.md","reason":"Check for common React state/effect mistakes in the refactor."}
+{"file":".trellis/spec/frontend/quality.md","reason":"Check frontend quality and performance standards."}
+{"file":".trellis/spec/product/index.md","reason":"Check preservation of practice, review, settings, privacy, and rewrite flows."}
+{"file":".trellis/spec/product/mvp-scope.md","reason":"Check that v0.2 learning-assets scope was not introduced."}
+{"file":".trellis/spec/product/learning-flow.md","reason":"Check the writing/review/self-repair/rewrite user journey remains reachable."}
+{"file":".trellis/spec/product/privacy-security.md","reason":"Check provider disclosure and local-first privacy expectations remain intact."}
+{"file":".trellis/spec/shared/code-quality.md","reason":"Check mandatory shared quality rules."}
+{"file":".trellis/spec/shared/typescript.md","reason":"Check TypeScript conventions and type safety."}
+{"file":".trellis/spec/guides/code-reuse-thinking-guide.md","reason":"Check whether the refactor avoids unnecessary duplicate UI logic."}
