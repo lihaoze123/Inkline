@@ -481,3 +481,36 @@ Introduced TanStack Query for Electron renderer IPC server-state. Added QueryCli
 ### Next Steps
 
 - None - task complete
+
+
+## Session 15: Quality gate automation
+
+**Date**: 2026-04-30
+**Task**: Quality gate automation
+**Branch**: `main`
+
+### Summary
+
+Added Prettier formatting, unified pnpm check, GitHub Actions CI, and completed the engineering stack Quality Gate MVP.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `ddc3ae7` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
