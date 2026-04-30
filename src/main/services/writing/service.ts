@@ -1,6 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { clearTimeout, setTimeout } from 'node:timers';
-import { net } from 'electron';
+import { z } from 'zod';
 import { and, desc, eq, gte, lte } from 'drizzle-orm';
 import { db } from '../../db/client';
 import {
@@ -31,6 +30,14 @@ import {
   type SkipRewritePracticeInput,
   type WritingAttemptSnapshot,
 } from '../../../shared/types/writing';
+import { generateStructuredObject } from '../ai';
+import { buildAiRuntimeConfigForFeature } from '../ai/runtime-config';
+
+const starterPromptGenerationSchema = z.object({
+  prompt: z.string().trim().min(1),
+});
+
+type StarterPromptGeneration = z.infer<typeof starterPromptGenerationSchema>;
 
 function createId(prefix: string): string {
   return `${prefix}_${randomUUID()}`;
@@ -242,37 +249,6 @@ Rules:
 - Keep it concise enough to fit above a writing editor.`;
 }
 
-function parseStarterPromptResponse(payload: unknown): string {
-  if (typeof payload !== 'object' || payload === null || !('choices' in payload) || !Array.isArray(payload.choices)) {
-    throw new Error('Provider response did not include prompt choices.');
-  }
-
-  const firstChoice = payload.choices[0] as unknown;
-  if (typeof firstChoice !== 'object' || firstChoice === null || !('message' in firstChoice)) {
-    throw new Error('Provider response did not include a prompt message.');
-  }
-
-  const message = firstChoice.message;
-  if (typeof message !== 'object' || message === null || !('content' in message) || typeof message.content !== 'string') {
-    throw new Error('Provider response message did not include prompt content.');
-  }
-
-  const trimmedContent = message.content.trim();
-  const fencedJsonMatch = trimmedContent.match(/^```(?:json)?\s*([\s\S]*?)\s*```$/i);
-  const jsonContent = fencedJsonMatch?.[1] ?? trimmedContent;
-  const parsed = JSON.parse(jsonContent) as unknown;
-  if (typeof parsed !== 'object' || parsed === null || !('prompt' in parsed) || typeof parsed.prompt !== 'string') {
-    throw new Error('Provider prompt response did not match the expected shape.');
-  }
-
-  const prompt = parsed.prompt.trim();
-  if (!prompt) {
-    throw new Error('Provider returned an empty starter prompt.');
-  }
-
-  return prompt;
-}
-
 export async function generateStarterPrompt(input: GenerateStarterPromptInput): Promise<GenerateStarterPromptResult> {
   const parseResult = generateStarterPromptInputSchema.safeParse(input);
   if (!parseResult.success) {
@@ -285,54 +261,23 @@ export async function generateStarterPrompt(input: GenerateStarterPromptInput): 
 
   const template = getWritingTemplate(parseResult.data.templateId);
   const userGoal = parseResult.data.userGoal?.trim() || null;
-  const [{ getProviderApiKey }, { getSettingsSnapshot }] = await Promise.all([
-    import('../credentials/service'),
-    import('../settings/service'),
-  ]);
-  const settings = await getSettingsSnapshot();
-  const apiKey = await getProviderApiKey();
-
-  if (!settings.baseUrl || !settings.model) {
-    return { success: false, error: 'OpenAI-compatible provider base URL and model are required.' };
-  }
-
-  if (!apiKey) {
-    return { success: false, error: 'OpenAI-compatible provider API key is not configured. Add it in Settings before generating prompts.' };
-  }
-
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), STARTER_PROMPT_TIMEOUT_MS);
 
   try {
-    const baseUrl = settings.baseUrl.trim().replace(/\/+$/, '');
-    const url = baseUrl.endsWith('/chat/completions') ? baseUrl : `${baseUrl}/chat/completions`;
-    const response = await net.fetch(url, {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: settings.model,
-        messages: [
-          { role: 'system', content: buildStarterPromptSystemPrompt() },
-          { role: 'user', content: buildStarterPromptUserPrompt(template, userGoal) },
-        ],
-        temperature: 0.7,
-        response_format: { type: 'json_object' },
-        max_tokens: 500,
-      }),
-      signal: controller.signal,
+    const runtimeConfig = await buildAiRuntimeConfigForFeature('starterPrompt');
+    const generation = await generateStructuredObject<StarterPromptGeneration>({
+      runtimeConfig,
+      systemPrompt: buildStarterPromptSystemPrompt(),
+      userPrompt: buildStarterPromptUserPrompt(template, userGoal),
+      schema: starterPromptGenerationSchema,
+      schemaName: 'starter_prompt',
+      schemaDescription: 'A concise English writing practice starter prompt.',
+      temperature: 0.7,
+      maxOutputTokens: 500,
+      timeoutMs: STARTER_PROMPT_TIMEOUT_MS,
+      maxRetries: 0,
     });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      const detail = errorText.trim().slice(0, 300);
-      return { success: false, error: detail ? `Starter prompt request failed (${response.status}): ${detail}` : `Starter prompt request failed (${response.status}).` };
-    }
-
     const starterPrompt: StarterPromptSnapshot = {
-      text: parseStarterPromptResponse(await response.json()),
+      text: generation.output.prompt,
       generatedAt: Date.now(),
     };
 
@@ -349,14 +294,8 @@ export async function generateStarterPrompt(input: GenerateStarterPromptInput): 
 
     return { success: true, writing: buildSnapshot(updatedEntry), starterPrompt };
   } catch (error) {
-    const message = error instanceof Error && error.name === 'AbortError'
-      ? 'Starter prompt request timed out.'
-      : error instanceof Error
-        ? error.message
-        : 'Starter prompt generation failed.';
+    const message = error instanceof Error ? error.message : 'Starter prompt generation failed.';
     return { success: false, error: message };
-  } finally {
-    clearTimeout(timeoutId);
   }
 }
 

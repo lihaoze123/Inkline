@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
-import { createOpenAiCompatibleReviewAgent } from '../src/main/services/review/lib/openai-compatible-agent';
+import type { generateStructuredObject } from '../src/main/services/ai';
+import type { createOpenAiCompatibleReviewAgent as createOpenAiCompatibleReviewAgentFunction } from '../src/main/services/review/lib/openai-compatible-agent';
 import { buildReviewUserPrompt, REVIEW_SYSTEM_PROMPT } from '../src/main/services/review/lib/prompt';
 import { buildBoundedReviewInput } from '../src/main/services/review/lib/review-input';
 import { V0_1_REVIEW_CAPS } from '../src/main/services/review/types';
@@ -45,6 +46,11 @@ function validOutputFor(writingContent: string): unknown {
 }
 
 describe('review agent integration contracts', () => {
+  async function loadCreateOpenAiCompatibleReviewAgent(): Promise<typeof createOpenAiCompatibleReviewAgentFunction> {
+    const module = await import('../src/main/services/review/lib/openai-compatible-agent');
+    return module.createOpenAiCompatibleReviewAgent;
+  }
+
   it('constructs v0.1 bounded review input', () => {
     const input = buildBoundedReviewInput({
       writingContent: 'Today I go home.',
@@ -99,20 +105,17 @@ describe('review agent integration contracts', () => {
     });
   });
 
-  it('calls OpenAI-compatible chat completions and parses JSON content', async () => {
+  it('calls the shared AI SDK structured generation boundary', async () => {
     const output = validOutputFor('Today I go home.');
-    const fetchCalls: Array<{ url: string; init: RequestInit | undefined }> = [];
-    const fetchImpl: typeof globalThis.fetch = async (url, init) => {
-      fetchCalls.push({ url: String(url), init });
-      return new Response(
-        JSON.stringify({
-          choices: [{ message: { content: JSON.stringify(output) } }],
-        }),
-        { status: 200, headers: { 'Content-Type': 'application/json' } }
-      );
-    };
+    const generateStructured = async <Output,>(input: Parameters<typeof generateStructuredObject<Output>>[0]): Promise<Awaited<ReturnType<typeof generateStructuredObject<Output>>>> => ({
+      output: output as Output,
+      rawOutput: { response: 'metadata' },
+      provider: input.runtimeConfig.provider,
+      model: input.runtimeConfig.model,
+    });
+    const createOpenAiCompatibleReviewAgent = await loadCreateOpenAiCompatibleReviewAgent();
     const agent = createOpenAiCompatibleReviewAgent({
-      fetchImpl,
+      generateStructured,
       apiKey: 'test-key',
       baseUrl: 'https://provider.example/v1',
       model: 'review-model',
@@ -131,47 +134,12 @@ describe('review agent integration contracts', () => {
     });
 
     expect(response.output).toMatchObject({ summary: { focusPattern: { correctionIndex: 0 } } });
-    expect(fetchCalls[0]?.url).toBe('https://provider.example/v1/chat/completions');
-    expect(fetchCalls[0]?.init?.headers).toMatchObject({ Authorization: 'Bearer test-key' });
-    expect(JSON.parse(String(fetchCalls[0]?.init?.body))).toMatchObject({
-      model: 'review-model',
-      response_format: { type: 'json_object' },
-      max_tokens: 2_500,
-    });
-  });
-
-  it('parses JSON content even when a compatible provider wraps it in a fenced block', async () => {
-    const output = validOutputFor('Today I go home.');
-    const agent = createOpenAiCompatibleReviewAgent({
-      fetchImpl: async () => new Response(
-        JSON.stringify({
-          choices: [{ message: { content: `\`\`\`json\n${JSON.stringify(output)}\n\`\`\`` } }],
-        }),
-        { status: 200, headers: { 'Content-Type': 'application/json' } }
-      ),
-      apiKey: 'test-key',
-      baseUrl: 'https://provider.example/v1/chat/completions',
-      model: 'review-model',
-      timeoutMs: 1_000,
-    });
-
-    const response = await agent({
-      systemPrompt: REVIEW_SYSTEM_PROMPT,
-      userPrompt: 'Return JSON.',
-      input: buildBoundedReviewInput({
-        writingContent: 'Today I go home.',
-        contentHash: contentHash('Today I go home.'),
-        date: '2026-04-29',
-        existingPatterns: [],
-      }),
-    });
-
-    expect(response.output).toMatchObject({ summary: { focusPattern: { correctionIndex: 0 } } });
+    expect(response.rawOutput).toMatchObject({ response: 'metadata' });
   });
 
   it('returns a clear error when the provider key is missing', async () => {
+    const createOpenAiCompatibleReviewAgent = await loadCreateOpenAiCompatibleReviewAgent();
     const agent = createOpenAiCompatibleReviewAgent({
-      fetchImpl: async () => new Response('{}'),
       apiKey: null,
       baseUrl: 'https://provider.example/v1',
       model: 'review-model',

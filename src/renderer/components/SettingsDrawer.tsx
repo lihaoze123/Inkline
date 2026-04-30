@@ -1,24 +1,47 @@
+import { aiProviderIdSchema, type AiProviderId, type ProviderKeyStatus } from '@shared/types/credentials';
+import type { SettingsSnapshot } from '@shared/types/settings';
 import type { SettingsDrawerProps } from './types';
 import { formatProviderKeyStatus } from './format';
+
+const PROVIDER_LABELS: Record<AiProviderId, string> = {
+  'openai-compatible': 'OpenAI-compatible',
+  anthropic: 'Anthropic Claude',
+};
+
+const PROVIDER_OPTIONS: { value: AiProviderId; label: string }[] = aiProviderIdSchema.options.map((value) => ({
+  value,
+  label: PROVIDER_LABELS[value],
+}));
 
 export function SettingsDrawer({
   isOpen,
   settings,
   startup,
-  baseUrlInput,
-  modelInput,
-  apiKeyInput,
+  openAiBaseUrlInput,
+  openAiModelInput,
+  anthropicModelInput,
+  apiKeyInputs,
   message,
   error,
   onClose,
-  onBaseUrlChange,
-  onModelChange,
+  onDefaultProviderChange,
+  onOpenAiBaseUrlChange,
+  onOpenAiModelChange,
+  onAnthropicModelChange,
   onApiKeyChange,
-  onSaveProviderConfig,
+  onSaveOpenAiConfig,
+  onSaveAnthropicConfig,
   onSaveApiKey,
   onDeleteApiKey,
   onRawResponseStorageChange,
 }: SettingsDrawerProps): React.JSX.Element {
+  const aiModelSettings = settings.aiModelSettings;
+  const defaultProviderId = aiModelSettings?.defaultProviderId ?? settings.providerId ?? 'openai-compatible';
+  const openAiSettings = aiModelSettings?.providers['openai-compatible'];
+  const anthropicSettings = aiModelSettings?.providers.anthropic;
+  const openAiCredentialStatus = getCredentialStatus(settings, 'openai-compatible');
+  const anthropicCredentialStatus = getCredentialStatus(settings, 'anthropic');
+
   return (
     <div className={`drawer drawer-end ${isOpen ? 'drawer-open' : ''}`}>
       <input className="drawer-toggle" readOnly checked={isOpen} type="checkbox" aria-hidden="true" />
@@ -28,8 +51,8 @@ export function SettingsDrawer({
           <div className="mb-6 flex items-start justify-between gap-4">
             <div>
               <p className="text-xs font-semibold uppercase tracking-[0.18em] text-primary/70">Settings</p>
-              <h2 className="mt-1 text-2xl font-semibold tracking-[-0.03em]">Live review provider</h2>
-              <p className="mt-2 text-sm leading-6 text-base-content/60">Configure the model used only when you click Review.</p>
+              <h2 className="mt-1 text-2xl font-semibold tracking-[-0.03em]">AI provider</h2>
+              <p className="mt-2 text-sm leading-6 text-base-content/60">Configure the global provider used for review and starter prompt generation.</p>
             </div>
             <button type="button" className="btn btn-ghost btn-circle" aria-label="Close settings" onClick={onClose}>✕</button>
           </div>
@@ -37,39 +60,82 @@ export function SettingsDrawer({
           <div className="scrollable min-h-0 flex-1 overflow-y-auto pr-1">
             <div className="grid gap-5">
               <section className="rounded-2xl border border-base-300 bg-base-200/50 p-4">
-                <h3 className="font-semibold">Connection</h3>
+                <h3 className="font-semibold">Global default</h3>
+                <p className="mt-1 text-sm leading-6 text-base-content/55">This first UI version uses one global default provider/model. Feature-specific model overrides are reserved internally for later.</p>
+                <label className="form-control mt-4">
+                  <span className="label-text font-medium">Default provider</span>
+                  <select
+                    className="select select-bordered mt-2"
+                    value={defaultProviderId}
+                    aria-label="Default AI provider"
+                    onChange={(event) => onDefaultProviderChange(event.target.value as AiProviderId)}
+                  >
+                    {PROVIDER_OPTIONS.map((option) => (
+                      <option key={option.value} value={option.value}>{option.label}</option>
+                    ))}
+                  </select>
+                </label>
+              </section>
+
+              <section className="rounded-2xl border border-base-300 bg-base-200/50 p-4">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div>
+                    <h3 className="font-semibold">OpenAI-compatible</h3>
+                    <p className="mt-1 text-sm text-base-content/55">Use OpenAI or another OpenAI-compatible endpoint.</p>
+                  </div>
+                  <span className="badge badge-outline">{formatProviderKeyStatus(openAiCredentialStatus.status)}</span>
+                </div>
                 <div className="mt-4 grid gap-4">
                   <label className="form-control">
                     <span className="label-text font-medium">Base URL</span>
-                    <input className="input input-bordered mt-2" value={baseUrlInput} onChange={(event) => onBaseUrlChange(event.target.value)} aria-label="OpenAI-compatible base URL" />
+                    <input className="input input-bordered mt-2" value={openAiBaseUrlInput} onChange={(event) => onOpenAiBaseUrlChange(event.target.value)} aria-label="OpenAI-compatible base URL" />
                   </label>
                   <label className="form-control">
                     <span className="label-text font-medium">Model</span>
-                    <input className="input input-bordered mt-2" value={modelInput} onChange={(event) => onModelChange(event.target.value)} aria-label="OpenAI-compatible model" />
+                    <input className="input input-bordered mt-2" value={openAiModelInput} onChange={(event) => onOpenAiModelChange(event.target.value)} aria-label="OpenAI-compatible model" />
                   </label>
-                  <button type="button" className="btn btn-primary justify-self-start rounded-2xl" onClick={onSaveProviderConfig}>
-                    Save provider settings
+                  <button type="button" className="btn btn-primary justify-self-start rounded-2xl" onClick={onSaveOpenAiConfig}>
+                    Save OpenAI-compatible settings
                   </button>
+                  <ProviderCredentialForm
+                    providerId="openai-compatible"
+                    providerName="OpenAI-compatible"
+                    status={openAiCredentialStatus}
+                    apiKeyInput={apiKeyInputs['openai-compatible']}
+                    onApiKeyChange={onApiKeyChange}
+                    onSaveApiKey={onSaveApiKey}
+                    onDeleteApiKey={onDeleteApiKey}
+                  />
+                  {openAiSettings ? <p className="text-xs text-base-content/45">Current saved model: {openAiSettings.model}</p> : null}
                 </div>
               </section>
 
               <section className="rounded-2xl border border-base-300 bg-base-200/50 p-4">
-                <h3 className="font-semibold">Credentials</h3>
-                <p className="mt-1 text-sm text-base-content/55">API keys are stored through the OS keychain and never returned to the renderer.</p>
-                <label className="form-control mt-4">
-                  <span className="label-text font-medium">API key</span>
-                  <input
-                    className="input input-bordered mt-2"
-                    value={apiKeyInput}
-                    onChange={(event) => onApiKeyChange(event.target.value)}
-                    aria-label="Provider API key"
-                    type="password"
-                    placeholder={settings.providerApiKeyStatus === 'configured' ? 'Key is saved in OS keychain' : 'Paste key to save'}
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div>
+                    <h3 className="font-semibold">Anthropic Claude</h3>
+                    <p className="mt-1 text-sm text-base-content/55">Use Anthropic's Claude models with a separate key.</p>
+                  </div>
+                  <span className="badge badge-outline">{formatProviderKeyStatus(anthropicCredentialStatus.status)}</span>
+                </div>
+                <div className="mt-4 grid gap-4">
+                  <label className="form-control">
+                    <span className="label-text font-medium">Model</span>
+                    <input className="input input-bordered mt-2" value={anthropicModelInput} onChange={(event) => onAnthropicModelChange(event.target.value)} aria-label="Anthropic model" />
+                  </label>
+                  <button type="button" className="btn btn-primary justify-self-start rounded-2xl" onClick={onSaveAnthropicConfig}>
+                    Save Anthropic settings
+                  </button>
+                  <ProviderCredentialForm
+                    providerId="anthropic"
+                    providerName="Anthropic Claude"
+                    status={anthropicCredentialStatus}
+                    apiKeyInput={apiKeyInputs.anthropic}
+                    onApiKeyChange={onApiKeyChange}
+                    onSaveApiKey={onSaveApiKey}
+                    onDeleteApiKey={onDeleteApiKey}
                   />
-                </label>
-                <div className="mt-4 flex flex-wrap gap-2">
-                  <button type="button" className="btn btn-primary rounded-2xl" disabled={apiKeyInput.trim().length === 0} onClick={onSaveApiKey}>Save API key</button>
-                  <button type="button" className="btn btn-outline rounded-2xl" disabled={settings.providerApiKeyStatus !== 'configured'} onClick={onDeleteApiKey}>Delete API key</button>
+                  {anthropicSettings ? <p className="text-xs text-base-content/45">Current saved model: {anthropicSettings.model}</p> : null}
                 </div>
               </section>
 
@@ -88,8 +154,10 @@ export function SettingsDrawer({
               <section className="rounded-2xl border border-base-300 bg-base-100 p-4">
                 <h3 className="font-semibold">Status</h3>
                 <dl className="mt-4 grid gap-3 text-sm">
-                  <StatusRow label="Provider" value={settings.provider} />
-                  <StatusRow label="Key" value={formatProviderKeyStatus(settings.providerApiKeyStatus)} />
+                  <StatusRow label="Default provider" value={settings.provider} />
+                  <StatusRow label="Default model" value={settings.model} />
+                  <StatusRow label="OpenAI-compatible key" value={formatProviderKeyStatus(openAiCredentialStatus.status)} />
+                  <StatusRow label="Anthropic key" value={formatProviderKeyStatus(anthropicCredentialStatus.status)} />
                   <StatusRow label="Local model" value={settings.isLocalModel ? 'Yes' : 'No'} />
                   <StatusRow label="Review context" value={settings.reviewContextDescription} />
                   <StatusRow label="Database" value={startup.databaseReady ? settings.databaseLocation : 'Unavailable'} />
@@ -107,6 +175,59 @@ export function SettingsDrawer({
       </div>
     </div>
   );
+}
+
+function ProviderCredentialForm({
+  providerId,
+  providerName,
+  status,
+  apiKeyInput,
+  onApiKeyChange,
+  onSaveApiKey,
+  onDeleteApiKey,
+}: {
+  providerId: AiProviderId;
+  providerName: string;
+  status: ProviderKeyStatus;
+  apiKeyInput: string;
+  onApiKeyChange: (providerId: AiProviderId, value: string) => void;
+  onSaveApiKey: (providerId: AiProviderId) => void;
+  onDeleteApiKey: (providerId: AiProviderId) => void;
+}): React.JSX.Element {
+  return (
+    <div className="rounded-2xl border border-base-300 bg-base-100 p-4">
+      <h4 className="font-medium">{providerName} credentials</h4>
+      <p className="mt-1 text-sm text-base-content/55">API keys are stored through the OS keychain and never returned to the renderer.</p>
+      <label className="form-control mt-4">
+        <span className="label-text font-medium">API key</span>
+        <input
+          className="input input-bordered mt-2"
+          value={apiKeyInput}
+          onChange={(event) => onApiKeyChange(providerId, event.target.value)}
+          aria-label={`${providerName} API key`}
+          type="password"
+          placeholder={status.status === 'configured' ? 'Key is saved in OS keychain' : 'Paste key to save'}
+        />
+      </label>
+      <div className="mt-4 flex flex-wrap gap-2">
+        <button type="button" className="btn btn-primary rounded-2xl" disabled={apiKeyInput.trim().length === 0} onClick={() => onSaveApiKey(providerId)}>Save API key</button>
+        <button type="button" className="btn btn-outline rounded-2xl" disabled={status.status !== 'configured'} onClick={() => onDeleteApiKey(providerId)}>Delete API key</button>
+      </div>
+    </div>
+  );
+}
+
+function getCredentialStatus(settings: SettingsSnapshot, providerId: AiProviderId): ProviderKeyStatus {
+  const status = settings.providerCredentialStatuses?.[providerId] ?? settings.aiModelSettings?.providers[providerId].apiKeyStatus;
+  if (status) {
+    return status;
+  }
+
+  return {
+    providerId,
+    status: providerId === settings.providerId || (providerId === 'openai-compatible' && !settings.providerId) ? settings.providerApiKeyStatus : 'not-configured',
+    storage: 'os-keychain',
+  };
 }
 
 function StatusRow({ label, value }: { label: string; value: string }): React.JSX.Element {

@@ -1,7 +1,7 @@
 import { contextBridge, ipcRenderer, type IpcRendererEvent } from 'electron';
 import { IPC_CHANNELS } from '../shared/constants/channels';
 import type { StartupStatus } from '../shared/types/app';
-import type { ProviderCredentialMutationResult, ProviderKeyStatus, SetProviderApiKeyInput } from '../shared/types/credentials';
+import type { DeleteProviderApiKeyInput, ProviderCredentialMutationResult, ProviderKeyStatus, SetProviderApiKeyInput } from '../shared/types/credentials';
 import type {
   AcknowledgeStarterPromptDisclosureInput,
   CompleteRewritePracticeInput,
@@ -24,7 +24,7 @@ import type {
   StartReviewInput,
   StartReviewOutput,
 } from '../shared/types/review';
-import type { SettingsSnapshot, SetProviderConfigInput, SetRawResponseStorageInput } from '../shared/types/settings';
+import type { SettingsSnapshot, SetDefaultProviderInput, SetProviderConfigInput, SetRawResponseStorageInput } from '../shared/types/settings';
 
 const api = {
   app: {
@@ -51,14 +51,16 @@ const api = {
       ipcRenderer.invoke(IPC_CHANNELS.SETTINGS.SET_RAW_RESPONSE_STORAGE, input),
     setProviderConfig: (input: SetProviderConfigInput): Promise<SettingsSnapshot> =>
       ipcRenderer.invoke(IPC_CHANNELS.SETTINGS.SET_PROVIDER_CONFIG, input),
+    setDefaultProvider: (input: SetDefaultProviderInput): Promise<SettingsSnapshot> =>
+      ipcRenderer.invoke(IPC_CHANNELS.SETTINGS.SET_DEFAULT_PROVIDER, input),
   },
   credentials: {
     getProviderKeyStatus: (): Promise<ProviderKeyStatus> =>
       ipcRenderer.invoke(IPC_CHANNELS.CREDENTIALS.GET_PROVIDER_KEY_STATUS),
     setProviderApiKey: (input: SetProviderApiKeyInput): Promise<ProviderCredentialMutationResult> =>
       ipcRenderer.invoke(IPC_CHANNELS.CREDENTIALS.SET_PROVIDER_API_KEY, input),
-    deleteProviderApiKey: (): Promise<ProviderCredentialMutationResult> =>
-      ipcRenderer.invoke(IPC_CHANNELS.CREDENTIALS.DELETE_PROVIDER_API_KEY),
+    deleteProviderApiKey: (input?: DeleteProviderApiKeyInput): Promise<ProviderCredentialMutationResult> =>
+      ipcRenderer.invoke(IPC_CHANNELS.CREDENTIALS.DELETE_PROVIDER_API_KEY, input),
   },
   review: {
     acknowledgeDisclosure: (input: AcknowledgeReviewDisclosureInput): Promise<boolean> =>

@@ -385,6 +385,43 @@ describe('startReview observability', () => {
     expect(database.reviewRun()?.rawOutputJson).toBeNull();
   });
 
+  it('preserves actionable missing-key configuration errors from the selected provider', async () => {
+    database.reset();
+    database.seedWriting();
+    const events: ReviewProgressEvent[] = [];
+    const startReview = await loadStartReview();
+
+    const result = await startReview(
+      { writingAttemptId: 'journal_1', writingRevisionId: 'revision_1' },
+      {
+        agent: async () => {
+          throw new Error('Anthropic Claude provider API key is not configured. Add it in Settings before continuing.');
+        },
+        hasDisclosureAcknowledgement: () => true,
+        settings: {
+          provider: 'Anthropic Claude',
+          baseUrl: 'https://api.openai.com/v1',
+          model: 'claude-sonnet-4-5',
+          providerApiKeyStatus: 'not-configured',
+          rawResponseStorageEnabled: false,
+        },
+        onProgress: (event) => events.push(event),
+      }
+    );
+
+    expect(result).toMatchObject({
+      success: false,
+      error: 'Anthropic Claude provider API key is not configured. Add it in Settings before continuing.',
+    });
+    expect(events.at(-1)).toMatchObject({ phase: 'waiting', event: 'failed', errorCategory: 'missing_config' });
+    expect(result.reviewRun?.summary).toMatchObject({
+      resultKind: 'failed',
+      errorCategory: 'missing_config',
+      rawSaved: false,
+    });
+    expect(database.reviewRun()?.rawOutputJson).toBeNull();
+  });
+
   it('marks completed reviews stale when the active revision changes while review is in flight', async () => {
     database.reset();
     database.seedWriting();

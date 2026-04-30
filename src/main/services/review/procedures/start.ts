@@ -16,6 +16,7 @@ import {
 import { getSettingsSnapshot, type ReviewSettingsSnapshot } from '../../settings/service';
 import { hasReviewDisclosureAcknowledgement } from '../lib/disclosure';
 import { buildReviewInput } from '../lib/input';
+import { getProviderSettingsForFeature } from '../../ai/runtime-config';
 import { callOpenAiCompatibleReviewAgent } from '../lib/openai-compatible-agent';
 import { buildReviewPersistenceDecision } from '../lib/persistence-decision';
 import { buildReviewUserPrompt, REVIEW_SYSTEM_PROMPT } from '../lib/prompt';
@@ -145,6 +146,7 @@ export async function startReview(input: StartReviewInput, options: StartReviewO
   beginPhase(reviewRunId, timingState, 'preparing', options.onProgress);
 
   const settings = options.settings ?? (await getSettingsSnapshot());
+  const reviewProviderMetadata = getReviewProviderMetadata(settings);
   const generatedPrompt = entry.generatedPromptJson ? (JSON.parse(entry.generatedPromptJson) as { text?: unknown }).text : null;
   const template = getWritingTemplate(entry.templateId);
   const reviewInput = buildReviewInput({
@@ -169,8 +171,8 @@ export async function startReview(input: StartReviewInput, options: StartReviewO
       writingRevisionId: revision.id,
       contentHash: revision.contentHash,
       status: 'reviewing',
-      provider: settings.provider,
-      model: settings.model,
+      provider: reviewProviderMetadata.provider,
+      model: reviewProviderMetadata.model,
       inputSnapshotJson: JSON.stringify(reviewInput),
       validationErrorsJson: JSON.stringify([]),
     })
@@ -295,6 +297,14 @@ export async function startReview(input: StartReviewInput, options: StartReviewO
   }
 }
 
+function getReviewProviderMetadata(settings: ReviewSettingsSnapshot): Pick<ReviewSettingsSnapshot, 'provider' | 'model'> {
+  const providerSettings = getProviderSettingsForFeature(settings, 'review');
+  return {
+    provider: providerSettings.provider,
+    model: providerSettings.model,
+  };
+}
+
 function buildReviewRunSummary(params: {
   timingState: PhaseTimingState;
   validation: ReviewValidationResult | null;
@@ -341,11 +351,19 @@ function statsFromOperations(operations: PreviewOperations | null): ReviewRunSum
 }
 
 function classifyReviewError(message: string): ReviewErrorCategory {
-  if (message.includes('provider API key') || message.includes('base URL') || message.includes('model') || message.includes('keychain')) {
+  const normalizedMessage = message.toLowerCase();
+  if (
+    normalizedMessage.includes('provider api key')
+    || normalizedMessage.includes('api key is not configured')
+    || normalizedMessage.includes('api key is unavailable')
+    || normalizedMessage.includes('base url')
+    || normalizedMessage.includes('model')
+    || normalizedMessage.includes('keychain')
+  ) {
     return 'missing_config';
   }
 
-  if (message.toLowerCase().includes('timed out')) {
+  if (normalizedMessage.includes('timed out')) {
     return 'timeout';
   }
 

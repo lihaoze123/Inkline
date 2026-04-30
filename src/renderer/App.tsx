@@ -3,6 +3,7 @@ import type { StartupStatus } from '@shared/types/app';
 import type { WritingAttemptSnapshot, WritingTemplateId } from '@shared/types/writing';
 import { WRITING_TEMPLATES } from '@shared/writing/templates';
 import type { ReviewPreviewSnapshot, ReviewProgressEvent, ReviewRunSnapshot } from '@shared/types/review';
+import type { AiProviderId } from '@shared/types/credentials';
 import type { SettingsSnapshot } from '@shared/types/settings';
 import { WritingEditorCard } from './components/WritingEditorCard';
 import { LearningPanel } from './components/LearningPanel';
@@ -116,9 +117,13 @@ function PracticePage({ initialWriting, settings, startup }: PracticePageProps):
   const [showDisclosure, setShowDisclosure] = useState(false);
   const [showSettingsDrawer, setShowSettingsDrawer] = useState(false);
   const [showRevealConfirmation, setShowRevealConfirmation] = useState(false);
-  const [providerBaseUrlInput, setProviderBaseUrlInput] = useState(settings.baseUrl);
-  const [providerModelInput, setProviderModelInput] = useState(settings.model);
-  const [providerApiKeyInput, setProviderApiKeyInput] = useState('');
+  const [openAiBaseUrlInput, setOpenAiBaseUrlInput] = useState(settings.aiModelSettings?.providers['openai-compatible'].baseUrl ?? settings.baseUrl);
+  const [openAiModelInput, setOpenAiModelInput] = useState(settings.aiModelSettings?.providers['openai-compatible'].model ?? settings.model);
+  const [anthropicModelInput, setAnthropicModelInput] = useState(settings.aiModelSettings?.providers.anthropic.model ?? '');
+  const [providerApiKeyInputs, setProviderApiKeyInputs] = useState<Record<AiProviderId, string>>({
+    'openai-compatible': '',
+    anthropic: '',
+  });
   const [settingsMessage, setSettingsMessage] = useState<string | null>(null);
   const [settingsError, setSettingsError] = useState<string | null>(null);
   const lastSavedContentRef = useRef(initialWriting.activeRevision?.content ?? '');
@@ -369,45 +374,82 @@ function PracticePage({ initialWriting, settings, startup }: PracticePageProps):
     await reviewCurrentContent();
   }, [reviewCurrentContent]);
 
-  const saveProviderConfig = useCallback(async (): Promise<void> => {
+  const setDefaultProvider = useCallback(async (providerId: AiProviderId): Promise<void> => {
     setSettingsError(null);
     setSettingsMessage(null);
     try {
-      const updatedSettings = await window.api.settings.setProviderConfig({ baseUrl: providerBaseUrlInput, model: providerModelInput });
+      const updatedSettings = await window.api.settings.setDefaultProvider({ providerId });
       setAppSettings(updatedSettings);
-      setProviderBaseUrlInput(updatedSettings.baseUrl);
-      setProviderModelInput(updatedSettings.model);
-      setSettingsMessage('Provider settings saved.');
+      setSettingsMessage('Default provider updated.');
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Unable to save provider settings.';
+      const message = error instanceof Error ? error.message : 'Unable to update default provider.';
       setSettingsError(message);
     }
-  }, [providerBaseUrlInput, providerModelInput]);
+  }, []);
 
-  const saveProviderApiKey = useCallback(async (): Promise<void> => {
+  const saveOpenAiProviderConfig = useCallback(async (): Promise<void> => {
     setSettingsError(null);
     setSettingsMessage(null);
-    const result = await window.api.credentials.setProviderApiKey({ apiKey: providerApiKeyInput });
+    try {
+      const updatedSettings = await window.api.settings.setProviderConfig({
+        providerId: 'openai-compatible',
+        baseUrl: openAiBaseUrlInput,
+        model: openAiModelInput,
+      });
+      setAppSettings(updatedSettings);
+      setOpenAiBaseUrlInput(updatedSettings.aiModelSettings?.providers['openai-compatible'].baseUrl ?? updatedSettings.baseUrl);
+      setOpenAiModelInput(updatedSettings.aiModelSettings?.providers['openai-compatible'].model ?? updatedSettings.model);
+      setSettingsMessage('OpenAI-compatible settings saved.');
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unable to save OpenAI-compatible settings.';
+      setSettingsError(message);
+    }
+  }, [openAiBaseUrlInput, openAiModelInput]);
+
+  const saveAnthropicProviderConfig = useCallback(async (): Promise<void> => {
+    setSettingsError(null);
+    setSettingsMessage(null);
+    try {
+      const updatedSettings = await window.api.settings.setProviderConfig({ providerId: 'anthropic', model: anthropicModelInput });
+      setAppSettings(updatedSettings);
+      setAnthropicModelInput(updatedSettings.aiModelSettings?.providers.anthropic.model ?? updatedSettings.model);
+      setSettingsMessage('Anthropic settings saved.');
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unable to save Anthropic settings.';
+      setSettingsError(message);
+    }
+  }, [anthropicModelInput]);
+
+  const updateProviderApiKeyInput = useCallback((providerId: AiProviderId, value: string): void => {
+    setProviderApiKeyInputs((current) => ({ ...current, [providerId]: value }));
+  }, []);
+
+  const saveProviderApiKey = useCallback(async (providerId: AiProviderId): Promise<void> => {
+    setSettingsError(null);
+    setSettingsMessage(null);
+    const result = await window.api.credentials.setProviderApiKey({ providerId, apiKey: providerApiKeyInputs[providerId] });
     if (result.success && result.status) {
-      setAppSettings({ ...appSettings, providerApiKeyStatus: result.status.status });
-      setProviderApiKeyInput('');
+      const updatedSettings = await window.api.settings.get();
+      setAppSettings(updatedSettings);
+      setProviderApiKeyInputs((current) => ({ ...current, [providerId]: '' }));
       setSettingsMessage('Provider API key saved to the OS keychain.');
       return;
     }
     setSettingsError(result.error ?? 'Unable to save provider API key.');
-  }, [appSettings, providerApiKeyInput]);
+  }, [providerApiKeyInputs]);
 
-  const deleteProviderKey = useCallback(async (): Promise<void> => {
+  const deleteProviderKey = useCallback(async (providerId: AiProviderId): Promise<void> => {
     setSettingsError(null);
     setSettingsMessage(null);
-    const result = await window.api.credentials.deleteProviderApiKey();
+    const result = await window.api.credentials.deleteProviderApiKey({ providerId });
     if (result.success && result.status) {
-      setAppSettings({ ...appSettings, providerApiKeyStatus: result.status.status });
+      const updatedSettings = await window.api.settings.get();
+      setAppSettings(updatedSettings);
       setSettingsMessage('Provider API key deleted.');
       return;
     }
     setSettingsError(result.error ?? 'Unable to delete provider API key.');
-  }, [appSettings]);
+  }, []);
 
   const toggleRawResponseStorage = useCallback(async (enabled: boolean): Promise<void> => {
     const rawResponseStorageEnabled = await window.api.settings.setRawResponseStorage({ enabled });
@@ -501,23 +543,31 @@ function PracticePage({ initialWriting, settings, startup }: PracticePageProps):
         isOpen={showSettingsDrawer}
         settings={appSettings}
         startup={startup}
-        baseUrlInput={providerBaseUrlInput}
-        modelInput={providerModelInput}
-        apiKeyInput={providerApiKeyInput}
+        openAiBaseUrlInput={openAiBaseUrlInput}
+        openAiModelInput={openAiModelInput}
+        anthropicModelInput={anthropicModelInput}
+        apiKeyInputs={providerApiKeyInputs}
         message={settingsMessage}
         error={settingsError}
         onClose={() => setShowSettingsDrawer(false)}
-        onBaseUrlChange={setProviderBaseUrlInput}
-        onModelChange={setProviderModelInput}
-        onApiKeyChange={setProviderApiKeyInput}
-        onSaveProviderConfig={() => {
-          void saveProviderConfig();
+        onDefaultProviderChange={(providerId) => {
+          void setDefaultProvider(providerId);
         }}
-        onSaveApiKey={() => {
-          void saveProviderApiKey();
+        onOpenAiBaseUrlChange={setOpenAiBaseUrlInput}
+        onOpenAiModelChange={setOpenAiModelInput}
+        onAnthropicModelChange={setAnthropicModelInput}
+        onApiKeyChange={updateProviderApiKeyInput}
+        onSaveOpenAiConfig={() => {
+          void saveOpenAiProviderConfig();
         }}
-        onDeleteApiKey={() => {
-          void deleteProviderKey();
+        onSaveAnthropicConfig={() => {
+          void saveAnthropicProviderConfig();
+        }}
+        onSaveApiKey={(providerId) => {
+          void saveProviderApiKey(providerId);
+        }}
+        onDeleteApiKey={(providerId) => {
+          void deleteProviderKey(providerId);
         }}
         onRawResponseStorageChange={(enabled) => {
           void toggleRawResponseStorage(enabled);
@@ -556,7 +606,9 @@ function PracticePage({ initialWriting, settings, startup }: PracticePageProps):
 }
 
 function getAppStatus(startup: StartupStatus, settings: SettingsSnapshot): AppStatusModel {
-  if (!startup.databaseReady || !startup.migrationsApplied || settings.providerApiKeyStatus === 'unavailable') {
+  const defaultKeyStatus = settings.providerCredentialStatuses?.[settings.providerId ?? 'openai-compatible'].status ?? settings.providerApiKeyStatus;
+
+  if (!startup.databaseReady || !startup.migrationsApplied || defaultKeyStatus === 'unavailable') {
     return {
       readiness: 'error',
       label: 'Error',
@@ -565,7 +617,7 @@ function getAppStatus(startup: StartupStatus, settings: SettingsSnapshot): AppSt
     };
   }
 
-  if (settings.providerApiKeyStatus !== 'configured') {
+  if (defaultKeyStatus !== 'configured') {
     return {
       readiness: 'setup-needed',
       label: 'Setup needed',
@@ -578,6 +630,6 @@ function getAppStatus(startup: StartupStatus, settings: SettingsSnapshot): AppSt
     readiness: 'ready',
     label: 'Ready',
     toneClassName: 'badge-success badge-soft',
-    detail: 'Review is configured',
+    detail: 'AI is configured',
   };
 }

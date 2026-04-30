@@ -1,6 +1,7 @@
 import type { StartupStatus } from '@shared/types/app';
 import type { WritingAttemptSnapshot, WritingTemplate, WritingTemplateId } from '@shared/types/writing';
 import type { AnchoredCorrectionOperationSnapshot, ReviewPreviewSnapshot, ReviewProgressEvent, ReviewRunSnapshot } from '@shared/types/review';
+import type { AiProviderId } from '@shared/types/credentials';
 import type { SettingsSnapshot } from '@shared/types/settings';
 
 export type SaveState = 'idle' | 'saving' | 'saved' | 'error';
@@ -39,18 +40,22 @@ export type SettingsDrawerProps = {
   isOpen: boolean;
   settings: SettingsSnapshot;
   startup: StartupStatus;
-  baseUrlInput: string;
-  modelInput: string;
-  apiKeyInput: string;
+  openAiBaseUrlInput: string;
+  openAiModelInput: string;
+  anthropicModelInput: string;
+  apiKeyInputs: Record<AiProviderId, string>;
   message: string | null;
   error: string | null;
   onClose: () => void;
-  onBaseUrlChange: (value: string) => void;
-  onModelChange: (value: string) => void;
-  onApiKeyChange: (value: string) => void;
-  onSaveProviderConfig: () => void;
-  onSaveApiKey: () => void;
-  onDeleteApiKey: () => void;
+  onDefaultProviderChange: (providerId: AiProviderId) => void;
+  onOpenAiBaseUrlChange: (value: string) => void;
+  onOpenAiModelChange: (value: string) => void;
+  onAnthropicModelChange: (value: string) => void;
+  onApiKeyChange: (providerId: AiProviderId, value: string) => void;
+  onSaveOpenAiConfig: () => void;
+  onSaveAnthropicConfig: () => void;
+  onSaveApiKey: (providerId: AiProviderId) => void;
+  onDeleteApiKey: (providerId: AiProviderId) => void;
   onRawResponseStorageChange: (enabled: boolean) => void;
 };
 

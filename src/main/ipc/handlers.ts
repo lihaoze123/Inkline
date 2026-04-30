@@ -1,7 +1,12 @@
 import { ipcMain } from 'electron';
 import { IPC_CHANNELS } from '../../shared/constants/channels';
-import { providerCredentialMutationResultSchema, providerKeyStatusSchema, setProviderApiKeyInputSchema } from '../../shared/types/credentials';
-import { setProviderConfigInputSchema, setRawResponseStorageInputSchema, settingsSnapshotSchema } from '../../shared/types/settings';
+import {
+  deleteProviderApiKeyInputSchema,
+  providerCredentialMutationResultSchema,
+  providerKeyStatusSchema,
+  setProviderApiKeyInputSchema,
+} from '../../shared/types/credentials';
+import { setDefaultProviderInputSchema, setProviderConfigInputSchema, setRawResponseStorageInputSchema, settingsSnapshotSchema } from '../../shared/types/settings';
 import {
   acknowledgeReviewDisclosureInputSchema,
   getReviewPreviewInputSchema,
@@ -27,7 +32,7 @@ import {
 } from '../../shared/types/writing';
 import { getDatabasePath } from '../db/client';
 import type { MigrationResult } from '../db/migrate';
-import { deleteProviderApiKey, getProviderKeyStatus, setProviderApiKey } from '../services/credentials/service';
+import { deleteProviderApiKey, getProviderCredentialStatuses, getProviderKeyStatus, setProviderApiKey } from '../services/credentials/service';
 import {
   acknowledgeStarterPromptDisclosure,
   completeRewritePractice,
@@ -40,7 +45,7 @@ import { acknowledgeReviewDisclosure } from '../services/review/lib/disclosure';
 import { getReviewPreview } from '../services/review/procedures/preview';
 import { saveReviewRun } from '../services/review/procedures/save';
 import { startReview } from '../services/review/procedures/start';
-import { getSettingsSnapshot, setProviderConfig, setRawResponseStorage } from '../services/settings/service';
+import { getSettingsSnapshot, setDefaultProvider, setProviderConfig, setRawResponseStorage } from '../services/settings/service';
 
 export function registerIpcHandlers(migrationResult: MigrationResult): void {
   ipcMain.handle(IPC_CHANNELS.APP.GET_STARTUP_STATUS, (): StartupStatus => {
@@ -100,6 +105,12 @@ export function registerIpcHandlers(migrationResult: MigrationResult): void {
     return settingsSnapshotSchema.parse(await getSettingsSnapshot());
   });
 
+  ipcMain.handle(IPC_CHANNELS.SETTINGS.SET_DEFAULT_PROVIDER, async (_event, input: unknown): Promise<unknown> => {
+    const parsedInput = setDefaultProviderInputSchema.parse(input);
+    setDefaultProvider(parsedInput);
+    return settingsSnapshotSchema.parse(await getSettingsSnapshot());
+  });
+
   ipcMain.handle(IPC_CHANNELS.CREDENTIALS.GET_PROVIDER_KEY_STATUS, async (): Promise<unknown> => {
     return providerKeyStatusSchema.parse(await getProviderKeyStatus());
   });
@@ -107,18 +118,28 @@ export function registerIpcHandlers(migrationResult: MigrationResult): void {
   ipcMain.handle(IPC_CHANNELS.CREDENTIALS.SET_PROVIDER_API_KEY, async (_event, input: unknown): Promise<unknown> => {
     const parsedInput = setProviderApiKeyInputSchema.parse(input);
     try {
-      await setProviderApiKey(parsedInput.apiKey);
-      return providerCredentialMutationResultSchema.parse({ success: true, status: await getProviderKeyStatus() });
+      await setProviderApiKey(parsedInput.apiKey, parsedInput.providerId);
+      return providerCredentialMutationResultSchema.parse({
+        success: true,
+        status: await getProviderKeyStatus(parsedInput.providerId),
+        providerStatuses: await getProviderCredentialStatuses(),
+      });
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Unable to save provider API key.';
       return providerCredentialMutationResultSchema.parse({ success: false, error: message });
     }
   });
 
-  ipcMain.handle(IPC_CHANNELS.CREDENTIALS.DELETE_PROVIDER_API_KEY, async (): Promise<unknown> => {
+  ipcMain.handle(IPC_CHANNELS.CREDENTIALS.DELETE_PROVIDER_API_KEY, async (_event, input: unknown): Promise<unknown> => {
     try {
-      await deleteProviderApiKey();
-      return providerCredentialMutationResultSchema.parse({ success: true, status: await getProviderKeyStatus() });
+      const parsedInput = deleteProviderApiKeyInputSchema.parse(input);
+      const providerId = typeof parsedInput === 'string' ? parsedInput : parsedInput.providerId;
+      await deleteProviderApiKey(providerId);
+      return providerCredentialMutationResultSchema.parse({
+        success: true,
+        status: await getProviderKeyStatus(providerId),
+        providerStatuses: await getProviderCredentialStatuses(),
+      });
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Unable to delete provider API key.';
       return providerCredentialMutationResultSchema.parse({ success: false, error: message });
