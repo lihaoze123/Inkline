@@ -379,3 +379,37 @@ Implemented AI review observability with progress events, persisted summaries, L
 ### Next Steps
 
 - None - task complete
+
+
+## Session 12: Writing Practice generalization
+
+**Date**: 2026-04-30
+**Task**: Writing Practice generalization
+**Branch**: `main`
+
+### Summary
+
+Generalized the app from journal-first to Writing Practice with same-level templates, starter prompt generation, writing-oriented contracts, schema updates, tests, and spec documentation.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `f731796` | (see git log) |
+| `4399287` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete

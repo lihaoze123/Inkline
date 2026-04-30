@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-1.md`
-- **Total Sessions**: 11
+- **Total Sessions**: 12
 - **Last Active**: 2026-04-30
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-1.md` | ~381 | Active |
+| `journal-1.md` | ~415 | Active |
 <!-- @@@/auto:active-documents -->
 
 ---
@@ -29,6 +29,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 12 | 2026-04-30 | Writing Practice generalization | `f731796`, `4399287` | `main` |
 | 11 | 2026-04-30 | AI review observability and daisyUI redesign | `288e77e` | `main` |
 | 10 | 2026-04-30 | Complete MVP live review | `82d7b3b`, `17efe21`, `e7d7bdd` | `main` |
 | 9 | 2026-04-29 | Write README and changelog | `239c37e` | `main` |
