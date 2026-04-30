@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-1.md`
-- **Total Sessions**: 16
+- **Total Sessions**: 17
 - **Last Active**: 2026-04-30
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-1.md` | ~549 | Active |
+| `journal-1.md` | ~584 | Active |
 <!-- @@@/auto:active-documents -->
 
 ---
@@ -29,6 +29,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 17 | 2026-04-30 | Finish UI/UX shell overhaul | `021e7d3`, `3344b10`, `94666b9` | `main` |
 | 16 | 2026-04-30 | Repair packaged app startup | `ccab55b` | `main` |
 | 15 | 2026-04-30 | Quality gate automation | `ddc3ae7` | `main` |
 | 14 | 2026-04-30 | Introduce TanStack Query renderer state | `82243f0`, `0da236d`, `3d63622` | `main` |

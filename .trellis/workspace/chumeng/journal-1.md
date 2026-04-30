@@ -547,3 +547,38 @@ Fixed SQLite migration drift, renderer startup gating, and Electron Forge native
 ### Next Steps
 
 - None - task complete
+
+
+## Session 17: Finish UI/UX shell overhaul
+
+**Date**: 2026-04-30
+**Task**: Finish UI/UX shell overhaul
+**Branch**: `main`
+
+### Summary
+
+Implemented the shell-first writing coach UI with Today/Write/Library/Settings, moved settings into a dedicated page, preserved the practice flow, updated learning-flow specs, and recorded the task context.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `021e7d3` | (see git log) |
+| `3344b10` | (see git log) |
+| `94666b9` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
