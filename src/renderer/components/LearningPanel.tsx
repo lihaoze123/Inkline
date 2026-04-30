@@ -36,7 +36,7 @@ export function LearningPanel({
 }: LearningPanelProps): React.JSX.Element {
   return (
     <aside
-      className="scrollable flex min-h-0 flex-col gap-4 overflow-y-auto rounded-[2rem] border border-base-300/80 bg-base-100/90 p-5 shadow-xl shadow-secondary/5"
+      className="scrollable flex min-h-0 flex-col gap-4 overflow-y-auto rounded-xl border border-base-300/70 bg-base-100 p-5"
       aria-labelledby="learning-panel-title"
     >
       <div>
@@ -139,7 +139,7 @@ function PanelCard({
     error: 'border-error/30 bg-error/10',
   }[tone];
 
-  return <section className={`rounded-2xl border p-4 ${toneClassName}`}>{children}</section>;
+  return <section className={`rounded-xl border p-4 ${toneClassName}`}>{children}</section>;
 }
 
 function StaleReviewCard({ onReviewCurrentVersion }: { onReviewCurrentVersion: () => void }): React.JSX.Element {
@@ -149,7 +149,7 @@ function StaleReviewCard({ onReviewCurrentVersion }: { onReviewCurrentVersion: (
       <p className="mt-2 text-sm leading-6 text-base-content/65">
         This review is based on an earlier version of your writing.
       </p>
-      <button type="button" className="btn btn-warning btn-sm mt-4 rounded-2xl" onClick={onReviewCurrentVersion}>
+      <button type="button" className="btn btn-warning btn-sm mt-4 rounded-xl" onClick={onReviewCurrentVersion}>
         Review current version
       </button>
     </PanelCard>
@@ -228,17 +228,17 @@ function RewritePracticeCard({
         disabled={isCompleted}
       />
       <div className="mt-4 flex flex-wrap gap-2">
-        <button type="button" className="btn btn-success btn-sm rounded-2xl" disabled={!canSubmit} onClick={onComplete}>
+        <button type="button" className="btn btn-success btn-sm rounded-xl" disabled={!canSubmit} onClick={onComplete}>
           {isCompleted ? 'Rewrite submitted' : 'Submit rewrite'}
         </button>
         {!isCompleted ? (
-          <button type="button" className="btn btn-ghost btn-sm rounded-2xl" onClick={onSkip}>
+          <button type="button" className="btn btn-ghost btn-sm rounded-xl" onClick={onSkip}>
             Skip
           </button>
         ) : null}
       </div>
       {showNativeModel ? (
-        <p className="mt-4 rounded-2xl bg-base-100 p-3 text-sm leading-6">
+        <p className="mt-4 rounded-xl bg-base-100 p-3 text-sm leading-6">
           <strong>Native model:</strong> {practice.nativeModelSentence}
         </p>
       ) : (
@@ -368,7 +368,7 @@ function AfterWritingState({
       ) : null}
       <button
         type="button"
-        className={`btn mt-4 w-full rounded-2xl ${failedCategory ? 'btn-error' : 'btn-primary'}`}
+        className={`btn mt-4 w-full rounded-xl ${failedCategory ? 'btn-error' : 'btn-primary'}`}
         disabled={reviewDisabled}
         aria-disabled={reviewDisabled}
         onClick={onReviewCurrentVersion}
@@ -438,7 +438,7 @@ function ReviewPreview({
     <section className="grid gap-4" aria-label="Review preview">
       <ReviewQualitySummary preview={preview} focusPatternTitle={focusPatternTitle} />
       {preview.isStaleForCurrentWriting ? (
-        <button type="button" className="btn btn-warning rounded-2xl" onClick={onReviewCurrentVersion}>
+        <button type="button" className="btn btn-warning rounded-xl" onClick={onReviewCurrentVersion}>
           Retry current version
         </button>
       ) : null}
@@ -454,7 +454,7 @@ function ReviewPreview({
       <PanelCard>
         <h3 className="font-semibold">Try fixing this</h3>
         <p className="mt-2 text-sm leading-6 text-base-content/65">{preview.operations.selfRepair.prompt}</p>
-        <div className="mt-4 rounded-2xl border border-info/25 bg-info/10 p-3 text-sm leading-6 text-base-content/70">
+        <div className="mt-4 rounded-xl border border-info/25 bg-info/10 p-3 text-sm leading-6 text-base-content/70">
           Hint: {preview.operations.selfRepair.hint}
         </div>
         <textarea
@@ -465,12 +465,12 @@ function ReviewPreview({
           aria-label="Self-repair attempt"
         />
         <div className="mt-4 flex flex-wrap gap-2">
-          <button type="button" className="btn btn-outline btn-sm rounded-2xl" onClick={onRevealModelAnswer}>
+          <button type="button" className="btn btn-outline btn-sm rounded-xl" onClick={onRevealModelAnswer}>
             Reveal model answer
           </button>
         </div>
         {modelAnswerRevealed ? (
-          <p className="mt-4 rounded-2xl border border-primary/20 bg-primary/10 p-3 text-sm leading-6">
+          <p className="mt-4 rounded-xl border border-primary/20 bg-primary/10 p-3 text-sm leading-6">
             <strong>Model answer:</strong> {focusCorrection.correctedText}
           </p>
         ) : null}
@@ -521,10 +521,10 @@ function ReviewPreview({
 
       {firstReferenceRewrite ? (
         <ReviewAccordion title="Reference rewrite" badge="1">
-          <p className="rounded-2xl bg-base-200 p-3 text-sm leading-6 text-base-content/75">
+          <p className="rounded-xl bg-base-200 p-3 text-sm leading-6 text-base-content/75">
             {firstReferenceRewrite.text}
           </p>
-          <p className="mt-3 rounded-2xl border border-info/25 bg-info/10 p-3 text-sm leading-6 text-base-content/70">
+          <p className="mt-3 rounded-xl border border-info/25 bg-info/10 p-3 text-sm leading-6 text-base-content/70">
             Notice the gap: {firstReferenceRewrite.noticeTheGap}
           </p>
         </ReviewAccordion>
@@ -534,7 +534,7 @@ function ReviewPreview({
 
       <button
         type="button"
-        className="btn btn-primary rounded-2xl"
+        className="btn btn-primary rounded-xl"
         disabled={reviewState === 'saving' || reviewState === 'saved'}
         onClick={onSaveReview}
       >
@@ -595,13 +595,13 @@ function ReviewQualitySummary({
         <strong>Focus:</strong> {focusPatternTitle}
       </p>
       {preview.isStaleForCurrentWriting ? (
-        <p className="mt-3 rounded-2xl border border-warning/25 bg-warning/10 p-3 text-sm leading-6 text-base-content/65">
+        <p className="mt-3 rounded-xl border border-warning/25 bg-warning/10 p-3 text-sm leading-6 text-base-content/65">
           This preview is based on an earlier writing version. Saving will keep it as stale history; use Retry current
           version for feedback on your latest writing.
         </p>
       ) : null}
       {hasWarnings ? (
-        <p className="mt-3 rounded-2xl border border-warning/25 bg-warning/10 p-3 text-sm leading-6 text-base-content/65">
+        <p className="mt-3 rounded-xl border border-warning/25 bg-warning/10 p-3 text-sm leading-6 text-base-content/65">
           Warnings do not block saving. Low-confidence suggestions are shown separately and will not update learning
           history.
         </p>
@@ -613,7 +613,7 @@ function ReviewQualitySummary({
 
 function SummaryMetric({ label, value }: { label: string; value: number }): React.JSX.Element {
   return (
-    <div className="rounded-2xl bg-base-100/70 p-3">
+    <div className="rounded-xl bg-base-100/70 p-3">
       <p className="text-lg font-semibold leading-none">{value}</p>
       <p className="mt-1 text-xs text-base-content/50">{label}</p>
     </div>
@@ -641,7 +641,7 @@ function ReviewDetails({
 }): React.JSX.Element | null {
   if (!reviewRun) {
     return fallbackErrorCategory ? (
-      <details className="mt-4 rounded-2xl border border-base-300 bg-base-100 p-3 text-sm">
+      <details className="mt-4 rounded-xl border border-base-300 bg-base-100 p-3 text-sm">
         <summary className="cursor-pointer font-semibold">Details</summary>
         <dl className="mt-3 grid gap-2 text-base-content/65">
           <DetailRow label="Error category" value={fallbackErrorCategory} />
@@ -653,7 +653,7 @@ function ReviewDetails({
   const summary = reviewRun.summary;
 
   return (
-    <details className="mt-4 rounded-2xl border border-base-300 bg-base-100 p-3 text-sm">
+    <details className="mt-4 rounded-xl border border-base-300 bg-base-100 p-3 text-sm">
       <summary className="cursor-pointer font-semibold">Details</summary>
       <dl className="mt-3 grid gap-2 text-base-content/65">
         <DetailRow label="Run id" value={reviewRun.id} mono />
@@ -742,7 +742,7 @@ function ReviewAccordion({
   children: React.ReactNode;
 }): React.JSX.Element {
   return (
-    <div className="collapse collapse-arrow rounded-2xl border border-base-300 bg-base-100">
+    <div className="collapse collapse-arrow rounded-xl border border-base-300 bg-base-100">
       <input type="checkbox" defaultChecked={defaultOpen} aria-label={title} />
       <div className="collapse-title flex items-center justify-between gap-3 font-semibold">
         <span>{title}</span>

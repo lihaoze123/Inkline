@@ -11,7 +11,7 @@ import { LearningPanel } from './components/LearningPanel';
 import { PracticeTemplatePicker } from './components/PracticeTemplatePicker';
 import { RevealAnswerDialog } from './components/RevealAnswerDialog';
 import { ReviewDisclosureDialog } from './components/ReviewDisclosureDialog';
-import { SettingsDrawer } from './components/SettingsDrawer';
+import { SettingsPage } from './components/SettingsPage';
 import { PracticeHeader } from './components/PracticeHeader';
 import { getFocusCorrection } from './components/review-utils';
 import type { AppStatusModel, ReviewProgressModel, ReviewState, SaveState } from './components/types';
@@ -37,6 +37,15 @@ import {
 
 const AUTOSAVE_DELAY_MS = 900;
 
+type AppArea = 'today' | 'write' | 'library' | 'settings';
+
+const APP_NAV_ITEMS: { id: AppArea; label: string; shortLabel: string }[] = [
+  { id: 'today', label: 'Today', shortLabel: 'Today' },
+  { id: 'write', label: 'Write / Practice', shortLabel: 'Write' },
+  { id: 'library', label: 'Library', shortLabel: 'Library' },
+  { id: 'settings', label: 'Settings', shortLabel: 'Settings' },
+];
+
 function emptyReviewProgress(): ReviewProgressModel {
   return {
     activeRunId: null,
@@ -52,7 +61,7 @@ export function App(): React.JSX.Element {
   if (foundationState.status === 'loading') {
     return (
       <main className="grid min-h-screen place-items-center bg-base-200 p-8">
-        <div className="rounded-[2rem] border border-base-300 bg-base-100 p-8 text-center shadow-xl">
+        <div className="rounded-xl border border-base-300 bg-base-100 p-8 text-center shadow-xl">
           <span className="loading loading-spinner loading-lg text-primary" />
           <p className="mt-4 font-medium text-base-content/70">Loading practice...</p>
         </div>
@@ -125,7 +134,7 @@ function PracticePage({ initialWriting, settings, startup }: PracticePageProps):
     useState<WritingAttemptSnapshot['pendingRewritePractice']>(null);
   const [rewritePracticeError, setRewritePracticeError] = useState<string | null>(null);
   const [showDisclosure, setShowDisclosure] = useState(false);
-  const [showSettingsDrawer, setShowSettingsDrawer] = useState(false);
+  const [activeArea, setActiveArea] = useState<AppArea>('today');
   const [showRevealConfirmation, setShowRevealConfirmation] = useState(false);
   const [openAiBaseUrlInput, setOpenAiBaseUrlInput] = useState(
     settings.aiModelSettings?.providers['openai-compatible'].baseUrl ?? settings.baseUrl,
@@ -143,6 +152,7 @@ function PracticePage({ initialWriting, settings, startup }: PracticePageProps):
   const [settingsMessage, setSettingsMessage] = useState<string | null>(null);
   const [settingsError, setSettingsError] = useState<string | null>(null);
   const lastSavedContentRef = useRef(initialWriting.activeRevision?.content ?? '');
+  const lastSavedUserGoalRef = useRef(initialWriting.userGoal ?? '');
   const activeReviewRef = useRef(false);
 
   const updateWritingCache = useCallback(
@@ -191,6 +201,7 @@ function PracticePage({ initialWriting, settings, startup }: PracticePageProps):
       setContent(nextWriting.activeRevision?.content ?? '');
       setUserGoal(nextWriting.userGoal ?? '');
       lastSavedContentRef.current = nextWriting.activeRevision?.content ?? '';
+      lastSavedUserGoalRef.current = nextWriting.userGoal ?? '';
       setReviewPreview(null);
       setLatestReviewRun(null);
       setReviewState('idle');
@@ -215,6 +226,7 @@ function PracticePage({ initialWriting, settings, startup }: PracticePageProps):
           userGoal,
         });
         lastSavedContentRef.current = savedWriting.activeRevision?.content ?? nextContent;
+        lastSavedUserGoalRef.current = savedWriting.userGoal ?? userGoal;
         if (savedWriting.staleReview) {
           setReviewPreview(null);
           setLatestReviewRun(null);
@@ -230,7 +242,7 @@ function PracticePage({ initialWriting, settings, startup }: PracticePageProps):
   );
 
   useEffect(() => {
-    if (content === lastSavedContentRef.current) {
+    if (content === lastSavedContentRef.current && userGoal === lastSavedUserGoalRef.current) {
       return;
     }
 
@@ -314,6 +326,7 @@ function PracticePage({ initialWriting, settings, startup }: PracticePageProps):
     try {
       const savedWriting = await saveWritingAttempt({ templateId: selectedTemplateId, content, userGoal });
       lastSavedContentRef.current = savedWriting.activeRevision?.content ?? content;
+      lastSavedUserGoalRef.current = savedWriting.userGoal ?? userGoal;
       setSaveState('saved');
       await startReviewForWriting(savedWriting);
     } catch (error) {
@@ -326,6 +339,13 @@ function PracticePage({ initialWriting, settings, startup }: PracticePageProps):
   const generateStarterPrompt = useCallback(async (): Promise<void> => {
     setStarterPromptState('generating');
     setStarterPromptError(null);
+    if (content !== lastSavedContentRef.current || userGoal !== lastSavedUserGoalRef.current) {
+      const savedWriting = await saveWritingAttempt({ templateId: selectedTemplateId, content, userGoal });
+      lastSavedContentRef.current = savedWriting.activeRevision?.content ?? content;
+      lastSavedUserGoalRef.current = savedWriting.userGoal ?? userGoal;
+      setSaveState('saved');
+    }
+
     const result = await generateStarterPromptMutation({ templateId: selectedTemplateId, userGoal });
 
     if (result.disclosureRequired) {
@@ -343,7 +363,7 @@ function PracticePage({ initialWriting, settings, startup }: PracticePageProps):
 
     setStarterPromptState('error');
     setStarterPromptError(result.error ?? 'Starter prompt generation failed.');
-  }, [generateStarterPromptMutation, selectedTemplateId, updateWritingCache, userGoal]);
+  }, [content, generateStarterPromptMutation, saveWritingAttempt, selectedTemplateId, updateWritingCache, userGoal]);
 
   const acknowledgeStarterDisclosureAndGenerate = useCallback(async (): Promise<void> => {
     await window.api.writing.acknowledgeStarterPromptDisclosure({ acknowledged: true });
@@ -529,113 +549,262 @@ function PracticePage({ initialWriting, settings, startup }: PracticePageProps):
   }, []);
 
   return (
-    <main className="app-orb-field min-h-screen overflow-hidden bg-base-200 p-4 text-base-content md:p-6">
-      <div className="mx-auto flex h-[calc(100vh-2rem)] max-w-[96rem] flex-col gap-4 md:h-[calc(100vh-3rem)]">
-        <PracticeHeader
-          selectedTemplateTitle={writing.template.title}
-          startup={startup}
-          status={appStatus}
-          onOpenSettings={() => setShowSettingsDrawer(true)}
-        />
+    <main className="min-h-screen overflow-hidden bg-base-200 text-base-content">
+      <div className="grid h-screen grid-cols-[4.75rem_minmax(0,1fr)]">
+        <nav
+          className="flex flex-col items-center border-r border-base-300/70 bg-base-100/90 py-4"
+          aria-label="App areas"
+        >
+          <div className="mb-6 grid size-10 place-items-center rounded-xl bg-neutral text-sm font-semibold text-neutral-content">
+            EC
+          </div>
+          <div className="flex flex-1 flex-col items-center gap-2">
+            {APP_NAV_ITEMS.map((item) => {
+              const isActive = activeArea === item.id;
+              return (
+                <button
+                  key={item.id}
+                  type="button"
+                  className={`w-16 rounded-xl px-2 py-3 text-xs font-medium transition ${
+                    isActive
+                      ? 'bg-primary/10 text-primary'
+                      : 'text-base-content/55 hover:bg-base-200 hover:text-base-content'
+                  }`}
+                  aria-current={isActive ? 'page' : undefined}
+                  title={item.label}
+                  onClick={() => setActiveArea(item.id)}
+                >
+                  {item.shortLabel}
+                </button>
+              );
+            })}
+          </div>
+        </nav>
 
-        <PracticeTemplatePicker
-          templates={WRITING_TEMPLATES}
-          selectedTemplateId={selectedTemplateId}
-          onSelectTemplate={(templateId) => {
-            void selectTemplate(templateId);
-          }}
-        />
+        <div className="scrollable min-h-0 overflow-y-auto" style={{ scrollbarGutter: 'stable' }}>
+          <div className="mx-auto flex min-h-screen max-w-[92rem] flex-col px-8 py-7">
+            {activeArea === 'today' ? (
+              <section className="flex min-h-0 flex-1 flex-col gap-8" aria-labelledby="today-page-title">
+                <div className="border-b border-base-300/60 pb-6">
+                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-primary/70">Today</p>
+                  <h1 id="today-page-title" className="mt-3 text-4xl font-semibold tracking-[-0.05em] md:text-5xl">
+                    Start today's writing practice
+                  </h1>
+                  <p className="mt-3 max-w-2xl text-sm leading-6 text-base-content/60 md:text-base">
+                    Pick a scenario, continue your current draft, or handle one follow-up rewrite before writing.
+                  </p>
+                </div>
 
-        <div className="grid min-h-0 flex-1 gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(20rem,24rem)]">
-          <WritingEditorCard
-            template={writing.template}
-            generatedPrompt={writing.generatedPrompt}
-            userGoal={userGoal}
-            starterPromptState={starterPromptState}
-            starterPromptError={starterPromptError}
-            content={content}
-            lastAutosaveAt={writing.lastAutosaveAt}
-            saveState={saveState}
-            saveError={saveError}
-            highlightedContent={highlightedContent}
-            highlightedCorrections={highlightedCorrections}
-            onContentChange={setContent}
-            onUserGoalChange={setUserGoal}
-            onGenerateStarterPrompt={() => {
-              void generateStarterPrompt();
-            }}
-            onSkipStarterPrompt={skipStarterPrompt}
-          />
-          <LearningPanel
-            writing={writing}
-            hasWritten={hasWritten}
-            saveState={saveState}
-            reviewState={reviewState}
-            reviewError={reviewError}
-            reviewProgress={reviewProgress}
-            latestReviewRun={latestReviewRun}
-            preview={reviewPreview}
-            selfRepairAttempt={selfRepairAttempt}
-            modelAnswerRevealed={modelAnswerRevealed}
-            onSelfRepairAttemptChange={setSelfRepairAttempt}
-            onRevealModelAnswer={requestRevealModelAnswer}
-            onSaveReview={() => {
-              void saveReview();
-            }}
-            rewritePracticeInput={rewritePracticeInput}
-            completedRewritePractice={completedRewritePractice}
-            rewritePracticeError={rewritePracticeError}
-            onRewritePracticeInputChange={(value) => {
-              setRewritePracticeInput(value);
-              setCompletedRewritePractice(null);
-            }}
-            onCompleteRewritePractice={() => {
-              void completePendingRewritePractice();
-            }}
-            onSkipRewritePractice={() => {
-              void skipPendingRewritePractice();
-            }}
-            onReviewCurrentVersion={() => {
-              void reviewCurrentContent();
-            }}
-          />
+                <div className="grid gap-6 lg:grid-cols-[minmax(0,1.35fr)_minmax(18rem,0.65fr)]">
+                  <PracticeTemplatePicker
+                    templates={WRITING_TEMPLATES}
+                    selectedTemplateId={selectedTemplateId}
+                    onSelectTemplate={(templateId) => {
+                      void selectTemplate(templateId).then(() => setActiveArea('write'));
+                    }}
+                  />
+
+                  <aside className="rounded-xl border border-base-300/70 bg-base-100 p-5">
+                    <p className="text-xs font-semibold uppercase tracking-[0.16em] text-base-content/45">
+                      Current work
+                    </p>
+                    <h2 className="mt-2 text-2xl font-semibold tracking-[-0.03em]">{writing.template.title}</h2>
+                    <p className="mt-2 text-sm leading-6 text-base-content/60">{writing.template.description}</p>
+                    <dl className="mt-5 grid gap-3 text-sm">
+                      <div>
+                        <dt className="text-xs font-semibold uppercase tracking-[0.14em] text-base-content/40">
+                          Draft
+                        </dt>
+                        <dd className="mt-1 text-base-content/75">
+                          {hasWritten ? 'Draft in progress' : 'Blank and ready'}
+                        </dd>
+                      </div>
+                      <div>
+                        <dt className="text-xs font-semibold uppercase tracking-[0.14em] text-base-content/40">
+                          Coach
+                        </dt>
+                        <dd className="mt-1 text-base-content/75">
+                          {writing.pendingRewritePractice ? 'Follow-up rewrite available' : appStatus.detail}
+                        </dd>
+                      </div>
+                    </dl>
+                    <div className="mt-6 flex flex-col gap-2">
+                      <button
+                        type="button"
+                        className="btn btn-neutral rounded-xl"
+                        onClick={() => setActiveArea('write')}
+                      >
+                        {hasWritten ? 'Continue writing' : 'Start writing'}
+                      </button>
+                      <button
+                        type="button"
+                        className="btn btn-ghost rounded-xl"
+                        onClick={() => setActiveArea('settings')}
+                      >
+                        Configure AI provider
+                      </button>
+                    </div>
+                  </aside>
+                </div>
+              </section>
+            ) : null}
+
+            {activeArea === 'write' ? (
+              <section className="flex min-h-0 flex-1 flex-col gap-5">
+                <PracticeHeader selectedTemplateTitle={writing.template.title} startup={startup} status={appStatus} />
+                <div className="flex flex-wrap items-center gap-3 text-sm text-base-content/60">
+                  <span className="text-xs font-semibold uppercase tracking-[0.16em] text-base-content/45">Status</span>
+                  <span>Draft</span>
+                  <span aria-hidden="true">/</span>
+                  <span>Coach feedback</span>
+                  <span aria-hidden="true">/</span>
+                  <span>Try again</span>
+                  <span aria-hidden="true">/</span>
+                  <span>Follow-up rewrite</span>
+                </div>
+                <div className="flex flex-wrap items-center gap-2 text-sm text-base-content/60">
+                  <span className="font-medium text-base-content/75">Current template:</span>
+                  {WRITING_TEMPLATES.map((template) => (
+                    <button
+                      key={template.id}
+                      type="button"
+                      className={`rounded-full px-3 py-1 transition ${
+                        template.id === selectedTemplateId
+                          ? 'bg-primary/10 text-primary'
+                          : 'hover:bg-base-100 hover:text-base-content'
+                      }`}
+                      onClick={() => {
+                        void selectTemplate(template.id);
+                      }}
+                    >
+                      {template.title}
+                    </button>
+                  ))}
+                </div>
+
+                <div className="grid min-h-0 flex-1 gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(20rem,24rem)]">
+                  <WritingEditorCard
+                    template={writing.template}
+                    generatedPrompt={writing.generatedPrompt}
+                    userGoal={userGoal}
+                    starterPromptState={starterPromptState}
+                    starterPromptError={starterPromptError}
+                    content={content}
+                    lastAutosaveAt={writing.lastAutosaveAt}
+                    saveState={saveState}
+                    saveError={saveError}
+                    highlightedContent={highlightedContent}
+                    highlightedCorrections={highlightedCorrections}
+                    onContentChange={setContent}
+                    onUserGoalChange={setUserGoal}
+                    onGenerateStarterPrompt={() => {
+                      void generateStarterPrompt();
+                    }}
+                    onSkipStarterPrompt={skipStarterPrompt}
+                  />
+                  <LearningPanel
+                    writing={writing}
+                    hasWritten={hasWritten}
+                    saveState={saveState}
+                    reviewState={reviewState}
+                    reviewError={reviewError}
+                    reviewProgress={reviewProgress}
+                    latestReviewRun={latestReviewRun}
+                    preview={reviewPreview}
+                    selfRepairAttempt={selfRepairAttempt}
+                    modelAnswerRevealed={modelAnswerRevealed}
+                    onSelfRepairAttemptChange={setSelfRepairAttempt}
+                    onRevealModelAnswer={requestRevealModelAnswer}
+                    onSaveReview={() => {
+                      void saveReview();
+                    }}
+                    rewritePracticeInput={rewritePracticeInput}
+                    completedRewritePractice={completedRewritePractice}
+                    rewritePracticeError={rewritePracticeError}
+                    onRewritePracticeInputChange={(value) => {
+                      setRewritePracticeInput(value);
+                      setCompletedRewritePractice(null);
+                    }}
+                    onCompleteRewritePractice={() => {
+                      void completePendingRewritePractice();
+                    }}
+                    onSkipRewritePractice={() => {
+                      void skipPendingRewritePractice();
+                    }}
+                    onReviewCurrentVersion={() => {
+                      void reviewCurrentContent();
+                    }}
+                  />
+                </div>
+              </section>
+            ) : null}
+
+            {activeArea === 'library' ? (
+              <section className="flex min-h-0 flex-1 flex-col" aria-labelledby="library-page-title">
+                <div className="border-b border-base-300/60 pb-6">
+                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-primary/70">Library</p>
+                  <h1 id="library-page-title" className="mt-3 text-4xl font-semibold tracking-[-0.05em]">
+                    Practice history
+                  </h1>
+                  <p className="mt-3 max-w-2xl text-sm leading-6 text-base-content/60">
+                    A calm entry point for saved sessions. This first version keeps the focus on current practice.
+                  </p>
+                </div>
+                <div className="mt-8 max-w-2xl rounded-xl border border-base-300/70 bg-base-100 p-5">
+                  <h2 className="text-xl font-semibold tracking-[-0.03em]">Recent current session</h2>
+                  <p className="mt-2 text-sm leading-6 text-base-content/60">
+                    {writing.lastReviewRunId
+                      ? 'Your latest saved feedback is available from the Write area for the current template.'
+                      : 'No saved review is exposed here yet. Write and save Coach feedback to build history.'}
+                  </p>
+                  <button
+                    type="button"
+                    className="btn btn-neutral mt-5 rounded-xl"
+                    onClick={() => setActiveArea('write')}
+                  >
+                    Open current practice
+                  </button>
+                </div>
+              </section>
+            ) : null}
+
+            {activeArea === 'settings' ? (
+              <SettingsPage
+                settings={appSettings}
+                startup={startup}
+                openAiBaseUrlInput={openAiBaseUrlInput}
+                openAiModelInput={openAiModelInput}
+                anthropicModelInput={anthropicModelInput}
+                apiKeyInputs={providerApiKeyInputs}
+                message={settingsMessage}
+                error={settingsError}
+                onDefaultProviderChange={(providerId) => {
+                  void setDefaultProvider(providerId);
+                }}
+                onOpenAiBaseUrlChange={setOpenAiBaseUrlInput}
+                onOpenAiModelChange={setOpenAiModelInput}
+                onAnthropicModelChange={setAnthropicModelInput}
+                onApiKeyChange={updateProviderApiKeyInput}
+                onSaveOpenAiConfig={() => {
+                  void saveOpenAiProviderConfig();
+                }}
+                onSaveAnthropicConfig={() => {
+                  void saveAnthropicProviderConfig();
+                }}
+                onSaveApiKey={(providerId) => {
+                  void saveProviderApiKey(providerId);
+                }}
+                onDeleteApiKey={(providerId) => {
+                  void deleteProviderKey(providerId);
+                }}
+                onRawResponseStorageChange={(enabled) => {
+                  void toggleRawResponseStorage(enabled);
+                }}
+              />
+            ) : null}
+          </div>
         </div>
       </div>
-
-      <SettingsDrawer
-        isOpen={showSettingsDrawer}
-        settings={appSettings}
-        startup={startup}
-        openAiBaseUrlInput={openAiBaseUrlInput}
-        openAiModelInput={openAiModelInput}
-        anthropicModelInput={anthropicModelInput}
-        apiKeyInputs={providerApiKeyInputs}
-        message={settingsMessage}
-        error={settingsError}
-        onClose={() => setShowSettingsDrawer(false)}
-        onDefaultProviderChange={(providerId) => {
-          void setDefaultProvider(providerId);
-        }}
-        onOpenAiBaseUrlChange={setOpenAiBaseUrlInput}
-        onOpenAiModelChange={setOpenAiModelInput}
-        onAnthropicModelChange={setAnthropicModelInput}
-        onApiKeyChange={updateProviderApiKeyInput}
-        onSaveOpenAiConfig={() => {
-          void saveOpenAiProviderConfig();
-        }}
-        onSaveAnthropicConfig={() => {
-          void saveAnthropicProviderConfig();
-        }}
-        onSaveApiKey={(providerId) => {
-          void saveProviderApiKey(providerId);
-        }}
-        onDeleteApiKey={(providerId) => {
-          void deleteProviderKey(providerId);
-        }}
-        onRawResponseStorageChange={(enabled) => {
-          void toggleRawResponseStorage(enabled);
-        }}
-      />
 
       <RevealAnswerDialog
         isOpen={showRevealConfirmation}

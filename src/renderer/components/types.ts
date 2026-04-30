@@ -32,7 +32,6 @@ export type PracticeHeaderProps = {
   selectedTemplateTitle: string;
   startup: StartupStatus;
   status: AppStatusModel;
-  onOpenSettings: () => void;
 };
 
 export type AutosaveStatusProps = {
@@ -41,8 +40,7 @@ export type AutosaveStatusProps = {
   error: string | null;
 };
 
-export type SettingsDrawerProps = {
-  isOpen: boolean;
+export type SettingsPageProps = {
   settings: SettingsSnapshot;
   startup: StartupStatus;
   openAiBaseUrlInput: string;
@@ -51,7 +49,6 @@ export type SettingsDrawerProps = {
   apiKeyInputs: Record<AiProviderId, string>;
   message: string | null;
   error: string | null;
-  onClose: () => void;
   onDefaultProviderChange: (providerId: AiProviderId) => void;
   onOpenAiBaseUrlChange: (value: string) => void;
   onOpenAiModelChange: (value: string) => void;

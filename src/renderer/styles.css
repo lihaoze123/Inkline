@@ -1,23 +1,23 @@
 @import 'tailwindcss';
 @plugin "daisyui";
 @plugin "daisyui/theme" {
-  name: 'coach-saas';
+  name: 'writing-coach';
   default: true;
   prefersdark: false;
   color-scheme: light;
 
-  --color-base-100: oklch(99% 0.004 247);
-  --color-base-200: oklch(96% 0.01 252);
-  --color-base-300: oklch(91% 0.018 252);
-  --color-base-content: oklch(24% 0.032 260);
-  --color-primary: oklch(54% 0.22 264);
-  --color-primary-content: oklch(99% 0.004 247);
-  --color-secondary: oklch(58% 0.19 304);
-  --color-secondary-content: oklch(99% 0.004 247);
-  --color-accent: oklch(64% 0.17 216);
+  --color-base-100: oklch(98% 0.009 78);
+  --color-base-200: oklch(95% 0.014 78);
+  --color-base-300: oklch(88% 0.02 74);
+  --color-base-content: oklch(25% 0.024 62);
+  --color-primary: oklch(45% 0.09 50);
+  --color-primary-content: oklch(98% 0.009 78);
+  --color-secondary: oklch(48% 0.075 148);
+  --color-secondary-content: oklch(98% 0.009 78);
+  --color-accent: oklch(58% 0.09 82);
   --color-accent-content: oklch(99% 0.004 247);
-  --color-neutral: oklch(34% 0.04 260);
-  --color-neutral-content: oklch(98% 0.004 247);
+  --color-neutral: oklch(30% 0.026 62);
+  --color-neutral-content: oklch(98% 0.009 78);
   --color-info: oklch(62% 0.18 246);
   --color-info-content: oklch(99% 0.004 247);
   --color-success: oklch(63% 0.16 154);
@@ -27,9 +27,9 @@
   --color-error: oklch(60% 0.2 28);
   --color-error-content: oklch(99% 0.004 247);
 
-  --radius-selector: 1rem;
-  --radius-field: 0.8rem;
-  --radius-box: 1.25rem;
+  --radius-selector: 0.75rem;
+  --radius-field: 0.6rem;
+  --radius-box: 0.85rem;
   --size-selector: 0.25rem;
   --size-field: 0.25rem;
   --border: 1px;
@@ -96,31 +96,6 @@ textarea:hover::-webkit-scrollbar-thumb {
 
 .writing-practice-surface {
   font-family: 'Iowan Old Style', 'Palatino Linotype', Georgia, ui-serif, serif;
-}
-
-.app-orb-field::before,
-.app-orb-field::after {
-  position: fixed;
-  z-index: -1;
-  width: 32rem;
-  height: 32rem;
-  border-radius: 9999px;
-  content: '';
-  filter: blur(72px);
-  opacity: 0.22;
-  pointer-events: none;
-}
-
-.app-orb-field::before {
-  top: -12rem;
-  right: 8vw;
-  background: var(--color-primary);
-}
-
-.app-orb-field::after {
-  bottom: -16rem;
-  left: -8rem;
-  background: var(--color-secondary);
 }
 
 mark.review-highlight {
