@@ -446,3 +446,38 @@ Migrated AI backend to Vercel AI SDK shared generation, added OpenAI-compatible 
 ### Next Steps
 
 - None - task complete
+
+
+## Session 14: Introduce TanStack Query renderer state
+
+**Date**: 2026-04-30
+**Task**: Introduce TanStack Query renderer state
+**Branch**: `main`
+
+### Summary
+
+Introduced TanStack Query for Electron renderer IPC server-state. Added QueryClientProvider, local IPC query defaults, stable query keys, writing/foundation/review/settings query hooks, cache update/invalidation tests, and the frontend hooks code-spec contract. Migrated writing autosave, review mutations/previews, and settings/provider mutations while keeping draft input, dialogs, status messages, and review progress events as local UI state.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `82243f0` | (see git log) |
+| `0da236d` | (see git log) |
+| `3d63622` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
