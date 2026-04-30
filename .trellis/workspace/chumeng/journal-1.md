@@ -514,3 +514,36 @@ Added Prettier formatting, unified pnpm check, GitHub Actions CI, and completed 
 ### Next Steps
 
 - None - task complete
+
+
+## Session 16: Repair packaged app startup
+
+**Date**: 2026-04-30
+**Task**: Repair packaged app startup
+**Branch**: `main`
+
+### Summary
+
+Fixed SQLite migration drift, renderer startup gating, and Electron Forge native module packaging so packaged startup resolves native dependencies safely.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `ccab55b` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
