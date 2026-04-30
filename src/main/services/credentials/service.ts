@@ -1,4 +1,5 @@
-import keytar from 'keytar';
+import type keytar from 'keytar';
+import { createRequire } from 'node:module';
 import type {
   AiProviderId,
   ProviderCredentialStatuses,
@@ -6,6 +7,9 @@ import type {
   ProviderKeyStatusValue,
 } from '../../../shared/types/credentials';
 
+type Keytar = typeof keytar;
+
+const require = createRequire(import.meta.url);
 const SERVICE_NAME = 'english-coach';
 const PROVIDER_ACCOUNT = 'provider-api-key';
 const ANTHROPIC_PROVIDER_ACCOUNT = 'provider-api-key:anthropic';
@@ -28,20 +32,47 @@ function getProviderErrorLabel(providerId: AiProviderId): string {
   return PROVIDER_ERROR_LABELS[providerId];
 }
 
-export async function getProviderKeyStatus(providerId: AiProviderId = 'openai-compatible'): Promise<ProviderKeyStatus> {
+function loadKeytar(): Keytar | null {
   try {
-    const password = await keytar.getPassword(SERVICE_NAME, getProviderAccount(providerId));
+    return require('keytar') as Keytar;
+  } catch {
+    return null;
+  }
+}
+
+function getUnavailableProviderKeyStatus(providerId: AiProviderId): ProviderKeyStatus {
+  return {
+    providerId,
+    status: 'unavailable',
+    storage: 'os-keychain',
+  };
+}
+
+function getRequiredKeytar(providerId: AiProviderId): Keytar {
+  const loadedKeytar = loadKeytar();
+  if (!loadedKeytar) {
+    throw new Error(
+      `${getProviderErrorLabel(providerId)} API key is unavailable. Check OS keychain access before reviewing.`,
+    );
+  }
+  return loadedKeytar;
+}
+
+export async function getProviderKeyStatus(providerId: AiProviderId = 'openai-compatible'): Promise<ProviderKeyStatus> {
+  const loadedKeytar = loadKeytar();
+  if (!loadedKeytar) {
+    return getUnavailableProviderKeyStatus(providerId);
+  }
+
+  try {
+    const password = await loadedKeytar.getPassword(SERVICE_NAME, getProviderAccount(providerId));
     return {
       providerId,
       status: password ? 'configured' : 'not-configured',
       storage: 'os-keychain',
     };
   } catch {
-    return {
-      providerId,
-      status: 'unavailable',
-      storage: 'os-keychain',
-    };
+    return getUnavailableProviderKeyStatus(providerId);
   }
 }
 
@@ -68,7 +99,7 @@ export async function getProviderCredentialStatuses(): Promise<ProviderCredentia
 
 export async function getProviderApiKey(providerId: AiProviderId = 'openai-compatible'): Promise<string | null> {
   try {
-    return await keytar.getPassword(SERVICE_NAME, getProviderAccount(providerId));
+    return await getRequiredKeytar(providerId).getPassword(SERVICE_NAME, getProviderAccount(providerId));
   } catch {
     throw new Error(
       `${getProviderErrorLabel(providerId)} API key is unavailable. Check OS keychain access before reviewing.`,
@@ -77,9 +108,9 @@ export async function getProviderApiKey(providerId: AiProviderId = 'openai-compa
 }
 
 export async function setProviderApiKey(apiKey: string, providerId: AiProviderId = 'openai-compatible'): Promise<void> {
-  await keytar.setPassword(SERVICE_NAME, getProviderAccount(providerId), apiKey.trim());
+  await getRequiredKeytar(providerId).setPassword(SERVICE_NAME, getProviderAccount(providerId), apiKey.trim());
 }
 
 export async function deleteProviderApiKey(providerId: AiProviderId = 'openai-compatible'): Promise<void> {
-  await keytar.deletePassword(SERVICE_NAME, getProviderAccount(providerId));
+  await getRequiredKeytar(providerId).deletePassword(SERVICE_NAME, getProviderAccount(providerId));
 }

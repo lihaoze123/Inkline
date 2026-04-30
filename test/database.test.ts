@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 
@@ -12,7 +12,24 @@ const REQUIRED_TABLE_DEFINITIONS = [
   'CREATE TABLE `rewrite_tasks`',
 ];
 
+type MigrationJournal = {
+  entries: Array<{ tag: string }>;
+};
+
 describe('database foundation migration', () => {
+  it('registers every SQL migration file in the Drizzle journal', () => {
+    const migrationDir = path.resolve(process.cwd(), 'drizzle');
+    const journal = JSON.parse(readFileSync(path.join(migrationDir, 'meta/_journal.json'), 'utf8')) as MigrationJournal;
+    const registeredTags = new Set(journal.entries.map((entry) => entry.tag));
+    const sqlTags = readdirSync(migrationDir)
+      .filter((fileName) => fileName.endsWith('.sql'))
+      .map((fileName) => fileName.replace(/\.sql$/, ''));
+
+    for (const tag of sqlTags) {
+      expect(registeredTags.has(tag)).toBe(true);
+    }
+  });
+
   it('defines the v0.1 local SQLite tables and constraints', () => {
     const migrationSql = readFileSync(path.resolve(process.cwd(), 'drizzle/0000_foundation.sql'), 'utf8');
 
