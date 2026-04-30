@@ -8,7 +8,7 @@ describe('writing content normalization and hashing', () => {
 
   it('computes the same hash for line-ending-equivalent content', () => {
     expect(computeWritingContentHash('I wrote this.\r\nIt stays mine.')).toBe(
-      computeWritingContentHash('I wrote this.\nIt stays mine.')
+      computeWritingContentHash('I wrote this.\nIt stays mine.'),
     );
   });
 });

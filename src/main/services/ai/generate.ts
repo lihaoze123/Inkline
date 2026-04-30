@@ -4,12 +4,14 @@ import { aiGenerationRequestSchema, aiGenerationResultSchema, aiProviderRuntimeC
 import type { AiGenerationRequest, AiGenerationResult, AiProviderRuntimeConfig } from './types';
 import { createAiProviderModel } from './provider';
 
-export async function generateStructuredObject<Output>(input: AiGenerationRequest & {
-  runtimeConfig: AiProviderRuntimeConfig;
-  schema: FlexibleSchema<Output>;
-  schemaName: string;
-  schemaDescription?: string;
-}): Promise<AiGenerationResult & { output: Output }> {
+export async function generateStructuredObject<Output>(
+  input: AiGenerationRequest & {
+    runtimeConfig: AiProviderRuntimeConfig;
+    schema: FlexibleSchema<Output>;
+    schemaName: string;
+    schemaDescription?: string;
+  },
+): Promise<AiGenerationResult & { output: Output }> {
   const parsedRequest = aiGenerationRequestSchema.parse(input);
   const runtimeConfig = aiProviderRuntimeConfigSchema.parse(input.runtimeConfig);
   const providerModel = createAiProviderModel(runtimeConfig);

@@ -16,7 +16,8 @@ type AiSdkFetch = NonNullable<OpenAIProviderSettings['fetch'] | AnthropicProvide
 type AiSdkFetchInput = Parameters<NonNullable<OpenAIProviderSettings['fetch']>>[0];
 type AiSdkFetchInit = Parameters<NonNullable<OpenAIProviderSettings['fetch']>>[1];
 
-const electronFetch: AiSdkFetch = async (input: AiSdkFetchInput, init: AiSdkFetchInit) => net.fetch(input instanceof URL ? input.toString() : input, init);
+const electronFetch: AiSdkFetch = async (input: AiSdkFetchInput, init: AiSdkFetchInit) =>
+  net.fetch(input instanceof URL ? input.toString() : input, init);
 
 function normalizeOpenAiCompatibleBaseUrl(baseUrl: string): string {
   return baseUrl.trim().replace(/\/+$/, '');

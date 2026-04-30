@@ -1,12 +1,21 @@
 import type { PracticeTemplatePickerProps } from './types';
 
-export function PracticeTemplatePicker({ templates, selectedTemplateId, onSelectTemplate }: PracticeTemplatePickerProps): React.JSX.Element {
+export function PracticeTemplatePicker({
+  templates,
+  selectedTemplateId,
+  onSelectTemplate,
+}: PracticeTemplatePickerProps): React.JSX.Element {
   return (
-    <section className="rounded-[2rem] border border-base-300/80 bg-base-100/85 p-4 shadow-xl shadow-primary/5" aria-labelledby="practice-template-title">
+    <section
+      className="rounded-[2rem] border border-base-300/80 bg-base-100/85 p-4 shadow-xl shadow-primary/5"
+      aria-labelledby="practice-template-title"
+    >
       <div className="mb-4 flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.18em] text-primary/70">Practice templates</p>
-          <h2 id="practice-template-title" className="text-xl font-semibold tracking-[-0.03em]">Choose what to practice</h2>
+          <h2 id="practice-template-title" className="text-xl font-semibold tracking-[-0.03em]">
+            Choose what to practice
+          </h2>
         </div>
         <p className="text-sm text-base-content/55">Journal, CET, and free writing are equal practice scenarios.</p>
       </div>

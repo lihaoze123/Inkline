@@ -130,16 +130,16 @@ test/         Vitest tests
 
 ## Useful scripts
 
-| Command | Purpose |
-| --- | --- |
-| `pnpm dev` | Start the Electron app in development mode. |
-| `pnpm lint` | Run ESLint. |
-| `pnpm typecheck` | Run TypeScript without emitting files. |
-| `pnpm test` | Run the Vitest suite. |
-| `pnpm review:harness` | Exercise the review contract harness. |
-| `pnpm build` | Package the app through Electron Forge. |
-| `pnpm package` | Package the app through Electron Forge. |
-| `pnpm make` | Build distributable artifacts through Electron Forge makers. |
+| Command               | Purpose                                                      |
+| --------------------- | ------------------------------------------------------------ |
+| `pnpm dev`            | Start the Electron app in development mode.                  |
+| `pnpm lint`           | Run ESLint.                                                  |
+| `pnpm typecheck`      | Run TypeScript without emitting files.                       |
+| `pnpm test`           | Run the Vitest suite.                                        |
+| `pnpm review:harness` | Exercise the review contract harness.                        |
+| `pnpm build`          | Package the app through Electron Forge.                      |
+| `pnpm package`        | Package the app through Electron Forge.                      |
+| `pnpm make`           | Build distributable artifacts through Electron Forge makers. |
 
 ## Development notes
 

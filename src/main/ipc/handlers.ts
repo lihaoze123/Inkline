@@ -6,7 +6,12 @@ import {
   providerKeyStatusSchema,
   setProviderApiKeyInputSchema,
 } from '../../shared/types/credentials';
-import { setDefaultProviderInputSchema, setProviderConfigInputSchema, setRawResponseStorageInputSchema, settingsSnapshotSchema } from '../../shared/types/settings';
+import {
+  setDefaultProviderInputSchema,
+  setProviderConfigInputSchema,
+  setRawResponseStorageInputSchema,
+  settingsSnapshotSchema,
+} from '../../shared/types/settings';
 import {
   acknowledgeReviewDisclosureInputSchema,
   getReviewPreviewInputSchema,
@@ -32,7 +37,12 @@ import {
 } from '../../shared/types/writing';
 import { getDatabasePath } from '../db/client';
 import type { MigrationResult } from '../db/migrate';
-import { deleteProviderApiKey, getProviderCredentialStatuses, getProviderKeyStatus, setProviderApiKey } from '../services/credentials/service';
+import {
+  deleteProviderApiKey,
+  getProviderCredentialStatuses,
+  getProviderKeyStatus,
+  setProviderApiKey,
+} from '../services/credentials/service';
 import {
   acknowledgeStarterPromptDisclosure,
   completeRewritePractice,
@@ -45,7 +55,12 @@ import { acknowledgeReviewDisclosure } from '../services/review/lib/disclosure';
 import { getReviewPreview } from '../services/review/procedures/preview';
 import { saveReviewRun } from '../services/review/procedures/save';
 import { startReview } from '../services/review/procedures/start';
-import { getSettingsSnapshot, setDefaultProvider, setProviderConfig, setRawResponseStorage } from '../services/settings/service';
+import {
+  getSettingsSnapshot,
+  setDefaultProvider,
+  setProviderConfig,
+  setRawResponseStorage,
+} from '../services/settings/service';
 
 export function registerIpcHandlers(migrationResult: MigrationResult): void {
   ipcMain.handle(IPC_CHANNELS.APP.GET_STARTUP_STATUS, (): StartupStatus => {
@@ -70,10 +85,13 @@ export function registerIpcHandlers(migrationResult: MigrationResult): void {
     return generateStarterPromptResultSchema.parse(await generateStarterPrompt(parsedInput));
   });
 
-  ipcMain.handle(IPC_CHANNELS.WRITING.ACKNOWLEDGE_STARTER_PROMPT_DISCLOSURE, async (_event, input: unknown): Promise<boolean> => {
-    acknowledgeStarterPromptDisclosureInputSchema.parse(input);
-    return acknowledgeStarterPromptDisclosure();
-  });
+  ipcMain.handle(
+    IPC_CHANNELS.WRITING.ACKNOWLEDGE_STARTER_PROMPT_DISCLOSURE,
+    async (_event, input: unknown): Promise<boolean> => {
+      acknowledgeStarterPromptDisclosureInputSchema.parse(input);
+      return acknowledgeStarterPromptDisclosure();
+    },
+  );
 
   ipcMain.handle(IPC_CHANNELS.WRITING.SAVE_WRITING_ATTEMPT, (_event, input: unknown): unknown => {
     const parsedInput = saveWritingAttemptInputSchema.parse(input);
@@ -153,11 +171,13 @@ export function registerIpcHandlers(migrationResult: MigrationResult): void {
 
   ipcMain.handle(IPC_CHANNELS.REVIEW.START, async (event, input: unknown): Promise<unknown> => {
     const parsedInput = startReviewInputSchema.parse(input);
-    return startReviewOutputSchema.parse(await startReview(parsedInput, {
-      onProgress: (progressEvent) => {
-        event.sender.send(IPC_CHANNELS.REVIEW.PROGRESS, reviewProgressEventSchema.parse(progressEvent));
-      },
-    }));
+    return startReviewOutputSchema.parse(
+      await startReview(parsedInput, {
+        onProgress: (progressEvent) => {
+          event.sender.send(IPC_CHANNELS.REVIEW.PROGRESS, reviewProgressEventSchema.parse(progressEvent));
+        },
+      }),
+    );
   });
 
   ipcMain.handle(IPC_CHANNELS.REVIEW.GET_PREVIEW, (_event, input: unknown): unknown => {

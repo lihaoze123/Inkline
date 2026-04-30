@@ -18,7 +18,8 @@ function selectProviderSettingsForFeature(aiModelSettings: AiModelSettings, feat
 }
 
 function getLegacyProviderSettings(
-  settings: Pick<SettingsSnapshot, 'baseUrl' | 'model' | 'providerApiKeyStatus'> & Partial<Pick<SettingsSnapshot, 'isLocalModel'>>,
+  settings: Pick<SettingsSnapshot, 'baseUrl' | 'model' | 'providerApiKeyStatus'> &
+    Partial<Pick<SettingsSnapshot, 'isLocalModel'>>,
 ): ProviderSettings {
   return {
     providerId: 'openai-compatible',
@@ -39,7 +40,8 @@ function providerLabel(providerId: AiProviderId): string {
 }
 
 export function getProviderSettingsForFeature(
-  settings: Pick<SettingsSnapshot, 'provider' | 'baseUrl' | 'model' | 'providerApiKeyStatus' | 'aiModelSettings'> & Partial<Pick<SettingsSnapshot, 'isLocalModel'>>,
+  settings: Pick<SettingsSnapshot, 'provider' | 'baseUrl' | 'model' | 'providerApiKeyStatus' | 'aiModelSettings'> &
+    Partial<Pick<SettingsSnapshot, 'isLocalModel'>>,
   feature: AiFeatureKey,
 ): ProviderSettings {
   if (settings.aiModelSettings) {
@@ -49,7 +51,10 @@ export function getProviderSettingsForFeature(
   return getLegacyProviderSettings(settings);
 }
 
-export async function buildAiRuntimeConfigForFeature(feature: AiFeatureKey, settings?: SettingsSnapshot): Promise<AiProviderRuntimeConfig> {
+export async function buildAiRuntimeConfigForFeature(
+  feature: AiFeatureKey,
+  settings?: SettingsSnapshot,
+): Promise<AiProviderRuntimeConfig> {
   const [{ getProviderApiKey }, { getSettingsSnapshot }] = await Promise.all([
     import('../credentials/service'),
     import('../settings/service'),
@@ -59,7 +64,9 @@ export async function buildAiRuntimeConfigForFeature(feature: AiFeatureKey, sett
   const apiKey = await getProviderApiKey(providerSettings.providerId);
 
   if (!apiKey) {
-    throw new Error(`${providerLabel(providerSettings.providerId)} API key is not configured. Add it in Settings before continuing.`);
+    throw new Error(
+      `${providerLabel(providerSettings.providerId)} API key is not configured. Add it in Settings before continuing.`,
+    );
   }
 
   if (providerSettings.providerId === 'anthropic') {

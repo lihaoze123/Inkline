@@ -1,8 +1,15 @@
 import { createHash } from 'node:crypto';
-import { ReviewSaveStub, validateReviewResult, type ErrorPattern, type ReviewInput } from '../src/shared/review-contract';
+import {
+  ReviewSaveStub,
+  validateReviewResult,
+  type ErrorPattern,
+  type ReviewInput,
+} from '../src/shared/review-contract';
 
 const sampleWriting = 'Today I go to the library. I bought a book in there, and it was very useful.';
-const contentHash = createHash('sha256').update(sampleWriting.replace(/\r\n/g, '\n').replace(/\r/g, '\n')).digest('hex');
+const contentHash = createHash('sha256')
+  .update(sampleWriting.replace(/\r\n/g, '\n').replace(/\r/g, '\n'))
+  .digest('hex');
 
 const existingPatterns: ErrorPattern[] = [
   {
@@ -33,7 +40,8 @@ const mockAgentOutput = {
     {
       originalText: 'I go to the library',
       correctedText: 'I went to the library',
-      explanation: 'The event happened today and is being reported as a completed action, so past tense is more natural.',
+      explanation:
+        'The event happened today and is being reported as a completed action, so past tense is more natural.',
       category: 'tense',
       confidence: 'high',
       anchor: {
@@ -85,17 +93,23 @@ const saveStub = new ReviewSaveStub();
 const firstSave = saveStub.saveReviewRun('mock-review-run-1', result.operations);
 const secondSave = saveStub.saveReviewRun('mock-review-run-1', result.operations);
 
-console.log(JSON.stringify({
-  schemaValidationResult: result.schemaValid,
-  anchoringSuccessRate: result.anchoringSuccessRate,
-  generatedCorrections: result.operations.corrections,
-  generatedPatternOperations: result.operations.patternOperations,
-  generatedRewritePracticeOperations: result.operations.rewritePractice,
-  validationStatus: result.validationStatus,
-  issues: result.issues,
-  saveSimulation: {
-    firstSave,
-    secondSave,
-    idempotent: JSON.stringify(firstSave) === JSON.stringify(secondSave),
-  },
-}, null, 2));
+console.log(
+  JSON.stringify(
+    {
+      schemaValidationResult: result.schemaValid,
+      anchoringSuccessRate: result.anchoringSuccessRate,
+      generatedCorrections: result.operations.corrections,
+      generatedPatternOperations: result.operations.patternOperations,
+      generatedRewritePracticeOperations: result.operations.rewritePractice,
+      validationStatus: result.validationStatus,
+      issues: result.issues,
+      saveSimulation: {
+        firstSave,
+        secondSave,
+        idempotent: JSON.stringify(firstSave) === JSON.stringify(secondSave),
+      },
+    },
+    null,
+    2,
+  ),
+);

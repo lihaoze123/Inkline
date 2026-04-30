@@ -6,7 +6,13 @@ import {
   setProviderApiKeyInputSchema,
 } from '../src/shared/types/credentials';
 import { IPC_CHANNELS } from '../src/shared/constants/channels';
-import { aiModelSettingsSchema, providerConfigSchema, setDefaultProviderInputSchema, setProviderConfigInputSchema, settingsSnapshotSchema } from '../src/shared/types/settings';
+import {
+  aiModelSettingsSchema,
+  providerConfigSchema,
+  setDefaultProviderInputSchema,
+  setProviderConfigInputSchema,
+  settingsSnapshotSchema,
+} from '../src/shared/types/settings';
 
 describe('settings defaults contract', () => {
   it('keeps production raw response storage off by default', () => {
@@ -113,9 +119,11 @@ describe('settings defaults contract', () => {
 
     expect(parsed['openai-compatible'].status).toBe('configured');
     expect(parsed.anthropic.status).toBe('not-configured');
-    expect(() => providerCredentialStatusesSchema.parse({
-      'openai-compatible': { providerId: 'openai-compatible', status: 'configured', storage: 'os-keychain' },
-    })).toThrow();
+    expect(() =>
+      providerCredentialStatusesSchema.parse({
+        'openai-compatible': { providerId: 'openai-compatible', status: 'configured', storage: 'os-keychain' },
+      }),
+    ).toThrow();
   });
 
   it('parses provider key deletion inputs for legacy and provider-aware callers', () => {
@@ -146,7 +154,9 @@ describe('settings defaults contract', () => {
 
   it('validates provider key mutations as write-only renderer inputs', () => {
     expect(setProviderApiKeyInputSchema.parse({ apiKey: ' sk-test ' }).apiKey).toBe('sk-test');
-    expect(setProviderApiKeyInputSchema.parse({ providerId: 'anthropic', apiKey: ' sk-ant ' }).providerId).toBe('anthropic');
+    expect(setProviderApiKeyInputSchema.parse({ providerId: 'anthropic', apiKey: ' sk-ant ' }).providerId).toBe(
+      'anthropic',
+    );
     const result = providerCredentialMutationResultSchema.parse({
       success: true,
       status: { providerId: 'anthropic', status: 'configured', storage: 'os-keychain' },

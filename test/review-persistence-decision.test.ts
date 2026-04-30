@@ -9,7 +9,14 @@ function validationResult(status: ReviewValidationResult['validationStatus']): R
     issues: status === 'invalid' ? [{ severity: 'error', code: 'schema_invalid', message: 'Invalid output' }] : [],
     anchoringSuccessRate: status === 'invalid' ? 0 : 1,
     parsedOutput: null,
-    operations: { corrections: [], patternOperations: [], referenceRewrites: [], selfRepair: null, rewritePractice: [], inputBridge: null },
+    operations: {
+      corrections: [],
+      patternOperations: [],
+      referenceRewrites: [],
+      selfRepair: null,
+      rewritePractice: [],
+      inputBridge: null,
+    },
   };
 }
 

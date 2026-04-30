@@ -234,7 +234,9 @@ function successfulAgent(): ReviewAgent {
       },
       inputBridge: { correctionIndex: 0, examples: ['Yesterday I went home.'] },
       referenceRewrites: [{ text: 'Today I went home.', noticeTheGap: 'The verb changes to past tense.' }],
-      rewriteTasks: [{ kind: 'rewrite_original', prompt: 'Rewrite the original sentence.', focusCorrectionIndexes: [0] }],
+      rewriteTasks: [
+        { kind: 'rewrite_original', prompt: 'Rewrite the original sentence.', focusCorrectionIndexes: [0] },
+      ],
       upgradeOpportunities: [],
     },
     rawOutput: { ok: true },
@@ -270,7 +272,12 @@ function extractId(condition: unknown): string {
     return typeof (chunk as { value?: unknown }).value === 'string';
   });
 
-  if (typeof param !== 'object' || param === null || !('value' in param) || typeof (param as { value?: unknown }).value !== 'string') {
+  if (
+    typeof param !== 'object' ||
+    param === null ||
+    !('value' in param) ||
+    typeof (param as { value?: unknown }).value !== 'string'
+  ) {
     throw new Error('Unsupported where parameter');
   }
 
@@ -304,7 +311,7 @@ describe('startReview observability', () => {
           rawResponseStorageEnabled: true,
         },
         onProgress: (event) => events.push(event),
-      }
+      },
     );
 
     expect(result.success).toBe(true);
@@ -365,7 +372,7 @@ describe('startReview observability', () => {
           rawResponseStorageEnabled: true,
         },
         onProgress: (event) => events.push(event),
-      }
+      },
     );
 
     expect(result).toMatchObject({ success: false, error: 'AI service took too long. Try again in a moment.' });
@@ -406,7 +413,7 @@ describe('startReview observability', () => {
           rawResponseStorageEnabled: false,
         },
         onProgress: (event) => events.push(event),
-      }
+      },
     );
 
     expect(result).toMatchObject({
@@ -444,7 +451,7 @@ describe('startReview observability', () => {
           rawResponseStorageEnabled: true,
         },
         onProgress: (event) => events.push(event),
-      }
+      },
     );
 
     expect(result.success).toBe(true);

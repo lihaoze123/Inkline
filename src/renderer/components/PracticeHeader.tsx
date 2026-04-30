@@ -1,6 +1,11 @@
 import type { PracticeHeaderProps } from './types';
 
-export function PracticeHeader({ selectedTemplateTitle, startup, status, onOpenSettings }: PracticeHeaderProps): React.JSX.Element {
+export function PracticeHeader({
+  selectedTemplateTitle,
+  startup,
+  status,
+  onOpenSettings,
+}: PracticeHeaderProps): React.JSX.Element {
   return (
     <header className="flex flex-col gap-5 rounded-[2rem] border border-base-300/80 bg-base-100/80 p-5 shadow-xl shadow-primary/5 backdrop-blur md:flex-row md:items-center md:justify-between">
       <div className="space-y-3">

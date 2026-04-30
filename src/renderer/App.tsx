@@ -70,7 +70,13 @@ export function App(): React.JSX.Element {
     );
   }
 
-  return <PracticePage initialWriting={foundationState.data.writing} settings={foundationState.data.settings} startup={foundationState.data.startup} />;
+  return (
+    <PracticePage
+      initialWriting={foundationState.data.writing}
+      settings={foundationState.data.settings}
+      startup={foundationState.data.startup}
+    />
+  );
 }
 
 type PracticePageProps = {
@@ -115,14 +121,21 @@ function PracticePage({ initialWriting, settings, startup }: PracticePageProps):
   const [selfRepairAttempt, setSelfRepairAttempt] = useState('');
   const [modelAnswerRevealed, setModelAnswerRevealed] = useState(false);
   const [rewritePracticeInput, setRewritePracticeInput] = useState('');
-  const [completedRewritePractice, setCompletedRewritePractice] = useState<WritingAttemptSnapshot['pendingRewritePractice']>(null);
+  const [completedRewritePractice, setCompletedRewritePractice] =
+    useState<WritingAttemptSnapshot['pendingRewritePractice']>(null);
   const [rewritePracticeError, setRewritePracticeError] = useState<string | null>(null);
   const [showDisclosure, setShowDisclosure] = useState(false);
   const [showSettingsDrawer, setShowSettingsDrawer] = useState(false);
   const [showRevealConfirmation, setShowRevealConfirmation] = useState(false);
-  const [openAiBaseUrlInput, setOpenAiBaseUrlInput] = useState(settings.aiModelSettings?.providers['openai-compatible'].baseUrl ?? settings.baseUrl);
-  const [openAiModelInput, setOpenAiModelInput] = useState(settings.aiModelSettings?.providers['openai-compatible'].model ?? settings.model);
-  const [anthropicModelInput, setAnthropicModelInput] = useState(settings.aiModelSettings?.providers.anthropic.model ?? '');
+  const [openAiBaseUrlInput, setOpenAiBaseUrlInput] = useState(
+    settings.aiModelSettings?.providers['openai-compatible'].baseUrl ?? settings.baseUrl,
+  );
+  const [openAiModelInput, setOpenAiModelInput] = useState(
+    settings.aiModelSettings?.providers['openai-compatible'].model ?? settings.model,
+  );
+  const [anthropicModelInput, setAnthropicModelInput] = useState(
+    settings.aiModelSettings?.providers.anthropic.model ?? '',
+  );
   const [providerApiKeyInputs, setProviderApiKeyInputs] = useState<Record<AiProviderId, string>>({
     'openai-compatible': '',
     anthropic: '',
@@ -132,15 +145,24 @@ function PracticePage({ initialWriting, settings, startup }: PracticePageProps):
   const lastSavedContentRef = useRef(initialWriting.activeRevision?.content ?? '');
   const activeReviewRef = useRef(false);
 
-  const updateWritingCache = useCallback((nextWriting: WritingAttemptSnapshot): void => {
-    updateWritingAttemptCache(queryClient, nextWriting);
-  }, [queryClient]);
+  const updateWritingCache = useCallback(
+    (nextWriting: WritingAttemptSnapshot): void => {
+      updateWritingAttemptCache(queryClient, nextWriting);
+    },
+    [queryClient],
+  );
 
   const hasWritten = content.trim().length > 0;
   const appStatus = useMemo(() => getAppStatus(startup, appSettings), [appSettings, startup]);
   const focusCorrection = reviewPreview ? getFocusCorrection(reviewPreview) : null;
-  const highlightedContent = reviewPreview && focusCorrection && reviewPreview.isStaleForCurrentWriting === false ? reviewPreview.reviewedContent : null;
-  const highlightedCorrections = reviewPreview && focusCorrection && reviewPreview.isStaleForCurrentWriting === false ? reviewPreview.operations.corrections : [];
+  const highlightedContent =
+    reviewPreview && focusCorrection && reviewPreview.isStaleForCurrentWriting === false
+      ? reviewPreview.reviewedContent
+      : null;
+  const highlightedCorrections =
+    reviewPreview && focusCorrection && reviewPreview.isStaleForCurrentWriting === false
+      ? reviewPreview.operations.corrections
+      : [];
 
   useEffect(() => {
     return window.api.review.onProgress((event: ReviewProgressEvent) => {
@@ -159,43 +181,53 @@ function PracticePage({ initialWriting, settings, startup }: PracticePageProps):
     });
   }, []);
 
-  const selectTemplate = useCallback(async (templateId: WritingTemplateId): Promise<void> => {
-    const nextWriting = await queryClient.fetchQuery({
-      queryKey: queryKeys.writing.attempt(templateId),
-      queryFn: () => window.api.writing.getWritingAttempt({ templateId }),
-    });
-    setSelectedTemplateId(templateId);
-    setContent(nextWriting.activeRevision?.content ?? '');
-    setUserGoal(nextWriting.userGoal ?? '');
-    lastSavedContentRef.current = nextWriting.activeRevision?.content ?? '';
-    setReviewPreview(null);
-    setLatestReviewRun(null);
-    setReviewState('idle');
-    setReviewError(null);
-    setCompletedRewritePractice(null);
-    setRewritePracticeInput('');
-    setStarterPromptError(null);
-    setStarterPromptState('idle');
-  }, [queryClient]);
+  const selectTemplate = useCallback(
+    async (templateId: WritingTemplateId): Promise<void> => {
+      const nextWriting = await queryClient.fetchQuery({
+        queryKey: queryKeys.writing.attempt(templateId),
+        queryFn: () => window.api.writing.getWritingAttempt({ templateId }),
+      });
+      setSelectedTemplateId(templateId);
+      setContent(nextWriting.activeRevision?.content ?? '');
+      setUserGoal(nextWriting.userGoal ?? '');
+      lastSavedContentRef.current = nextWriting.activeRevision?.content ?? '';
+      setReviewPreview(null);
+      setLatestReviewRun(null);
+      setReviewState('idle');
+      setReviewError(null);
+      setCompletedRewritePractice(null);
+      setRewritePracticeInput('');
+      setStarterPromptError(null);
+      setStarterPromptState('idle');
+    },
+    [queryClient],
+  );
 
-  const saveContent = useCallback(async (nextContent: string): Promise<void> => {
-    setSaveState('saving');
-    setSaveError(null);
+  const saveContent = useCallback(
+    async (nextContent: string): Promise<void> => {
+      setSaveState('saving');
+      setSaveError(null);
 
-    try {
-      const savedWriting = await saveWritingAttempt({ templateId: selectedTemplateId, content: nextContent, userGoal });
-      lastSavedContentRef.current = savedWriting.activeRevision?.content ?? nextContent;
-      if (savedWriting.staleReview) {
-        setReviewPreview(null);
-        setLatestReviewRun(null);
+      try {
+        const savedWriting = await saveWritingAttempt({
+          templateId: selectedTemplateId,
+          content: nextContent,
+          userGoal,
+        });
+        lastSavedContentRef.current = savedWriting.activeRevision?.content ?? nextContent;
+        if (savedWriting.staleReview) {
+          setReviewPreview(null);
+          setLatestReviewRun(null);
+        }
+        setSaveState('saved');
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'Autosave failed.';
+        setSaveError(message);
+        setSaveState('error');
       }
-      setSaveState('saved');
-    } catch (error) {
-      const message = error instanceof Error ? error.message : 'Autosave failed.';
-      setSaveError(message);
-      setSaveState('error');
-    }
-  }, [saveWritingAttempt, selectedTemplateId, userGoal]);
+    },
+    [saveWritingAttempt, selectedTemplateId, userGoal],
+  );
 
   useEffect(() => {
     if (content === lastSavedContentRef.current) {
@@ -210,68 +242,73 @@ function PracticePage({ initialWriting, settings, startup }: PracticePageProps):
     return () => window.clearTimeout(timeoutId);
   }, [content, saveContent, userGoal]);
 
-  const startReviewForWriting = useCallback(async (targetWriting: WritingAttemptSnapshot): Promise<void> => {
-    if (!targetWriting.activeRevision) {
-      setReviewState('failed');
-      setReviewError('Save your writing before review.');
-      return;
-    }
-
-    activeReviewRef.current = true;
-    setReviewState('reviewing');
-    setReviewError(null);
-    setReviewProgress(emptyReviewProgress());
-    setLatestReviewRun(null);
-    setReviewPreview(null);
-    setSelfRepairAttempt('');
-    setModelAnswerRevealed(false);
-
-    try {
-      const result = await startReview({
-        templateId: targetWriting.templateId,
-        writingAttemptId: targetWriting.attemptId,
-        writingRevisionId: targetWriting.activeRevision.id,
-      });
-
-      activeReviewRef.current = false;
-
-      if (result.disclosureRequired) {
-        setShowDisclosure(true);
-        setReviewState('idle');
+  const startReviewForWriting = useCallback(
+    async (targetWriting: WritingAttemptSnapshot): Promise<void> => {
+      if (!targetWriting.activeRevision) {
+        setReviewState('failed');
+        setReviewError('Save your writing before review.');
         return;
       }
 
-      if (result.reviewRun) {
-        setLatestReviewRun(result.reviewRun);
-        setReviewProgress((current) => ({
-          ...current,
-          activeRunId: result.reviewRun?.id ?? current.activeRunId,
-        }));
-      }
+      activeReviewRef.current = true;
+      setReviewState('reviewing');
+      setReviewError(null);
+      setReviewProgress(emptyReviewProgress());
+      setLatestReviewRun(null);
+      setReviewPreview(null);
+      setSelfRepairAttempt('');
+      setModelAnswerRevealed(false);
 
-      if (result.success === true && result.reviewRun) {
-        const reviewRun = result.reviewRun;
-        const preview: ReviewPreviewSnapshot | null = result.preview ?? await queryClient.fetchQuery({
-          queryKey: queryKeys.review.preview(reviewRun.id),
-          queryFn: () => window.api.review.getPreview({ reviewRunId: reviewRun.id }),
+      try {
+        const result = await startReview({
+          templateId: targetWriting.templateId,
+          writingAttemptId: targetWriting.attemptId,
+          writingRevisionId: targetWriting.activeRevision.id,
         });
-        setReviewPreviewCache(queryClient, { reviewRunId: reviewRun.id }, preview);
-        setReviewPreview(preview);
-        setReviewState(preview ? 'ready' : 'failed');
-        await queryClient.invalidateQueries({ queryKey: queryKeys.writing.attempt(targetWriting.templateId) });
-        if (!preview) {
-          setReviewError('Review preview is unavailable.');
-        }
-        return;
-      }
 
-      setReviewState('failed');
-      setReviewError(result.error ?? 'Review failed.');
-    } catch (error) {
-      activeReviewRef.current = false;
-      throw error;
-    }
-  }, [queryClient, startReview]);
+        activeReviewRef.current = false;
+
+        if (result.disclosureRequired) {
+          setShowDisclosure(true);
+          setReviewState('idle');
+          return;
+        }
+
+        if (result.reviewRun) {
+          setLatestReviewRun(result.reviewRun);
+          setReviewProgress((current) => ({
+            ...current,
+            activeRunId: result.reviewRun?.id ?? current.activeRunId,
+          }));
+        }
+
+        if (result.success === true && result.reviewRun) {
+          const reviewRun = result.reviewRun;
+          const preview: ReviewPreviewSnapshot | null =
+            result.preview ??
+            (await queryClient.fetchQuery({
+              queryKey: queryKeys.review.preview(reviewRun.id),
+              queryFn: () => window.api.review.getPreview({ reviewRunId: reviewRun.id }),
+            }));
+          setReviewPreviewCache(queryClient, { reviewRunId: reviewRun.id }, preview);
+          setReviewPreview(preview);
+          setReviewState(preview ? 'ready' : 'failed');
+          await queryClient.invalidateQueries({ queryKey: queryKeys.writing.attempt(targetWriting.templateId) });
+          if (!preview) {
+            setReviewError('Review preview is unavailable.');
+          }
+          return;
+        }
+
+        setReviewState('failed');
+        setReviewError(result.error ?? 'Review failed.');
+      } catch (error) {
+        activeReviewRef.current = false;
+        throw error;
+      }
+    },
+    [queryClient, startReview],
+  );
 
   const reviewCurrentContent = useCallback(async (): Promise<void> => {
     try {
@@ -387,17 +424,20 @@ function PracticePage({ initialWriting, settings, startup }: PracticePageProps):
     await reviewCurrentContent();
   }, [reviewCurrentContent]);
 
-  const setDefaultProvider = useCallback(async (providerId: AiProviderId): Promise<void> => {
-    setSettingsError(null);
-    setSettingsMessage(null);
-    try {
-      await setDefaultProviderMutation({ providerId });
-      setSettingsMessage('Default provider updated.');
-    } catch (error) {
-      const message = error instanceof Error ? error.message : 'Unable to update default provider.';
-      setSettingsError(message);
-    }
-  }, [setDefaultProviderMutation]);
+  const setDefaultProvider = useCallback(
+    async (providerId: AiProviderId): Promise<void> => {
+      setSettingsError(null);
+      setSettingsMessage(null);
+      try {
+        await setDefaultProviderMutation({ providerId });
+        setSettingsMessage('Default provider updated.');
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'Unable to update default provider.';
+        setSettingsError(message);
+      }
+    },
+    [setDefaultProviderMutation],
+  );
 
   const saveOpenAiProviderConfig = useCallback(async (): Promise<void> => {
     setSettingsError(null);
@@ -408,8 +448,12 @@ function PracticePage({ initialWriting, settings, startup }: PracticePageProps):
         baseUrl: openAiBaseUrlInput,
         model: openAiModelInput,
       });
-      setOpenAiBaseUrlInput(updatedSettings.aiModelSettings?.providers['openai-compatible'].baseUrl ?? updatedSettings.baseUrl);
-      setOpenAiModelInput(updatedSettings.aiModelSettings?.providers['openai-compatible'].model ?? updatedSettings.model);
+      setOpenAiBaseUrlInput(
+        updatedSettings.aiModelSettings?.providers['openai-compatible'].baseUrl ?? updatedSettings.baseUrl,
+      );
+      setOpenAiModelInput(
+        updatedSettings.aiModelSettings?.providers['openai-compatible'].model ?? updatedSettings.model,
+      );
       setSettingsMessage('OpenAI-compatible settings saved.');
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Unable to save OpenAI-compatible settings.';
@@ -434,32 +478,41 @@ function PracticePage({ initialWriting, settings, startup }: PracticePageProps):
     setProviderApiKeyInputs((current) => ({ ...current, [providerId]: value }));
   }, []);
 
-  const saveProviderApiKey = useCallback(async (providerId: AiProviderId): Promise<void> => {
-    setSettingsError(null);
-    setSettingsMessage(null);
-    const result = await setProviderApiKeyMutation({ providerId, apiKey: providerApiKeyInputs[providerId] });
-    if (result.success && result.status) {
-      setProviderApiKeyInputs((current) => ({ ...current, [providerId]: '' }));
-      setSettingsMessage('Provider API key saved to the OS keychain.');
-      return;
-    }
-    setSettingsError(result.error ?? 'Unable to save provider API key.');
-  }, [providerApiKeyInputs, setProviderApiKeyMutation]);
+  const saveProviderApiKey = useCallback(
+    async (providerId: AiProviderId): Promise<void> => {
+      setSettingsError(null);
+      setSettingsMessage(null);
+      const result = await setProviderApiKeyMutation({ providerId, apiKey: providerApiKeyInputs[providerId] });
+      if (result.success && result.status) {
+        setProviderApiKeyInputs((current) => ({ ...current, [providerId]: '' }));
+        setSettingsMessage('Provider API key saved to the OS keychain.');
+        return;
+      }
+      setSettingsError(result.error ?? 'Unable to save provider API key.');
+    },
+    [providerApiKeyInputs, setProviderApiKeyMutation],
+  );
 
-  const deleteProviderKey = useCallback(async (providerId: AiProviderId): Promise<void> => {
-    setSettingsError(null);
-    setSettingsMessage(null);
-    const result = await deleteProviderApiKeyMutation({ providerId });
-    if (result.success && result.status) {
-      setSettingsMessage('Provider API key deleted.');
-      return;
-    }
-    setSettingsError(result.error ?? 'Unable to delete provider API key.');
-  }, [deleteProviderApiKeyMutation]);
+  const deleteProviderKey = useCallback(
+    async (providerId: AiProviderId): Promise<void> => {
+      setSettingsError(null);
+      setSettingsMessage(null);
+      const result = await deleteProviderApiKeyMutation({ providerId });
+      if (result.success && result.status) {
+        setSettingsMessage('Provider API key deleted.');
+        return;
+      }
+      setSettingsError(result.error ?? 'Unable to delete provider API key.');
+    },
+    [deleteProviderApiKeyMutation],
+  );
 
-  const toggleRawResponseStorage = useCallback(async (enabled: boolean): Promise<void> => {
-    await setRawResponseStorageMutation({ enabled });
-  }, [setRawResponseStorageMutation]);
+  const toggleRawResponseStorage = useCallback(
+    async (enabled: boolean): Promise<void> => {
+      await setRawResponseStorageMutation({ enabled });
+    },
+    [setRawResponseStorageMutation],
+  );
 
   const requestRevealModelAnswer = useCallback((): void => {
     if (modelAnswerRevealed || selfRepairAttempt.trim().length > 0) {
@@ -478,7 +531,12 @@ function PracticePage({ initialWriting, settings, startup }: PracticePageProps):
   return (
     <main className="app-orb-field min-h-screen overflow-hidden bg-base-200 p-4 text-base-content md:p-6">
       <div className="mx-auto flex h-[calc(100vh-2rem)] max-w-[96rem] flex-col gap-4 md:h-[calc(100vh-3rem)]">
-        <PracticeHeader selectedTemplateTitle={writing.template.title} startup={startup} status={appStatus} onOpenSettings={() => setShowSettingsDrawer(true)} />
+        <PracticeHeader
+          selectedTemplateTitle={writing.template.title}
+          startup={startup}
+          status={appStatus}
+          onOpenSettings={() => setShowSettingsDrawer(true)}
+        />
 
         <PracticeTemplatePicker
           templates={WRITING_TEMPLATES}
@@ -611,7 +669,9 @@ function PracticePage({ initialWriting, settings, startup }: PracticePageProps):
 }
 
 function getAppStatus(startup: StartupStatus, settings: SettingsSnapshot): AppStatusModel {
-  const defaultKeyStatus = settings.providerCredentialStatuses?.[settings.providerId ?? 'openai-compatible'].status ?? settings.providerApiKeyStatus;
+  const defaultKeyStatus =
+    settings.providerCredentialStatuses?.[settings.providerId ?? 'openai-compatible'].status ??
+    settings.providerApiKeyStatus;
 
   if (!startup.databaseReady || !startup.migrationsApplied || defaultKeyStatus === 'unavailable') {
     return {

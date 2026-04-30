@@ -3,7 +3,12 @@ import { formatTime } from './format';
 
 export function AutosaveStatus({ state, lastAutosaveAt, error }: AutosaveStatusProps): React.JSX.Element {
   if (state === 'saving') {
-    return <span className="badge badge-info badge-soft gap-2"><span className="loading loading-spinner loading-xs" />Autosaving</span>;
+    return (
+      <span className="badge badge-info badge-soft gap-2">
+        <span className="loading loading-spinner loading-xs" />
+        Autosaving
+      </span>
+    );
   }
 
   if (state === 'error') {

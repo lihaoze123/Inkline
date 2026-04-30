@@ -1,6 +1,12 @@
 import { createHash } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
-import { ReviewSaveStub, locateAnchor, validateReviewResult, type ErrorPattern, type ReviewInput } from '../src/shared/review-contract';
+import {
+  ReviewSaveStub,
+  locateAnchor,
+  validateReviewResult,
+  type ErrorPattern,
+  type ReviewInput,
+} from '../src/shared/review-contract';
 
 const existingPatterns: ErrorPattern[] = [
   {
@@ -48,7 +54,13 @@ function inputFor(writingContent: string): ReviewInput {
   };
 }
 
-function validOutputFor(writingContent: string, exact: string, prefix: string, suffix: string, occurrenceIndex = 0): unknown {
+function validOutputFor(
+  writingContent: string,
+  exact: string,
+  prefix: string,
+  suffix: string,
+  occurrenceIndex = 0,
+): unknown {
   return {
     corrections: [
       {
@@ -188,14 +200,22 @@ describe('review contract validation harness', () => {
     expect(result.anchoringSuccessRate).toBe(1);
     expect(result.operations.corrections).toHaveLength(1);
     expect(result.operations.patternOperations).toEqual([
-      { kind: 'reuse_pattern', correctionIndex: 0, patternId: 'tense_past_for_finished_time', updatesLongTermStats: false },
+      {
+        kind: 'reuse_pattern',
+        correctionIndex: 0,
+        patternId: 'tense_past_for_finished_time',
+        updatesLongTermStats: false,
+      },
     ]);
     expect(result.operations.rewritePractice).toHaveLength(1);
   });
 
   it('downgrades paraphrased anchor exact text to low confidence warnings', () => {
     const journal = 'Today I go to school.';
-    const result = validateReviewResult(inputFor(journal), validOutputFor(journal, 'I went to school', 'Today ', '.', 0));
+    const result = validateReviewResult(
+      inputFor(journal),
+      validOutputFor(journal, 'I went to school', 'Today ', '.', 0),
+    );
 
     expect(result.schemaValid).toBe(true);
     expect(result.validationStatus).toBe('invalid');
@@ -211,7 +231,7 @@ describe('review contract validation harness', () => {
       ...(output as Record<string, unknown>),
       corrections: [
         {
-          ...((output as { corrections: Record<string, unknown>[] }).corrections[0]),
+          ...(output as { corrections: Record<string, unknown>[] }).corrections[0],
           matchedPatternId: 'missing_pattern',
         },
       ],
@@ -230,7 +250,7 @@ describe('review contract validation harness', () => {
       ...(output as Record<string, unknown>),
       corrections: [
         {
-          ...((output as { corrections: Record<string, unknown>[] }).corrections[0]),
+          ...(output as { corrections: Record<string, unknown>[] }).corrections[0],
           correctedText: 'I make a decision',
           category: 'collocation',
           matchedPatternId: null,
@@ -319,7 +339,10 @@ describe('review contract validation harness', () => {
   it('rejects reference rewrites that lack noticeTheGap at schema validation', () => {
     const journal = 'Today I go to school.';
     const output = validOutputFor(journal, 'I go to school', 'Today ', '.', 0);
-    const invalidOutput = { ...(output as Record<string, unknown>), referenceRewrites: [{ text: 'Today I went to school.' }] };
+    const invalidOutput = {
+      ...(output as Record<string, unknown>),
+      referenceRewrites: [{ text: 'Today I went to school.' }],
+    };
 
     const result = validateReviewResult(inputFor(journal), invalidOutput);
 
@@ -382,7 +405,14 @@ describe('review contract validation harness', () => {
     const result = validateReviewResult(inputFor(journal), { corrections: [{ category: 'grammar' }] });
 
     expect(result.schemaValid).toBe(false);
-    expect(result.operations).toEqual({ corrections: [], patternOperations: [], referenceRewrites: [], selfRepair: null, rewritePractice: [], inputBridge: null });
+    expect(result.operations).toEqual({
+      corrections: [],
+      patternOperations: [],
+      referenceRewrites: [],
+      selfRepair: null,
+      rewritePractice: [],
+      inputBridge: null,
+    });
   });
 
   it('simulates idempotent save without duplicating counts or rewrite tasks', () => {

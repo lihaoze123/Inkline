@@ -1,7 +1,12 @@
 import { contextBridge, ipcRenderer, type IpcRendererEvent } from 'electron';
 import { IPC_CHANNELS } from '../shared/constants/channels';
 import type { StartupStatus } from '../shared/types/app';
-import type { DeleteProviderApiKeyInput, ProviderCredentialMutationResult, ProviderKeyStatus, SetProviderApiKeyInput } from '../shared/types/credentials';
+import type {
+  DeleteProviderApiKeyInput,
+  ProviderCredentialMutationResult,
+  ProviderKeyStatus,
+  SetProviderApiKeyInput,
+} from '../shared/types/credentials';
 import type {
   AcknowledgeStarterPromptDisclosureInput,
   CompleteRewritePracticeInput,
@@ -24,14 +29,20 @@ import type {
   StartReviewInput,
   StartReviewOutput,
 } from '../shared/types/review';
-import type { SettingsSnapshot, SetDefaultProviderInput, SetProviderConfigInput, SetRawResponseStorageInput } from '../shared/types/settings';
+import type {
+  SettingsSnapshot,
+  SetDefaultProviderInput,
+  SetProviderConfigInput,
+  SetRawResponseStorageInput,
+} from '../shared/types/settings';
 
 const api = {
   app: {
     getStartupStatus: (): Promise<StartupStatus> => ipcRenderer.invoke(IPC_CHANNELS.APP.GET_STARTUP_STATUS),
   },
   writing: {
-    getCurrentAttempt: (): Promise<WritingAttemptSnapshot> => ipcRenderer.invoke(IPC_CHANNELS.WRITING.GET_CURRENT_ATTEMPT),
+    getCurrentAttempt: (): Promise<WritingAttemptSnapshot> =>
+      ipcRenderer.invoke(IPC_CHANNELS.WRITING.GET_CURRENT_ATTEMPT),
     getWritingAttempt: (input: GetWritingAttemptInput): Promise<WritingAttemptSnapshot> =>
       ipcRenderer.invoke(IPC_CHANNELS.WRITING.GET_WRITING_ATTEMPT, input),
     generateStarterPrompt: (input: GenerateStarterPromptInput): Promise<GenerateStarterPromptResult> =>
@@ -65,7 +76,8 @@ const api = {
   review: {
     acknowledgeDisclosure: (input: AcknowledgeReviewDisclosureInput): Promise<boolean> =>
       ipcRenderer.invoke(IPC_CHANNELS.REVIEW.ACKNOWLEDGE_DISCLOSURE, input),
-    start: (input: StartReviewInput): Promise<StartReviewOutput> => ipcRenderer.invoke(IPC_CHANNELS.REVIEW.START, input),
+    start: (input: StartReviewInput): Promise<StartReviewOutput> =>
+      ipcRenderer.invoke(IPC_CHANNELS.REVIEW.START, input),
     onProgress: (handler: (event: ReviewProgressEvent) => void): (() => void) => {
       const wrapped = (_event: IpcRendererEvent, progressEvent: ReviewProgressEvent): void => handler(progressEvent);
       ipcRenderer.on(IPC_CHANNELS.REVIEW.PROGRESS, wrapped);

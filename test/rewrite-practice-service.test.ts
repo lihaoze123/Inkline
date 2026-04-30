@@ -7,7 +7,10 @@ import type {
   rewriteTasks as rewriteTasksTable,
 } from '../src/main/db/schema';
 import type { db as appDatabase } from '../src/main/db/client';
-import type { completeRewritePractice as completeRewritePracticeFunction, skipRewritePractice as skipRewritePracticeFunction } from '../src/main/services/writing/service';
+import type {
+  completeRewritePractice as completeRewritePracticeFunction,
+  skipRewritePractice as skipRewritePracticeFunction,
+} from '../src/main/services/writing/service';
 
 type AppDatabase = typeof appDatabase;
 type WritingAttemptRow = typeof writingAttemptsTable.$inferSelect;
@@ -142,7 +145,14 @@ class FakeWritingDatabase {
 
   private queryRows(table: TableName, rows: StoredRow[], condition: unknown): QueryResult {
     if (table === 'rewriteTasks' && !conditionHasId(condition)) {
-      const filtered = this.store.rewriteTasks.filter((task) => task.status === 'pending' && task.kind === 'rewrite_original' && task.spacedStage === 'D+1' && task.dueAt !== null && task.dueAt.getTime() <= now.getTime());
+      const filtered = this.store.rewriteTasks.filter(
+        (task) =>
+          task.status === 'pending' &&
+          task.kind === 'rewrite_original' &&
+          task.spacedStage === 'D+1' &&
+          task.dueAt !== null &&
+          task.dueAt.getTime() <= now.getTime(),
+      );
       return new QueryResult(filtered);
     }
 
@@ -271,7 +281,13 @@ function conditionHasId(condition: unknown): boolean {
     return false;
   }
 
-  return (condition as { queryChunks: unknown[] }).queryChunks.some((chunk) => typeof chunk === 'object' && chunk !== null && 'value' in chunk && typeof (chunk as { value?: unknown }).value === 'string');
+  return (condition as { queryChunks: unknown[] }).queryChunks.some(
+    (chunk) =>
+      typeof chunk === 'object' &&
+      chunk !== null &&
+      'value' in chunk &&
+      typeof (chunk as { value?: unknown }).value === 'string',
+  );
 }
 
 function extractId(condition: unknown): string {
@@ -287,7 +303,12 @@ function extractId(condition: unknown): string {
     return typeof (chunk as { value?: unknown }).value === 'string';
   });
 
-  if (typeof param !== 'object' || param === null || !('value' in param) || typeof (param as { value?: unknown }).value !== 'string') {
+  if (
+    typeof param !== 'object' ||
+    param === null ||
+    !('value' in param) ||
+    typeof (param as { value?: unknown }).value !== 'string'
+  ) {
     throw new Error('Unsupported where parameter');
   }
 

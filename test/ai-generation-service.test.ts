@@ -67,22 +67,26 @@ describe('AI generation service', () => {
       timeoutMs: 1_000,
     });
 
-    expect(mocks.createOpenAI).toHaveBeenCalledWith(expect.objectContaining({
-      apiKey: 'test-key',
-      baseURL: 'https://provider.example/v1',
-      name: 'openai-compatible',
-    }));
+    expect(mocks.createOpenAI).toHaveBeenCalledWith(
+      expect.objectContaining({
+        apiKey: 'test-key',
+        baseURL: 'https://provider.example/v1',
+        name: 'openai-compatible',
+      }),
+    );
     expect(mocks.openAiChat).toHaveBeenCalledWith('review-model');
-    expect(mocks.generateText).toHaveBeenCalledWith(expect.objectContaining({
-      model: { provider: 'openai-compatible', model: 'review-model' },
-      system: 'Return one prompt.',
-      prompt: 'Create a prompt.',
-      output: expect.objectContaining({ name: 'object' }),
-      temperature: 0.7,
-      maxOutputTokens: 500,
-      maxRetries: 0,
-      timeout: 1_000,
-    }));
+    expect(mocks.generateText).toHaveBeenCalledWith(
+      expect.objectContaining({
+        model: { provider: 'openai-compatible', model: 'review-model' },
+        system: 'Return one prompt.',
+        prompt: 'Create a prompt.',
+        output: expect.objectContaining({ name: 'object' }),
+        temperature: 0.7,
+        maxOutputTokens: 500,
+        maxRetries: 0,
+        timeout: 1_000,
+      }),
+    );
     expect(result).toMatchObject({
       provider: 'openai-compatible',
       model: 'review-model',
@@ -106,13 +110,17 @@ describe('AI generation service', () => {
       maxRetries: 1,
     });
 
-    expect(mocks.createAnthropic).toHaveBeenCalledWith(expect.objectContaining({
-      apiKey: 'test-key',
-    }));
+    expect(mocks.createAnthropic).toHaveBeenCalledWith(
+      expect.objectContaining({
+        apiKey: 'test-key',
+      }),
+    );
     expect(mocks.anthropicModel).toHaveBeenCalledWith('claude-sonnet-4-6');
-    expect(mocks.generateText).toHaveBeenCalledWith(expect.objectContaining({
-      model: { provider: 'anthropic', model: 'claude-sonnet-4-6' },
-      maxRetries: 1,
-    }));
+    expect(mocks.generateText).toHaveBeenCalledWith(
+      expect.objectContaining({
+        model: { provider: 'anthropic', model: 'claude-sonnet-4-6' },
+        maxRetries: 1,
+      }),
+    );
   });
 });

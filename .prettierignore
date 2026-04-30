@@ -1,0 +1,10 @@
+node_modules
+.vite
+out
+dist
+coverage
+src/renderer/.vite
+.claude
+.trellis
+pnpm-lock.yaml
+*.log

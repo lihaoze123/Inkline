@@ -28,12 +28,14 @@ export const errorPatternSchema = z.object({
 export const reviewInputSchema = z.object({
   date: z.string().min(1),
   writingContent: z.string(),
-  writingTemplate: z.object({
-    id: z.enum(['journal', 'cet4', 'cet6', 'free']),
-    title: z.string().min(1),
-    reviewFocus: z.string().min(1),
-    scenarioContext: z.string().optional(),
-  }).optional(),
+  writingTemplate: z
+    .object({
+      id: z.enum(['journal', 'cet4', 'cet6', 'free']),
+      title: z.string().min(1),
+      reviewFocus: z.string().min(1),
+      scenarioContext: z.string().optional(),
+    })
+    .optional(),
   generatedPrompt: z.string().nullable().optional(),
   userGoal: z.string().nullable().optional(),
   contentHash: z.string().min(1),
@@ -84,7 +86,12 @@ export const reviewCorrectionSchema = z
       });
     }
 
-    if (!hasMatchedPattern && !hasNewPatternSuggestion && correction.category !== 'spelling' && correction.confidence !== 'low') {
+    if (
+      !hasMatchedPattern &&
+      !hasNewPatternSuggestion &&
+      correction.category !== 'spelling' &&
+      correction.confidence !== 'low'
+    ) {
       ctx.addIssue({
         code: 'custom',
         path: ['matchedPatternId'],

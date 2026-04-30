@@ -28,7 +28,10 @@ type SaveReviewOptions = {
   getWritingAttemptSnapshot?: () => NonNullable<SaveReviewOutput['writing']>;
 };
 
-function getWritingSnapshotForReviewRun(reviewRun: typeof reviewRuns.$inferSelect, database: typeof db): NonNullable<SaveReviewOutput['writing']> {
+function getWritingSnapshotForReviewRun(
+  reviewRun: typeof reviewRuns.$inferSelect,
+  database: typeof db,
+): NonNullable<SaveReviewOutput['writing']> {
   const entry = database.select().from(writingAttempts).where(eq(writingAttempts.id, reviewRun.writingAttemptId)).get();
   return entry ? getWritingAttempt({ templateId: entry.templateId }) : getWritingAttempt();
 }
@@ -63,12 +66,22 @@ export function saveReviewRun(input: SaveReviewInput, options: SaveReviewOptions
 
       const operations = previewOperationsSnapshotSchema.parse(JSON.parse(reviewRun.previewOperationsJson) as unknown);
       const focusCorrectionIndex = operations.selfRepair?.correctionIndex;
-      const focusCorrections = operations.corrections.filter((correction) => correction.correctionIndex === focusCorrectionIndex);
-      if (focusCorrectionIndex === undefined || focusCorrections.length !== 1 || focusCorrections[0].status === 'low_confidence') {
+      const focusCorrections = operations.corrections.filter(
+        (correction) => correction.correctionIndex === focusCorrectionIndex,
+      );
+      if (
+        focusCorrectionIndex === undefined ||
+        focusCorrections.length !== 1 ||
+        focusCorrections[0].status === 'low_confidence'
+      ) {
         throw new Error('Review must contain exactly one anchored focus correction.');
       }
 
-      const activeEntry = tx.select().from(writingAttempts).where(eq(writingAttempts.id, reviewRun.writingAttemptId)).get();
+      const activeEntry = tx
+        .select()
+        .from(writingAttempts)
+        .where(eq(writingAttempts.id, reviewRun.writingAttemptId))
+        .get();
       const activeRevision = activeEntry?.activeRevisionId
         ? tx.select().from(writingRevisions).where(eq(writingRevisions.id, activeEntry.activeRevisionId)).get()
         : undefined;
@@ -106,7 +119,12 @@ export function saveReviewRun(input: SaveReviewInput, options: SaveReviewOptions
             reviewRunId: reviewRun.id,
             correctionId: correctionIdByIndex.get(operations.selfRepair.correctionIndex) ?? null,
             attemptText,
-            result: parseResult.data.revealedWithoutAttempt && attemptText.length === 0 ? 'revealed_without_attempt' : attemptText.length > 0 ? 'partly_correct' : 'skipped',
+            result:
+              parseResult.data.revealedWithoutAttempt && attemptText.length === 0
+                ? 'revealed_without_attempt'
+                : attemptText.length > 0
+                  ? 'partly_correct'
+                  : 'skipped',
           })
           .run();
       }
@@ -122,7 +140,9 @@ export function saveReviewRun(input: SaveReviewInput, options: SaveReviewOptions
           .run();
       });
 
-      const rewritePractice = operations.rewritePractice.find((operation) => operation.kind === 'rewrite_original' && operation.dueOffsetDays === 1);
+      const rewritePractice = operations.rewritePractice.find(
+        (operation) => operation.kind === 'rewrite_original' && operation.dueOffsetDays === 1,
+      );
       if (rewritePractice) {
         const referencesFocusCorrection = rewritePractice.focusCorrectionIndexes.includes(focusCorrectionIndex);
         const referencesLowConfidence = rewritePractice.focusCorrectionIndexes.some((correctionIndex) => {
@@ -157,8 +177,7 @@ export function saveReviewRun(input: SaveReviewInput, options: SaveReviewOptions
         .get();
 
       if (!saveAsStaleHistory) {
-        tx
-          .update(writingAttempts)
+        tx.update(writingAttempts)
           .set({ lastReviewRunId: reviewRun.id, reviewedAt: new Date() })
           .where(eq(writingAttempts.id, reviewRun.writingAttemptId))
           .run();
@@ -170,7 +189,9 @@ export function saveReviewRun(input: SaveReviewInput, options: SaveReviewOptions
     return {
       success: true,
       reviewRun: reviewRunToSnapshot(savedRun),
-      writing: options.getWritingAttemptSnapshot ? getWritingAttemptSnapshot() : getWritingSnapshotForReviewRun(savedRun, database),
+      writing: options.getWritingAttemptSnapshot
+        ? getWritingAttemptSnapshot()
+        : getWritingSnapshotForReviewRun(savedRun, database),
     };
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unable to save review.';
@@ -178,7 +199,11 @@ export function saveReviewRun(input: SaveReviewInput, options: SaveReviewOptions
   }
 }
 
-function patternLabelFor(operation: { matchedPatternId: string | null; newPatternSuggestion: unknown; explanation: string }): string {
+function patternLabelFor(operation: {
+  matchedPatternId: string | null;
+  newPatternSuggestion: unknown;
+  explanation: string;
+}): string {
   if (operation.matchedPatternId) {
     return operation.matchedPatternId;
   }
@@ -191,5 +216,10 @@ function patternLabelFor(operation: { matchedPatternId: string | null; newPatter
 }
 
 function isNewPatternSuggestion(value: unknown): value is { rule: string } {
-  return typeof value === 'object' && value !== null && 'rule' in value && typeof (value as { rule?: unknown }).rule === 'string';
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    'rule' in value &&
+    typeof (value as { rule?: unknown }).rule === 'string'
+  );
 }

@@ -31,11 +31,19 @@ function createRevision(id: string, writingAttemptId: string, rawContent: string
   };
 }
 
-function applyActiveRevisionChange(entry: EntryRecord, review: ReviewRecord, revision: RevisionRecord): {
+function applyActiveRevisionChange(
+  entry: EntryRecord,
+  review: ReviewRecord,
+  revision: RevisionRecord,
+): {
   entry: EntryRecord;
   review: ReviewRecord;
 } {
-  if (entry.lastReviewRunId === review.id && review.status === 'review_saved' && review.contentHash !== revision.contentHash) {
+  if (
+    entry.lastReviewRunId === review.id &&
+    review.status === 'review_saved' &&
+    review.contentHash !== revision.contentHash
+  ) {
     return {
       entry: { ...entry, activeRevisionId: revision.id, lastReviewRunId: null },
       review: { ...review, status: 'stale' },

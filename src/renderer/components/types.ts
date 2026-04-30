@@ -1,6 +1,11 @@
 import type { StartupStatus } from '@shared/types/app';
 import type { WritingAttemptSnapshot, WritingTemplate, WritingTemplateId } from '@shared/types/writing';
-import type { AnchoredCorrectionOperationSnapshot, ReviewPreviewSnapshot, ReviewProgressEvent, ReviewRunSnapshot } from '@shared/types/review';
+import type {
+  AnchoredCorrectionOperationSnapshot,
+  ReviewPreviewSnapshot,
+  ReviewProgressEvent,
+  ReviewRunSnapshot,
+} from '@shared/types/review';
 import type { AiProviderId } from '@shared/types/credentials';
 import type { SettingsSnapshot } from '@shared/types/settings';
 

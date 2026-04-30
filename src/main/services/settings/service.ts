@@ -19,9 +19,13 @@ export const ANTHROPIC_PROVIDER = 'Anthropic Claude';
 export const DEFAULT_OPENAI_COMPATIBLE_BASE_URL = 'https://api.openai.com/v1';
 export const DEFAULT_OPENAI_COMPATIBLE_MODEL = 'gpt-4o-mini';
 export const DEFAULT_ANTHROPIC_MODEL = 'claude-sonnet-4-5';
-const REVIEW_CONTEXT_DESCRIPTION = 'Selected template, prompt or goal context, current writing, and selected learning history will be sent when Review is clicked.';
+const REVIEW_CONTEXT_DESCRIPTION =
+  'Selected template, prompt or goal context, current writing, and selected learning history will be sent when Review is clicked.';
 
-export type ReviewSettingsSnapshot = Pick<SettingsSnapshot, 'provider' | 'baseUrl' | 'model' | 'rawResponseStorageEnabled' | 'providerApiKeyStatus' | 'aiModelSettings'>;
+export type ReviewSettingsSnapshot = Pick<
+  SettingsSnapshot,
+  'provider' | 'baseUrl' | 'model' | 'rawResponseStorageEnabled' | 'providerApiKeyStatus' | 'aiModelSettings'
+>;
 
 type SettingsStore = {
   rawResponseStorageEnabled: boolean;
@@ -42,7 +46,9 @@ const store = new Store<SettingsStore>({
   },
 });
 
-function getOpenAiCompatibleSettings(providerCredentialStatuses: ProviderCredentialStatuses): OpenAiCompatibleProviderSettings {
+function getOpenAiCompatibleSettings(
+  providerCredentialStatuses: ProviderCredentialStatuses,
+): OpenAiCompatibleProviderSettings {
   return {
     providerId: 'openai-compatible',
     provider: OPENAI_COMPATIBLE_PROVIDER,
@@ -78,7 +84,8 @@ export async function getSettingsSnapshot(): Promise<SettingsSnapshot> {
   const providerCredentialStatuses = await getProviderCredentialStatuses();
   const aiModelSettings = getAiModelSettings(providerCredentialStatuses);
   const defaultProvider = aiModelSettings.providers[aiModelSettings.defaultProviderId];
-  const baseUrl = defaultProvider.providerId === 'openai-compatible' ? defaultProvider.baseUrl : DEFAULT_OPENAI_COMPATIBLE_BASE_URL;
+  const baseUrl =
+    defaultProvider.providerId === 'openai-compatible' ? defaultProvider.baseUrl : DEFAULT_OPENAI_COMPATIBLE_BASE_URL;
 
   return {
     providerId: defaultProvider.providerId,
@@ -102,7 +109,9 @@ export function setRawResponseStorage(input: SetRawResponseStorageInput): boolea
   return store.get('rawResponseStorageEnabled');
 }
 
-export function setProviderConfig(input: SetProviderConfigInput): Pick<SettingsSnapshot, 'provider' | 'baseUrl' | 'model' | 'isLocalModel'> {
+export function setProviderConfig(
+  input: SetProviderConfigInput,
+): Pick<SettingsSnapshot, 'provider' | 'baseUrl' | 'model' | 'isLocalModel'> {
   const parsedInput = setProviderConfigInputSchema.parse(input);
 
   if (parsedInput.providerId === 'anthropic') {

@@ -38,12 +38,14 @@ function createD1RewritePractice(createdAt: number): RewritePracticeRecord {
 }
 
 function selectPracticeSlot(tasks: RewritePracticeRecord[], now: number): RewritePracticeRecord | null {
-  return tasks
-    .filter((task) => task.status === 'pending')
-    .filter((task) => task.practiceKind === 'rewrite_original' && task.spacedStage === 'D+1')
-    .filter((task) => task.dueAt <= now)
-    .filter((task) => now - task.createdAt <= MAX_AGE_MS)
-    .sort((left, right) => right.dueAt - left.dueAt || right.createdAt - left.createdAt)[0] ?? null;
+  return (
+    tasks
+      .filter((task) => task.status === 'pending')
+      .filter((task) => task.practiceKind === 'rewrite_original' && task.spacedStage === 'D+1')
+      .filter((task) => task.dueAt <= now)
+      .filter((task) => now - task.createdAt <= MAX_AGE_MS)
+      .sort((left, right) => right.dueAt - left.dueAt || right.createdAt - left.createdAt)[0] ?? null
+  );
 }
 
 function completePractice(task: RewritePracticeRecord, userRewriteText: string, now: number): RewritePracticeRecord {

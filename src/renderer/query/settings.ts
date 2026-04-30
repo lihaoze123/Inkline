@@ -1,6 +1,18 @@
-import { useMutation, useQuery, useQueryClient, type QueryClient, type UseMutationResult, type UseQueryResult } from '@tanstack/react-query';
+import {
+  useMutation,
+  useQuery,
+  useQueryClient,
+  type QueryClient,
+  type UseMutationResult,
+  type UseQueryResult,
+} from '@tanstack/react-query';
 import type { AiProviderId, ProviderCredentialMutationResult } from '@shared/types/credentials';
-import type { SettingsSnapshot, SetDefaultProviderInput, SetProviderConfigInput, SetRawResponseStorageInput } from '@shared/types/settings';
+import type {
+  SettingsSnapshot,
+  SetDefaultProviderInput,
+  SetProviderConfigInput,
+  SetRawResponseStorageInput,
+} from '@shared/types/settings';
 import { queryKeys } from './keys';
 
 export function useSettingsSnapshot(initialData?: SettingsSnapshot): UseQueryResult<SettingsSnapshot> {
@@ -37,7 +49,11 @@ export function useSetProviderConfig(): UseMutationResult<SettingsSnapshot, Erro
   });
 }
 
-export function useSetProviderApiKey(): UseMutationResult<ProviderCredentialMutationResult, Error, { providerId: AiProviderId; apiKey: string }> {
+export function useSetProviderApiKey(): UseMutationResult<
+  ProviderCredentialMutationResult,
+  Error,
+  { providerId: AiProviderId; apiKey: string }
+> {
   const queryClient = useQueryClient();
 
   return useMutation({
@@ -50,7 +66,11 @@ export function useSetProviderApiKey(): UseMutationResult<ProviderCredentialMuta
   });
 }
 
-export function useDeleteProviderApiKey(): UseMutationResult<ProviderCredentialMutationResult, Error, { providerId: AiProviderId }> {
+export function useDeleteProviderApiKey(): UseMutationResult<
+  ProviderCredentialMutationResult,
+  Error,
+  { providerId: AiProviderId }
+> {
   const queryClient = useQueryClient();
 
   return useMutation({

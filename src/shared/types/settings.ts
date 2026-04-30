@@ -66,10 +66,12 @@ export const settingsSnapshotSchema = z.object({
   databaseLocation: z.string().min(1),
   piMonoAuthStatus: z.enum(['not-configured', 'configured']),
   providerApiKeyStatus: providerKeyStatusValueSchema,
-  providerCredentialStatuses: z.object({
-    'openai-compatible': providerKeyStatusSchema.extend({ providerId: z.literal('openai-compatible') }),
-    anthropic: providerKeyStatusSchema.extend({ providerId: z.literal('anthropic') }),
-  }).optional(),
+  providerCredentialStatuses: z
+    .object({
+      'openai-compatible': providerKeyStatusSchema.extend({ providerId: z.literal('openai-compatible') }),
+      anthropic: providerKeyStatusSchema.extend({ providerId: z.literal('anthropic') }),
+    })
+    .optional(),
   aiModelSettings: aiModelSettingsSchema.optional(),
   ankiConnectStatus: z.enum(['reserved']),
 });

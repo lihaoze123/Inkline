@@ -222,7 +222,12 @@ function extractId(condition: unknown): string {
 
 function findStringValue(values: unknown[]): string | null {
   for (const value of values) {
-    if (typeof value === 'object' && value !== null && 'value' in value && typeof (value as { value?: unknown }).value === 'string') {
+    if (
+      typeof value === 'object' &&
+      value !== null &&
+      'value' in value &&
+      typeof (value as { value?: unknown }).value === 'string'
+    ) {
       return (value as { value: string }).value;
     }
 
@@ -283,13 +288,15 @@ describe('starter prompt generation service boundary', () => {
       templateId: 'cet4',
       userGoal: 'travel topic',
     });
-    expect(mocks.generateText).toHaveBeenCalledWith(expect.objectContaining({
-      model: { provider: 'openai-compatible', model: 'starter-model' },
-      system: expect.stringContaining('starter prompts'),
-      prompt: expect.stringContaining('User-provided goal/topic: travel topic'),
-      maxOutputTokens: 500,
-      timeout: 45_000,
-    }));
+    expect(mocks.generateText).toHaveBeenCalledWith(
+      expect.objectContaining({
+        model: { provider: 'openai-compatible', model: 'starter-model' },
+        system: expect.stringContaining('starter prompts'),
+        prompt: expect.stringContaining('User-provided goal/topic: travel topic'),
+        maxOutputTokens: 500,
+        timeout: 45_000,
+      }),
+    );
     const prompt = mocks.generateText.mock.calls[0]?.[0]?.prompt;
     expect(prompt).toContain('Template: CET-4 Writing');
     expect(prompt).not.toContain('writing_content');
@@ -302,12 +309,16 @@ describe('starter prompt generation service boundary', () => {
     const result = await generateStarterPrompt({ templateId: 'journal' });
 
     expect(result.success).toBe(false);
-    expect(result.error).toBe('OpenAI-compatible provider API key is not configured. Add it in Settings before continuing.');
+    expect(result.error).toBe(
+      'OpenAI-compatible provider API key is not configured. Add it in Settings before continuing.',
+    );
     expect(mocks.generateText).not.toHaveBeenCalled();
   });
 
   it('does not call the provider before starter disclosure acknowledgement', async () => {
-    mocks.storeGet.mockImplementation((key: string) => key === 'writing-practice-starter-prompt-disclosure-acknowledged' ? false : undefined);
+    mocks.storeGet.mockImplementation((key: string) =>
+      key === 'writing-practice-starter-prompt-disclosure-acknowledged' ? false : undefined,
+    );
     const generateStarterPrompt = await loadGenerateStarterPrompt();
 
     const result = await generateStarterPrompt({ templateId: 'journal' });

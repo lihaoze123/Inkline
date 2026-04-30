@@ -1,6 +1,13 @@
 import { createHash } from 'node:crypto';
 import { locateAnchor, normalizeWritingContent, type AnchorLocation } from './anchoring';
-import { reviewOutputSchema, type CorrectionStatus, type ErrorPattern, type ReviewInput, type ReviewOutput, type ValidationStatus } from './schemas';
+import {
+  reviewOutputSchema,
+  type CorrectionStatus,
+  type ErrorPattern,
+  type ReviewInput,
+  type ReviewOutput,
+  type ValidationStatus,
+} from './schemas';
 
 export type ValidationIssueSeverity = 'error' | 'warning';
 
@@ -160,7 +167,13 @@ export function validateReviewResult(
       });
     }
 
-    return correctionOperation(input.contentHash, correction, correctionIndex, anchorLocation, anchorResult.success === false ? anchorResult.failure.reason : undefined);
+    return correctionOperation(
+      input.contentHash,
+      correction,
+      correctionIndex,
+      anchorLocation,
+      anchorResult.success === false ? anchorResult.failure.reason : undefined,
+    );
   });
 
   validateCaps(input, output, issues);
@@ -196,7 +209,10 @@ export function validateReviewResult(
     issues,
     anchoringSuccessRate,
     parsedOutput: output,
-    operations: validationStatus === 'invalid' ? emptyOperations() : buildPreviewOperations(output, anchoredCorrections, input.existingPatterns),
+    operations:
+      validationStatus === 'invalid'
+        ? emptyOperations()
+        : buildPreviewOperations(output, anchoredCorrections, input.existingPatterns),
   };
 }
 
@@ -253,40 +269,73 @@ function validateCaps(input: ReviewInput, output: ReviewOutput, issues: Validati
     issues.push({ severity: 'error', code: 'max_corrections_exceeded', message: 'corrections exceed maxCorrections' });
   }
   if (output.referenceRewrites.length > input.maxReferenceRewrites) {
-    issues.push({ severity: 'error', code: 'max_reference_rewrites_exceeded', message: 'referenceRewrites exceed maxReferenceRewrites' });
+    issues.push({
+      severity: 'error',
+      code: 'max_reference_rewrites_exceeded',
+      message: 'referenceRewrites exceed maxReferenceRewrites',
+    });
   }
   if (output.rewriteTasks.length > input.maxRewriteTasks) {
-    issues.push({ severity: 'error', code: 'max_rewrite_tasks_exceeded', message: 'rewriteTasks exceed maxRewriteTasks' });
+    issues.push({
+      severity: 'error',
+      code: 'max_rewrite_tasks_exceeded',
+      message: 'rewriteTasks exceed maxRewriteTasks',
+    });
   }
   if (output.upgradeOpportunities.length > input.maxUpgradeOpportunities) {
-    issues.push({ severity: 'error', code: 'max_upgrade_opportunities_exceeded', message: 'upgradeOpportunities exceed maxUpgradeOpportunities' });
+    issues.push({
+      severity: 'error',
+      code: 'max_upgrade_opportunities_exceeded',
+      message: 'upgradeOpportunities exceed maxUpgradeOpportunities',
+    });
   }
 }
 
 function validateFocus(output: ReviewOutput, correctionCount: number, issues: ValidationIssue[]): void {
   const focusIndex = output.summary.focusPattern.correctionIndex;
   if (correctionCount === 0) {
-    issues.push({ severity: 'error', code: 'focus_correction_missing', message: 'summary.focusPattern requires at least one correction' });
+    issues.push({
+      severity: 'error',
+      code: 'focus_correction_missing',
+      message: 'summary.focusPattern requires at least one correction',
+    });
   } else if (focusIndex >= correctionCount) {
-    issues.push({ severity: 'error', code: 'focus_correction_missing', message: 'summary.focusPattern references a missing correction' });
+    issues.push({
+      severity: 'error',
+      code: 'focus_correction_missing',
+      message: 'summary.focusPattern references a missing correction',
+    });
   }
 }
 
 function validateSelfRepair(output: ReviewOutput, issues: ValidationIssue[]): void {
   if (output.selfRepairTask.correctionIndex !== output.summary.focusPattern.correctionIndex) {
-    issues.push({ severity: 'error', code: 'self_repair_focus_mismatch', message: 'selfRepairTask must reference the focus correction' });
+    issues.push({
+      severity: 'error',
+      code: 'self_repair_focus_mismatch',
+      message: 'selfRepairTask must reference the focus correction',
+    });
   }
 
   const focusCorrection = output.corrections[output.summary.focusPattern.correctionIndex];
   if (focusCorrection && output.selfRepairTask.hint.includes(focusCorrection.correctedText)) {
-    issues.push({ severity: 'error', code: 'self_repair_hint_leaks_answer', message: 'selfRepairTask.hint must not reveal the full corrected text' });
+    issues.push({
+      severity: 'error',
+      code: 'self_repair_hint_leaks_answer',
+      message: 'selfRepairTask.hint must not reveal the full corrected text',
+    });
   }
 }
 
 function validateReferenceRewrites(output: ReviewOutput, issues: ValidationIssue[]): void {
   output.referenceRewrites.forEach((rewrite, rewriteIndex) => {
     if (rewrite.noticeTheGap.trim().length === 0) {
-      issues.push({ severity: 'error', code: 'reference_rewrite_missing_gap', message: 'reference rewrite lacks noticeTheGap', path: `referenceRewrites.${rewriteIndex}.noticeTheGap` });
+      issues.push({
+        severity: 'error',
+        code: 'reference_rewrite_missing_gap',
+        message: 'reference rewrite lacks noticeTheGap',
+        path: `referenceRewrites.${rewriteIndex}.noticeTheGap`,
+      });
     }
   });
 }
@@ -294,12 +343,22 @@ function validateReferenceRewrites(output: ReviewOutput, issues: ValidationIssue
 function validateRewriteTasks(output: ReviewOutput, correctionCount: number, issues: ValidationIssue[]): void {
   output.rewriteTasks.forEach((task, taskIndex) => {
     if (task.kind !== 'rewrite_original') {
-      issues.push({ severity: 'error', code: 'unsupported_rewrite_task_kind', message: 'v0.1 only supports rewrite_original rewrite tasks', path: `rewriteTasks.${taskIndex}.kind` });
+      issues.push({
+        severity: 'error',
+        code: 'unsupported_rewrite_task_kind',
+        message: 'v0.1 only supports rewrite_original rewrite tasks',
+        path: `rewriteTasks.${taskIndex}.kind`,
+      });
     }
 
     task.focusCorrectionIndexes.forEach((correctionIndex) => {
       if (correctionIndex >= correctionCount) {
-        issues.push({ severity: 'error', code: 'rewrite_task_correction_missing', message: 'rewrite task references a missing correction index', path: `rewriteTasks.${taskIndex}.focusCorrectionIndexes` });
+        issues.push({
+          severity: 'error',
+          code: 'rewrite_task_correction_missing',
+          message: 'rewrite task references a missing correction index',
+          path: `rewriteTasks.${taskIndex}.focusCorrectionIndexes`,
+        });
       }
     });
   });
@@ -307,48 +366,84 @@ function validateRewriteTasks(output: ReviewOutput, correctionCount: number, iss
 
 function validateInputBridge(input: ReviewInput, output: ReviewOutput, issues: ValidationIssue[]): void {
   if (output.inputBridge.correctionIndex !== output.summary.focusPattern.correctionIndex) {
-    issues.push({ severity: 'error', code: 'input_bridge_focus_mismatch', message: 'inputBridge must focus on the focus correction' });
+    issues.push({
+      severity: 'error',
+      code: 'input_bridge_focus_mismatch',
+      message: 'inputBridge must focus on the focus correction',
+    });
   }
 
   if (output.inputBridge.examples.length > input.maxInputExamples) {
-    issues.push({ severity: 'error', code: 'max_input_examples_exceeded', message: 'inputBridge examples exceed maxInputExamples' });
+    issues.push({
+      severity: 'error',
+      code: 'max_input_examples_exceeded',
+      message: 'inputBridge examples exceed maxInputExamples',
+    });
   }
 
   const focusCorrection = output.corrections[output.summary.focusPattern.correctionIndex];
   if (focusCorrection) {
     const focusTerms = tokenize(`${focusCorrection.correctedText} ${focusCorrection.newPatternSuggestion?.rule ?? ''}`);
-    const matchingExamples = output.inputBridge.examples.filter((example) => tokenOverlap(tokenize(example), focusTerms) > 0);
+    const matchingExamples = output.inputBridge.examples.filter(
+      (example) => tokenOverlap(tokenize(example), focusTerms) > 0,
+    );
     if (output.inputBridge.examples.length > 0 && matchingExamples.length === 0) {
-      issues.push({ severity: 'warning', code: 'input_bridge_examples_not_focus_pattern', message: 'inputBridge examples do not appear to match the focus pattern' });
+      issues.push({
+        severity: 'warning',
+        code: 'input_bridge_examples_not_focus_pattern',
+        message: 'inputBridge examples do not appear to match the focus pattern',
+      });
     }
   }
 }
 
 function validateWhatWentWell(input: ReviewInput, output: ReviewOutput, issues: ValidationIssue[]): void {
   if (output.summary.whatWentWell.length === 0) {
-    issues.push({ severity: 'error', code: 'what_went_well_empty', message: 'whatWentWell must contain at least one concrete item' });
+    issues.push({
+      severity: 'error',
+      code: 'what_went_well_empty',
+      message: 'whatWentWell must contain at least one concrete item',
+    });
   }
 
   if (output.summary.whatWentWell.length > input.maxWhatWentWell) {
-    issues.push({ severity: 'error', code: 'max_what_went_well_exceeded', message: 'whatWentWell exceeds maxWhatWentWell' });
+    issues.push({
+      severity: 'error',
+      code: 'max_what_went_well_exceeded',
+      message: 'whatWentWell exceeds maxWhatWentWell',
+    });
   }
 
   output.summary.whatWentWell.forEach((item, index) => {
     const normalized = item.trim().toLowerCase().replace(/[.!]/g, '');
     if (GENERIC_WHAT_WENT_WELL.has(normalized) || item.trim().split(/\s+/).length < 3) {
-      issues.push({ severity: 'warning', code: 'what_went_well_generic', message: 'whatWentWell should be concrete', path: `summary.whatWentWell.${index}` });
+      issues.push({
+        severity: 'warning',
+        code: 'what_went_well_generic',
+        message: 'whatWentWell should be concrete',
+        path: `summary.whatWentWell.${index}`,
+      });
     }
   });
 }
 
 function validateUpgradeExclusion(output: ReviewOutput, issues: ValidationIssue[]): void {
   if (output.upgradeOpportunities.length > 0) {
-    issues.push({ severity: 'warning', code: 'upgrade_opportunities_ignored', message: 'upgradeOpportunities are empty or ignored in v0.1' });
+    issues.push({
+      severity: 'warning',
+      code: 'upgrade_opportunities_ignored',
+      message: 'upgradeOpportunities are empty or ignored in v0.1',
+    });
   }
 
   output.corrections.forEach((correction, correctionIndex) => {
     if (correction.category === 'wordiness' && /upgrade opportunity/i.test(correction.explanation)) {
-      issues.push({ severity: 'error', code: 'upgrade_mixed_into_corrections', message: 'upgrade opportunities must not be mixed into corrections', path: `corrections.${correctionIndex}.explanation` });
+      issues.push({
+        severity: 'error',
+        code: 'upgrade_mixed_into_corrections',
+        message: 'upgrade opportunities must not be mixed into corrections',
+        path: `corrections.${correctionIndex}.explanation`,
+      });
     }
   });
 }
@@ -376,7 +471,9 @@ function buildPreviewOperations(
     rewritePractice: output.rewriteTasks
       .map((task, taskIndex) => ({ task, taskIndex }))
       .filter(({ task }) =>
-        task.focusCorrectionIndexes.every((correctionIndex) => corrections[correctionIndex]?.status !== 'low_confidence')
+        task.focusCorrectionIndexes.every(
+          (correctionIndex) => corrections[correctionIndex]?.status !== 'low_confidence',
+        ),
       )
       .map(({ task, taskIndex }) => ({
         taskIndex,
@@ -395,18 +492,33 @@ function buildPreviewOperations(
   };
 }
 
-function patternOperation(correction: AnchoredCorrectionOperation, existingPatterns: ErrorPattern[]): PatternOperation[] {
+function patternOperation(
+  correction: AnchoredCorrectionOperation,
+  existingPatterns: ErrorPattern[],
+): PatternOperation[] {
   if (correction.status === 'low_confidence') {
     return [];
   }
 
   if (correction.matchedPatternId) {
-    return [{ kind: 'reuse_pattern', correctionIndex: correction.correctionIndex, patternId: correction.matchedPatternId, updatesLongTermStats: false }];
+    return [
+      {
+        kind: 'reuse_pattern',
+        correctionIndex: correction.correctionIndex,
+        patternId: correction.matchedPatternId,
+        updatesLongTermStats: false,
+      },
+    ];
   }
 
   if (correction.newPatternSuggestion) {
-    const patternKey = normalizePatternKey(correction.newPatternSuggestion.category, correction.newPatternSuggestion.rule);
-    const duplicate = existingPatterns.find((pattern) => normalizePatternKey(pattern.category, pattern.rule) === patternKey);
+    const patternKey = normalizePatternKey(
+      correction.newPatternSuggestion.category,
+      correction.newPatternSuggestion.rule,
+    );
+    const duplicate = existingPatterns.find(
+      (pattern) => normalizePatternKey(pattern.category, pattern.rule) === patternKey,
+    );
     return [
       {
         kind: 'suggest_new_pattern',
@@ -429,7 +541,10 @@ function hashNormalizedContent(content: string): string {
 }
 
 function normalizePatternKey(category: string, rule: string): string {
-  return `${category}:${rule.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '')}`;
+  return `${category}:${rule
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '_')
+    .replace(/^_+|_+$/g, '')}`;
 }
 
 function tokenize(text: string): Set<string> {

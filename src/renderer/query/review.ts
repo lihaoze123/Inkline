@@ -1,4 +1,11 @@
-import { useMutation, useQuery, useQueryClient, type QueryClient, type UseMutationResult, type UseQueryResult } from '@tanstack/react-query';
+import {
+  useMutation,
+  useQuery,
+  useQueryClient,
+  type QueryClient,
+  type UseMutationResult,
+  type UseQueryResult,
+} from '@tanstack/react-query';
 import type {
   GetReviewPreviewInput,
   ReviewPreviewSnapshot,
@@ -16,7 +23,10 @@ type UseReviewPreviewOptions = {
   enabled?: boolean;
 };
 
-export function useReviewPreview({ reviewRunId, enabled = true }: UseReviewPreviewOptions): UseQueryResult<ReviewPreviewSnapshot | null> {
+export function useReviewPreview({
+  reviewRunId,
+  enabled = true,
+}: UseReviewPreviewOptions): UseQueryResult<ReviewPreviewSnapshot | null> {
   return useQuery({
     queryKey: reviewRunId ? queryKeys.review.preview(reviewRunId) : queryKeys.review.preview(''),
     queryFn: () => {
@@ -30,7 +40,11 @@ export function useReviewPreview({ reviewRunId, enabled = true }: UseReviewPrevi
   });
 }
 
-export function setReviewPreviewCache(queryClient: QueryClient, input: GetReviewPreviewInput, preview: ReviewPreviewSnapshot | null): void {
+export function setReviewPreviewCache(
+  queryClient: QueryClient,
+  input: GetReviewPreviewInput,
+  preview: ReviewPreviewSnapshot | null,
+): void {
   queryClient.setQueryData(queryKeys.review.preview(input.reviewRunId), preview);
 }
 
@@ -38,14 +52,19 @@ export function invalidateReviewPreview(queryClient: QueryClient, reviewRunId: s
   return queryClient.invalidateQueries({ queryKey: queryKeys.review.preview(reviewRunId) });
 }
 
-export function useStartReview(): UseMutationResult<StartReviewOutput, Error, StartReviewInput & { templateId: WritingTemplateId }> {
+export function useStartReview(): UseMutationResult<
+  StartReviewOutput,
+  Error,
+  StartReviewInput & { templateId: WritingTemplateId }
+> {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (input) => window.api.review.start({
-      writingAttemptId: input.writingAttemptId,
-      writingRevisionId: input.writingRevisionId,
-    }),
+    mutationFn: (input) =>
+      window.api.review.start({
+        writingAttemptId: input.writingAttemptId,
+        writingRevisionId: input.writingRevisionId,
+      }),
     onSuccess: (result, variables) => {
       if (result.reviewRun) {
         queryClient.setQueryData(queryKeys.review.run(result.reviewRun.id), result.reviewRun);

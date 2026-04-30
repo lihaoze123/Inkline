@@ -260,7 +260,13 @@ class FakeReviewDatabase {
         return inserted;
       }
       case 'rewriteTasks': {
-        const inserted = { ...row, userRewriteText: null, completedAt: null, skippedAt: null, createdAt: now } as RewriteTaskRow;
+        const inserted = {
+          ...row,
+          userRewriteText: null,
+          completedAt: null,
+          skippedAt: null,
+          createdAt: now,
+        } as RewriteTaskRow;
         this.store.rewriteTasks.push(inserted);
         return inserted;
       }
@@ -375,11 +381,11 @@ describe('saveReviewRun transaction', () => {
 
     const firstSave = saveReviewRun(
       { reviewRunId: 'review_1', selfRepairAttemptText: 'I went home', revealedWithoutAttempt: false },
-      { database: database.asAppDatabase(), getWritingAttemptSnapshot: currentWriting }
+      { database: database.asAppDatabase(), getWritingAttemptSnapshot: currentWriting },
     );
     const secondSave = saveReviewRun(
       { reviewRunId: 'review_1', selfRepairAttemptText: 'I went home', revealedWithoutAttempt: false },
-      { database: database.asAppDatabase(), getWritingAttemptSnapshot: currentWriting }
+      { database: database.asAppDatabase(), getWritingAttemptSnapshot: currentWriting },
     );
 
     expect(firstSave.success).toBe(true);
@@ -399,7 +405,9 @@ describe('saveReviewRun transaction', () => {
       spacedStage: 'D+1',
       status: 'pending',
     });
-    expect(database.savedRewriteTasks()[0].dueAt?.getTime()).toBeGreaterThanOrEqual(now.getTime() + 24 * 60 * 60 * 1000 - 1000);
+    expect(database.savedRewriteTasks()[0].dueAt?.getTime()).toBeGreaterThanOrEqual(
+      now.getTime() + 24 * 60 * 60 * 1000 - 1000,
+    );
   });
 
   it('rolls back partial writes when one transaction step fails', async () => {
@@ -409,7 +417,10 @@ describe('saveReviewRun transaction', () => {
     database.failOnInsertTable = 'referenceRewrites';
     const saveReviewRun = await loadSaveReviewRun();
 
-    const result = saveReviewRun({ reviewRunId: 'review_1' }, { database: database.asAppDatabase(), getWritingAttemptSnapshot: currentWriting });
+    const result = saveReviewRun(
+      { reviewRunId: 'review_1' },
+      { database: database.asAppDatabase(), getWritingAttemptSnapshot: currentWriting },
+    );
 
     expect(result.success).toBe(false);
     expect(database.reviewRun()?.status).toBe('review_ready');
@@ -422,40 +433,45 @@ describe('saveReviewRun transaction', () => {
   it('excludes low-confidence corrections from saved corrections and rewrite practice', async () => {
     const database = new FakeReviewDatabase();
     database.seedWriting();
-    database.seedReadyReview(baseOperations({
-      corrections: [
-        ...baseOperations().corrections,
-        {
-          correctionIndex: 1,
-          originalText: 'a office',
-          correctedText: 'an office',
-          explanation: 'Use an before a vowel sound.',
-          category: 'article',
-          confidence: 'low',
-          status: 'low_confidence',
-          startOffset: 20,
-          endOffset: 28,
-          contentHash: 'hash_a',
-          matchedPatternId: 'article_pattern',
-          newPatternSuggestion: null,
-          lowConfidenceReason: 'model_low_confidence',
-        },
-      ],
-      rewritePractice: [
-        {
-          taskIndex: 0,
-          kind: 'rewrite_original',
-          prompt: 'Rewrite the low-confidence sentence.',
-          focusCorrectionIndexes: [1],
-          dueOffsetDays: 1,
-          revealNativeModelAfterSubmit: true,
-          updatesLongTermStats: false,
-        },
-      ],
-    }));
+    database.seedReadyReview(
+      baseOperations({
+        corrections: [
+          ...baseOperations().corrections,
+          {
+            correctionIndex: 1,
+            originalText: 'a office',
+            correctedText: 'an office',
+            explanation: 'Use an before a vowel sound.',
+            category: 'article',
+            confidence: 'low',
+            status: 'low_confidence',
+            startOffset: 20,
+            endOffset: 28,
+            contentHash: 'hash_a',
+            matchedPatternId: 'article_pattern',
+            newPatternSuggestion: null,
+            lowConfidenceReason: 'model_low_confidence',
+          },
+        ],
+        rewritePractice: [
+          {
+            taskIndex: 0,
+            kind: 'rewrite_original',
+            prompt: 'Rewrite the low-confidence sentence.',
+            focusCorrectionIndexes: [1],
+            dueOffsetDays: 1,
+            revealNativeModelAfterSubmit: true,
+            updatesLongTermStats: false,
+          },
+        ],
+      }),
+    );
     const saveReviewRun = await loadSaveReviewRun();
 
-    const result = saveReviewRun({ reviewRunId: 'review_1' }, { database: database.asAppDatabase(), getWritingAttemptSnapshot: currentWriting });
+    const result = saveReviewRun(
+      { reviewRunId: 'review_1' },
+      { database: database.asAppDatabase(), getWritingAttemptSnapshot: currentWriting },
+    );
 
     if (!result.success) {
       throw new Error(result.error);
@@ -469,23 +485,28 @@ describe('saveReviewRun transaction', () => {
   it('creates at most one D+1 rewrite task from a saved review', async () => {
     const database = new FakeReviewDatabase();
     database.seedWriting();
-    database.seedReadyReview(baseOperations({
-      rewritePractice: [
-        ...baseOperations().rewritePractice,
-        {
-          taskIndex: 1,
-          kind: 'rewrite_original',
-          prompt: 'Second practice should not be saved.',
-          focusCorrectionIndexes: [0],
-          dueOffsetDays: 1,
-          revealNativeModelAfterSubmit: true,
-          updatesLongTermStats: false,
-        },
-      ],
-    }));
+    database.seedReadyReview(
+      baseOperations({
+        rewritePractice: [
+          ...baseOperations().rewritePractice,
+          {
+            taskIndex: 1,
+            kind: 'rewrite_original',
+            prompt: 'Second practice should not be saved.',
+            focusCorrectionIndexes: [0],
+            dueOffsetDays: 1,
+            revealNativeModelAfterSubmit: true,
+            updatesLongTermStats: false,
+          },
+        ],
+      }),
+    );
     const saveReviewRun = await loadSaveReviewRun();
 
-    const result = saveReviewRun({ reviewRunId: 'review_1' }, { database: database.asAppDatabase(), getWritingAttemptSnapshot: currentWriting });
+    const result = saveReviewRun(
+      { reviewRunId: 'review_1' },
+      { database: database.asAppDatabase(), getWritingAttemptSnapshot: currentWriting },
+    );
 
     if (!result.success) {
       throw new Error(result.error);
@@ -497,39 +518,44 @@ describe('saveReviewRun transaction', () => {
   it('does not create a rewrite task unless it practices the focus correction', async () => {
     const database = new FakeReviewDatabase();
     database.seedWriting();
-    database.seedReadyReview(baseOperations({
-      corrections: [
-        ...baseOperations().corrections,
-        {
-          correctionIndex: 1,
-          originalText: 'a office',
-          correctedText: 'an office',
-          explanation: 'Use an before a vowel sound.',
-          category: 'article',
-          confidence: 'high',
-          status: 'suggested',
-          startOffset: 20,
-          endOffset: 28,
-          contentHash: 'hash_a',
-          matchedPatternId: 'article_pattern',
-          newPatternSuggestion: null,
-        },
-      ],
-      rewritePractice: [
-        {
-          taskIndex: 0,
-          kind: 'rewrite_original',
-          prompt: 'Rewrite a non-focus sentence.',
-          focusCorrectionIndexes: [1],
-          dueOffsetDays: 1,
-          revealNativeModelAfterSubmit: true,
-          updatesLongTermStats: false,
-        },
-      ],
-    }));
+    database.seedReadyReview(
+      baseOperations({
+        corrections: [
+          ...baseOperations().corrections,
+          {
+            correctionIndex: 1,
+            originalText: 'a office',
+            correctedText: 'an office',
+            explanation: 'Use an before a vowel sound.',
+            category: 'article',
+            confidence: 'high',
+            status: 'suggested',
+            startOffset: 20,
+            endOffset: 28,
+            contentHash: 'hash_a',
+            matchedPatternId: 'article_pattern',
+            newPatternSuggestion: null,
+          },
+        ],
+        rewritePractice: [
+          {
+            taskIndex: 0,
+            kind: 'rewrite_original',
+            prompt: 'Rewrite a non-focus sentence.',
+            focusCorrectionIndexes: [1],
+            dueOffsetDays: 1,
+            revealNativeModelAfterSubmit: true,
+            updatesLongTermStats: false,
+          },
+        ],
+      }),
+    );
     const saveReviewRun = await loadSaveReviewRun();
 
-    const result = saveReviewRun({ reviewRunId: 'review_1' }, { database: database.asAppDatabase(), getWritingAttemptSnapshot: currentWriting });
+    const result = saveReviewRun(
+      { reviewRunId: 'review_1' },
+      { database: database.asAppDatabase(), getWritingAttemptSnapshot: currentWriting },
+    );
 
     if (!result.success) {
       throw new Error(result.error);
@@ -544,7 +570,10 @@ describe('saveReviewRun transaction', () => {
     database.seedReadyReview(baseOperations());
     const saveReviewRun = await loadSaveReviewRun();
 
-    const result = saveReviewRun({ reviewRunId: 'review_1' }, { database: database.asAppDatabase(), getWritingAttemptSnapshot: currentWriting });
+    const result = saveReviewRun(
+      { reviewRunId: 'review_1' },
+      { database: database.asAppDatabase(), getWritingAttemptSnapshot: currentWriting },
+    );
 
     if (!result.success) {
       throw new Error(result.error);
@@ -557,18 +586,23 @@ describe('saveReviewRun transaction', () => {
   it('rejects a review that lacks one anchored focus correction', async () => {
     const database = new FakeReviewDatabase();
     database.seedWriting();
-    database.seedReadyReview(baseOperations({
-      corrections: [
-        {
-          ...baseOperations().corrections[0],
-          status: 'low_confidence',
-          lowConfidenceReason: 'model_low_confidence',
-        },
-      ],
-    }));
+    database.seedReadyReview(
+      baseOperations({
+        corrections: [
+          {
+            ...baseOperations().corrections[0],
+            status: 'low_confidence',
+            lowConfidenceReason: 'model_low_confidence',
+          },
+        ],
+      }),
+    );
     const saveReviewRun = await loadSaveReviewRun();
 
-    const result = saveReviewRun({ reviewRunId: 'review_1' }, { database: database.asAppDatabase(), getWritingAttemptSnapshot: currentWriting });
+    const result = saveReviewRun(
+      { reviewRunId: 'review_1' },
+      { database: database.asAppDatabase(), getWritingAttemptSnapshot: currentWriting },
+    );
 
     expect(result.success).toBe(false);
     expect(database.reviewRun()?.status).toBe('review_ready');
@@ -593,13 +627,26 @@ function emptyStore(): RowStore {
 
 function cloneStore(store: RowStore): RowStore {
   return {
-    writingAttempts: store.writingAttempts.map((row) => ({ ...row, createdAt: cloneDate(row.createdAt), updatedAt: cloneDate(row.updatedAt), reviewedAt: cloneNullableDate(row.reviewedAt) })),
+    writingAttempts: store.writingAttempts.map((row) => ({
+      ...row,
+      createdAt: cloneDate(row.createdAt),
+      updatedAt: cloneDate(row.updatedAt),
+      reviewedAt: cloneNullableDate(row.reviewedAt),
+    })),
     writingRevisions: store.writingRevisions.map((row) => ({ ...row, createdAt: cloneDate(row.createdAt) })),
-    reviewRuns: store.reviewRuns.map((row) => ({ ...row, createdAt: cloneDate(row.createdAt), updatedAt: cloneDate(row.updatedAt) })),
+    reviewRuns: store.reviewRuns.map((row) => ({
+      ...row,
+      createdAt: cloneDate(row.createdAt),
+      updatedAt: cloneDate(row.updatedAt),
+    })),
     corrections: store.corrections.map((row) => ({ ...row })),
     selfRepairAttempts: store.selfRepairAttempts.map((row) => ({ ...row, createdAt: cloneDate(row.createdAt) })),
     referenceRewrites: store.referenceRewrites.map((row) => ({ ...row, createdAt: cloneDate(row.createdAt) })),
-    rewriteTasks: store.rewriteTasks.map((row) => ({ ...row, createdAt: cloneDate(row.createdAt), dueAt: cloneNullableDate(row.dueAt) })),
+    rewriteTasks: store.rewriteTasks.map((row) => ({
+      ...row,
+      createdAt: cloneDate(row.createdAt),
+      dueAt: cloneNullableDate(row.dueAt),
+    })),
   };
 }
 
@@ -624,7 +671,12 @@ function extractId(condition: unknown): string {
     return typeof (chunk as { value?: unknown }).value === 'string';
   });
 
-  if (typeof param !== 'object' || param === null || !('value' in param) || typeof (param as { value?: unknown }).value !== 'string') {
+  if (
+    typeof param !== 'object' ||
+    param === null ||
+    !('value' in param) ||
+    typeof (param as { value?: unknown }).value !== 'string'
+  ) {
     throw new Error('Unsupported where parameter');
   }
 

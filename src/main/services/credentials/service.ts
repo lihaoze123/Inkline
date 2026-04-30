@@ -1,5 +1,10 @@
 import keytar from 'keytar';
-import type { AiProviderId, ProviderCredentialStatuses, ProviderKeyStatus, ProviderKeyStatusValue } from '../../../shared/types/credentials';
+import type {
+  AiProviderId,
+  ProviderCredentialStatuses,
+  ProviderKeyStatus,
+  ProviderKeyStatusValue,
+} from '../../../shared/types/credentials';
 
 const SERVICE_NAME = 'english-coach';
 const PROVIDER_ACCOUNT = 'provider-api-key';
@@ -40,7 +45,9 @@ export async function getProviderKeyStatus(providerId: AiProviderId = 'openai-co
   }
 }
 
-async function getRequiredProviderKeyStatus<TProviderId extends AiProviderId>(providerId: TProviderId): Promise<ProviderKeyStatus & { providerId: TProviderId }> {
+async function getRequiredProviderKeyStatus<TProviderId extends AiProviderId>(
+  providerId: TProviderId,
+): Promise<ProviderKeyStatus & { providerId: TProviderId }> {
   const status = await getProviderKeyStatus(providerId);
   return {
     providerId,
@@ -63,7 +70,9 @@ export async function getProviderApiKey(providerId: AiProviderId = 'openai-compa
   try {
     return await keytar.getPassword(SERVICE_NAME, getProviderAccount(providerId));
   } catch {
-    throw new Error(`${getProviderErrorLabel(providerId)} API key is unavailable. Check OS keychain access before reviewing.`);
+    throw new Error(
+      `${getProviderErrorLabel(providerId)} API key is unavailable. Check OS keychain access before reviewing.`,
+    );
   }
 }
 

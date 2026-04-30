@@ -1,4 +1,11 @@
-import { useMutation, useQuery, useQueryClient, type QueryClient, type UseMutationResult, type UseQueryResult } from '@tanstack/react-query';
+import {
+  useMutation,
+  useQuery,
+  useQueryClient,
+  type QueryClient,
+  type UseMutationResult,
+  type UseQueryResult,
+} from '@tanstack/react-query';
 import type {
   CompleteRewritePracticeInput,
   GenerateStarterPromptInput,
@@ -17,7 +24,10 @@ type UseWritingAttemptOptions = {
   initialData?: WritingAttemptSnapshot;
 };
 
-export function useWritingAttempt({ templateId, initialData }: UseWritingAttemptOptions): UseQueryResult<WritingAttemptSnapshot> {
+export function useWritingAttempt({
+  templateId,
+  initialData,
+}: UseWritingAttemptOptions): UseQueryResult<WritingAttemptSnapshot> {
   return useQuery({
     queryKey: queryKeys.writing.attempt(templateId),
     queryFn: () => window.api.writing.getWritingAttempt({ templateId }),
@@ -46,7 +56,11 @@ export function updateRewritePracticeCache(queryClient: QueryClient, result: Rew
   }
 }
 
-export function useGenerateStarterPrompt(): UseMutationResult<GenerateStarterPromptResult, Error, GenerateStarterPromptInput> {
+export function useGenerateStarterPrompt(): UseMutationResult<
+  GenerateStarterPromptResult,
+  Error,
+  GenerateStarterPromptInput
+> {
   const queryClient = useQueryClient();
 
   return useMutation({
@@ -59,7 +73,11 @@ export function useGenerateStarterPrompt(): UseMutationResult<GenerateStarterPro
   });
 }
 
-export function useCompleteRewritePractice(): UseMutationResult<RewritePracticeUpdateResult, Error, CompleteRewritePracticeInput> {
+export function useCompleteRewritePractice(): UseMutationResult<
+  RewritePracticeUpdateResult,
+  Error,
+  CompleteRewritePracticeInput
+> {
   const queryClient = useQueryClient();
 
   return useMutation({
@@ -68,7 +86,11 @@ export function useCompleteRewritePractice(): UseMutationResult<RewritePracticeU
   });
 }
 
-export function useSkipRewritePractice(): UseMutationResult<RewritePracticeUpdateResult, Error, SkipRewritePracticeInput> {
+export function useSkipRewritePractice(): UseMutationResult<
+  RewritePracticeUpdateResult,
+  Error,
+  SkipRewritePracticeInput
+> {
   const queryClient = useQueryClient();
 
   return useMutation({

@@ -1,7 +1,7 @@
-@import "tailwindcss";
+@import 'tailwindcss';
 @plugin "daisyui";
 @plugin "daisyui/theme" {
-  name: "coach-saas";
+  name: 'coach-saas';
   default: true;
   prefersdark: false;
   color-scheme: light;
@@ -38,7 +38,7 @@
 }
 
 :root {
-  font-family: Aptos, "Segoe UI Variable", "SF Pro Display", ui-sans-serif, system-ui, sans-serif;
+  font-family: Aptos, 'Segoe UI Variable', 'SF Pro Display', ui-sans-serif, system-ui, sans-serif;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
@@ -95,7 +95,7 @@ textarea:hover::-webkit-scrollbar-thumb {
 }
 
 .writing-practice-surface {
-  font-family: "Iowan Old Style", "Palatino Linotype", Georgia, ui-serif, serif;
+  font-family: 'Iowan Old Style', 'Palatino Linotype', Georgia, ui-serif, serif;
 }
 
 .app-orb-field::before,
@@ -105,7 +105,7 @@ textarea:hover::-webkit-scrollbar-thumb {
   width: 32rem;
   height: 32rem;
   border-radius: 9999px;
-  content: "";
+  content: '';
   filter: blur(72px);
   opacity: 0.22;
   pointer-events: none;

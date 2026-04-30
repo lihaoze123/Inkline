@@ -18,7 +18,12 @@ export function getReviewPreview(input: GetReviewPreviewInput): ReviewPreviewSna
   }
 
   const reviewRun = db.select().from(reviewRuns).where(eq(reviewRuns.id, parseResult.data.reviewRunId)).get();
-  if (!reviewRun || reviewRun.status !== 'review_ready' || !reviewRun.parsedOutputJson || !reviewRun.previewOperationsJson) {
+  if (
+    !reviewRun ||
+    reviewRun.status !== 'review_ready' ||
+    !reviewRun.parsedOutputJson ||
+    !reviewRun.previewOperationsJson
+  ) {
     return null;
   }
 

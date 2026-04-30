@@ -52,16 +52,23 @@ export function SettingsDrawer({
             <div>
               <p className="text-xs font-semibold uppercase tracking-[0.18em] text-primary/70">Settings</p>
               <h2 className="mt-1 text-2xl font-semibold tracking-[-0.03em]">AI provider</h2>
-              <p className="mt-2 text-sm leading-6 text-base-content/60">Configure the global provider used for review and starter prompt generation.</p>
+              <p className="mt-2 text-sm leading-6 text-base-content/60">
+                Configure the global provider used for review and starter prompt generation.
+              </p>
             </div>
-            <button type="button" className="btn btn-ghost btn-circle" aria-label="Close settings" onClick={onClose}>✕</button>
+            <button type="button" className="btn btn-ghost btn-circle" aria-label="Close settings" onClick={onClose}>
+              ✕
+            </button>
           </div>
 
           <div className="scrollable min-h-0 flex-1 overflow-y-auto pr-1">
             <div className="grid gap-5">
               <section className="rounded-2xl border border-base-300 bg-base-200/50 p-4">
                 <h3 className="font-semibold">Global default</h3>
-                <p className="mt-1 text-sm leading-6 text-base-content/55">This first UI version uses one global default provider/model. Feature-specific model overrides are reserved internally for later.</p>
+                <p className="mt-1 text-sm leading-6 text-base-content/55">
+                  This first UI version uses one global default provider/model. Feature-specific model overrides are
+                  reserved internally for later.
+                </p>
                 <label className="form-control mt-4">
                   <span className="label-text font-medium">Default provider</span>
                   <select
@@ -71,7 +78,9 @@ export function SettingsDrawer({
                     onChange={(event) => onDefaultProviderChange(event.target.value as AiProviderId)}
                   >
                     {PROVIDER_OPTIONS.map((option) => (
-                      <option key={option.value} value={option.value}>{option.label}</option>
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
                     ))}
                   </select>
                 </label>
@@ -81,20 +90,36 @@ export function SettingsDrawer({
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <div>
                     <h3 className="font-semibold">OpenAI-compatible</h3>
-                    <p className="mt-1 text-sm text-base-content/55">Use OpenAI or another OpenAI-compatible endpoint.</p>
+                    <p className="mt-1 text-sm text-base-content/55">
+                      Use OpenAI or another OpenAI-compatible endpoint.
+                    </p>
                   </div>
                   <span className="badge badge-outline">{formatProviderKeyStatus(openAiCredentialStatus.status)}</span>
                 </div>
                 <div className="mt-4 grid gap-4">
                   <label className="form-control">
                     <span className="label-text font-medium">Base URL</span>
-                    <input className="input input-bordered mt-2" value={openAiBaseUrlInput} onChange={(event) => onOpenAiBaseUrlChange(event.target.value)} aria-label="OpenAI-compatible base URL" />
+                    <input
+                      className="input input-bordered mt-2"
+                      value={openAiBaseUrlInput}
+                      onChange={(event) => onOpenAiBaseUrlChange(event.target.value)}
+                      aria-label="OpenAI-compatible base URL"
+                    />
                   </label>
                   <label className="form-control">
                     <span className="label-text font-medium">Model</span>
-                    <input className="input input-bordered mt-2" value={openAiModelInput} onChange={(event) => onOpenAiModelChange(event.target.value)} aria-label="OpenAI-compatible model" />
+                    <input
+                      className="input input-bordered mt-2"
+                      value={openAiModelInput}
+                      onChange={(event) => onOpenAiModelChange(event.target.value)}
+                      aria-label="OpenAI-compatible model"
+                    />
                   </label>
-                  <button type="button" className="btn btn-primary justify-self-start rounded-2xl" onClick={onSaveOpenAiConfig}>
+                  <button
+                    type="button"
+                    className="btn btn-primary justify-self-start rounded-2xl"
+                    onClick={onSaveOpenAiConfig}
+                  >
                     Save OpenAI-compatible settings
                   </button>
                   <ProviderCredentialForm
@@ -106,7 +131,9 @@ export function SettingsDrawer({
                     onSaveApiKey={onSaveApiKey}
                     onDeleteApiKey={onDeleteApiKey}
                   />
-                  {openAiSettings ? <p className="text-xs text-base-content/45">Current saved model: {openAiSettings.model}</p> : null}
+                  {openAiSettings ? (
+                    <p className="text-xs text-base-content/45">Current saved model: {openAiSettings.model}</p>
+                  ) : null}
                 </div>
               </section>
 
@@ -114,16 +141,29 @@ export function SettingsDrawer({
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <div>
                     <h3 className="font-semibold">Anthropic Claude</h3>
-                    <p className="mt-1 text-sm text-base-content/55">Use Anthropic's Claude models with a separate key.</p>
+                    <p className="mt-1 text-sm text-base-content/55">
+                      Use Anthropic's Claude models with a separate key.
+                    </p>
                   </div>
-                  <span className="badge badge-outline">{formatProviderKeyStatus(anthropicCredentialStatus.status)}</span>
+                  <span className="badge badge-outline">
+                    {formatProviderKeyStatus(anthropicCredentialStatus.status)}
+                  </span>
                 </div>
                 <div className="mt-4 grid gap-4">
                   <label className="form-control">
                     <span className="label-text font-medium">Model</span>
-                    <input className="input input-bordered mt-2" value={anthropicModelInput} onChange={(event) => onAnthropicModelChange(event.target.value)} aria-label="Anthropic model" />
+                    <input
+                      className="input input-bordered mt-2"
+                      value={anthropicModelInput}
+                      onChange={(event) => onAnthropicModelChange(event.target.value)}
+                      aria-label="Anthropic model"
+                    />
                   </label>
-                  <button type="button" className="btn btn-primary justify-self-start rounded-2xl" onClick={onSaveAnthropicConfig}>
+                  <button
+                    type="button"
+                    className="btn btn-primary justify-self-start rounded-2xl"
+                    onClick={onSaveAnthropicConfig}
+                  >
                     Save Anthropic settings
                   </button>
                   <ProviderCredentialForm
@@ -135,18 +175,30 @@ export function SettingsDrawer({
                     onSaveApiKey={onSaveApiKey}
                     onDeleteApiKey={onDeleteApiKey}
                   />
-                  {anthropicSettings ? <p className="text-xs text-base-content/45">Current saved model: {anthropicSettings.model}</p> : null}
+                  {anthropicSettings ? (
+                    <p className="text-xs text-base-content/45">Current saved model: {anthropicSettings.model}</p>
+                  ) : null}
                 </div>
               </section>
 
               <section className="rounded-2xl border border-base-300 bg-base-200/50 p-4">
                 <h3 className="font-semibold">Privacy and debug</h3>
-                <p className="mt-1 text-sm leading-6 text-base-content/55">Your writing stays local by default. Review sends the current writing, template context, and bounded learning context to your configured provider.</p>
+                <p className="mt-1 text-sm leading-6 text-base-content/55">
+                  Your writing stays local by default. Review sends the current writing, template context, and bounded
+                  learning context to your configured provider.
+                </p>
                 <label className="mt-4 flex cursor-pointer items-start gap-3 rounded-2xl border border-warning/30 bg-warning/10 p-4">
-                  <input className="toggle toggle-warning mt-1" type="checkbox" checked={settings.rawResponseStorageEnabled} onChange={(event) => onRawResponseStorageChange(event.target.checked)} />
+                  <input
+                    className="toggle toggle-warning mt-1"
+                    type="checkbox"
+                    checked={settings.rawResponseStorageEnabled}
+                    onChange={(event) => onRawResponseStorageChange(event.target.checked)}
+                  />
                   <span>
                     <span className="block font-medium">Save raw model responses for debugging</span>
-                    <span className="mt-1 block text-sm text-base-content/55">Raw responses may contain writing content and stay local unless explicitly exported later.</span>
+                    <span className="mt-1 block text-sm text-base-content/55">
+                      Raw responses may contain writing content and stay local unless explicitly exported later.
+                    </span>
                   </span>
                 </label>
               </section>
@@ -156,19 +208,33 @@ export function SettingsDrawer({
                 <dl className="mt-4 grid gap-3 text-sm">
                   <StatusRow label="Default provider" value={settings.provider} />
                   <StatusRow label="Default model" value={settings.model} />
-                  <StatusRow label="OpenAI-compatible key" value={formatProviderKeyStatus(openAiCredentialStatus.status)} />
+                  <StatusRow
+                    label="OpenAI-compatible key"
+                    value={formatProviderKeyStatus(openAiCredentialStatus.status)}
+                  />
                   <StatusRow label="Anthropic key" value={formatProviderKeyStatus(anthropicCredentialStatus.status)} />
                   <StatusRow label="Local model" value={settings.isLocalModel ? 'Yes' : 'No'} />
                   <StatusRow label="Review context" value={settings.reviewContextDescription} />
-                  <StatusRow label="Database" value={startup.databaseReady ? settings.databaseLocation : 'Unavailable'} />
+                  <StatusRow
+                    label="Database"
+                    value={startup.databaseReady ? settings.databaseLocation : 'Unavailable'}
+                  />
                   <StatusRow label="Migrations" value={startup.migrationsApplied ? 'Applied' : 'Unavailable'} />
                   <StatusRow label="pi-mono" value={settings.piMonoAuthStatus} />
                   <StatusRow label="AnkiConnect" value={settings.ankiConnectStatus} />
                 </dl>
               </section>
 
-              {message ? <div className="alert alert-success"><span>{message}</span></div> : null}
-              {error ? <div className="alert alert-error"><span>{error}</span></div> : null}
+              {message ? (
+                <div className="alert alert-success">
+                  <span>{message}</span>
+                </div>
+              ) : null}
+              {error ? (
+                <div className="alert alert-error">
+                  <span>{error}</span>
+                </div>
+              ) : null}
             </div>
           </div>
         </aside>
@@ -197,7 +263,9 @@ function ProviderCredentialForm({
   return (
     <div className="rounded-2xl border border-base-300 bg-base-100 p-4">
       <h4 className="font-medium">{providerName} credentials</h4>
-      <p className="mt-1 text-sm text-base-content/55">API keys are stored through the OS keychain and never returned to the renderer.</p>
+      <p className="mt-1 text-sm text-base-content/55">
+        API keys are stored through the OS keychain and never returned to the renderer.
+      </p>
       <label className="form-control mt-4">
         <span className="label-text font-medium">API key</span>
         <input
@@ -210,22 +278,40 @@ function ProviderCredentialForm({
         />
       </label>
       <div className="mt-4 flex flex-wrap gap-2">
-        <button type="button" className="btn btn-primary rounded-2xl" disabled={apiKeyInput.trim().length === 0} onClick={() => onSaveApiKey(providerId)}>Save API key</button>
-        <button type="button" className="btn btn-outline rounded-2xl" disabled={status.status !== 'configured'} onClick={() => onDeleteApiKey(providerId)}>Delete API key</button>
+        <button
+          type="button"
+          className="btn btn-primary rounded-2xl"
+          disabled={apiKeyInput.trim().length === 0}
+          onClick={() => onSaveApiKey(providerId)}
+        >
+          Save API key
+        </button>
+        <button
+          type="button"
+          className="btn btn-outline rounded-2xl"
+          disabled={status.status !== 'configured'}
+          onClick={() => onDeleteApiKey(providerId)}
+        >
+          Delete API key
+        </button>
       </div>
     </div>
   );
 }
 
 function getCredentialStatus(settings: SettingsSnapshot, providerId: AiProviderId): ProviderKeyStatus {
-  const status = settings.providerCredentialStatuses?.[providerId] ?? settings.aiModelSettings?.providers[providerId].apiKeyStatus;
+  const status =
+    settings.providerCredentialStatuses?.[providerId] ?? settings.aiModelSettings?.providers[providerId].apiKeyStatus;
   if (status) {
     return status;
   }
 
   return {
     providerId,
-    status: providerId === settings.providerId || (providerId === 'openai-compatible' && !settings.providerId) ? settings.providerApiKeyStatus : 'not-configured',
+    status:
+      providerId === settings.providerId || (providerId === 'openai-compatible' && !settings.providerId)
+        ? settings.providerApiKeyStatus
+        : 'not-configured',
     storage: 'os-keychain',
   };
 }

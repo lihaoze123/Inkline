@@ -25,13 +25,15 @@ function selectExistingPatterns(): ErrorPattern[] {
     .map((correction) => ({ correction, category: toPatternCategory(correction.category) }))
     .filter(({ category }) => category !== 'spelling')
     .slice(0, V0_1_REVIEW_CAPS.existingPatternsLimit)
-    .map(({ correction, category }): ErrorPattern => ({
-      id: correction.id,
-      category,
-      rule: correction.pattern.length > 0 ? correction.pattern : correction.explanation,
-      canonicalExample: `${correction.originalText} -> ${correction.correctedText}`,
-      active: true,
-    }));
+    .map(
+      ({ correction, category }): ErrorPattern => ({
+        id: correction.id,
+        category,
+        rule: correction.pattern.length > 0 ? correction.pattern : correction.explanation,
+        canonicalExample: `${correction.originalText} -> ${correction.correctedText}`,
+        active: true,
+      }),
+    );
 }
 
 function toPatternCategory(category: string): ErrorPattern['category'] {

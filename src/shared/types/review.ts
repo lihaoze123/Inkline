@@ -1,5 +1,11 @@
 import { z } from 'zod';
-import { validationStatusSchema, reviewOutputSchema, correctionCategorySchema, confidenceSchema, correctionStatusSchema } from '../review-contract/schemas';
+import {
+  validationStatusSchema,
+  reviewOutputSchema,
+  correctionCategorySchema,
+  confidenceSchema,
+  correctionStatusSchema,
+} from '../review-contract/schemas';
 import { writingAttemptSnapshotSchema } from './writing';
 
 export const acknowledgeReviewDisclosureInputSchema = z.object({
@@ -96,32 +102,40 @@ export const anchoredCorrectionOperationSchema = z.object({
 export const previewOperationsSnapshotSchema = z.object({
   corrections: z.array(anchoredCorrectionOperationSchema),
   patternOperations: z.array(z.unknown()),
-  referenceRewrites: z.array(z.object({
-    rewriteIndex: z.number().int().nonnegative(),
-    text: z.string().min(1),
-    noticeTheGap: z.string().min(1),
-    updatesLongTermStats: z.literal(false),
-  })),
-  selfRepair: z.object({
-    correctionIndex: z.number().int().nonnegative(),
-    prompt: z.string().min(1),
-    hint: z.string().min(1),
-    updatesLongTermStats: z.literal(false),
-  }).nullable(),
-  rewritePractice: z.array(z.object({
-    taskIndex: z.number().int().nonnegative(),
-    kind: z.literal('rewrite_original'),
-    prompt: z.string().min(1),
-    focusCorrectionIndexes: z.array(z.number().int().nonnegative()),
-    dueOffsetDays: z.number().int().positive(),
-    revealNativeModelAfterSubmit: z.boolean(),
-    updatesLongTermStats: z.literal(false),
-  })),
-  inputBridge: z.object({
-    correctionIndex: z.number().int().nonnegative(),
-    examples: z.array(z.string().min(1)),
-    updatesLongTermStats: z.literal(false),
-  }).nullable(),
+  referenceRewrites: z.array(
+    z.object({
+      rewriteIndex: z.number().int().nonnegative(),
+      text: z.string().min(1),
+      noticeTheGap: z.string().min(1),
+      updatesLongTermStats: z.literal(false),
+    }),
+  ),
+  selfRepair: z
+    .object({
+      correctionIndex: z.number().int().nonnegative(),
+      prompt: z.string().min(1),
+      hint: z.string().min(1),
+      updatesLongTermStats: z.literal(false),
+    })
+    .nullable(),
+  rewritePractice: z.array(
+    z.object({
+      taskIndex: z.number().int().nonnegative(),
+      kind: z.literal('rewrite_original'),
+      prompt: z.string().min(1),
+      focusCorrectionIndexes: z.array(z.number().int().nonnegative()),
+      dueOffsetDays: z.number().int().positive(),
+      revealNativeModelAfterSubmit: z.boolean(),
+      updatesLongTermStats: z.literal(false),
+    }),
+  ),
+  inputBridge: z
+    .object({
+      correctionIndex: z.number().int().nonnegative(),
+      examples: z.array(z.string().min(1)),
+      updatesLongTermStats: z.literal(false),
+    })
+    .nullable(),
 });
 
 export const reviewPreviewSnapshotSchema = z.object({

@@ -22,7 +22,7 @@ export const writingAttempts = sqliteTable(
       .default(sql`(unixepoch() * 1000)`)
       .$onUpdate(() => new Date()),
   },
-  (table) => [uniqueIndex('writing_attempts_date_template_unique').on(table.dateKey, table.templateId)]
+  (table) => [uniqueIndex('writing_attempts_date_template_unique').on(table.dateKey, table.templateId)],
 );
 
 export const writingRevisions = sqliteTable('writing_revisions', {

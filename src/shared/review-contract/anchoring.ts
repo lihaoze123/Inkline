@@ -68,7 +68,9 @@ function locateNormalizedAnchor(content: string, anchor: CorrectionAnchor, usedF
   }
 
   const hasContextAnchor = anchor.prefix.length > 0 || anchor.suffix.length > 0;
-  const contextualCandidates = hasContextAnchor ? candidates.filter((candidate) => hasContext(content, candidate, anchor)) : candidates;
+  const contextualCandidates = hasContextAnchor
+    ? candidates.filter((candidate) => hasContext(content, candidate, anchor))
+    : candidates;
   if (contextualCandidates.length === 0) {
     return { success: false, failure: { reason: 'prefix and suffix did not match surrounding journal text' } };
   }
@@ -112,7 +114,11 @@ function hasContext(content: string, candidate: Candidate, anchor: CorrectionAnc
   return prefixMatches && suffixMatches;
 }
 
-function selectCandidate(candidates: Candidate[], contextualCandidates: Candidate[], occurrenceIndex: number | undefined): Candidate | undefined {
+function selectCandidate(
+  candidates: Candidate[],
+  contextualCandidates: Candidate[],
+  occurrenceIndex: number | undefined,
+): Candidate | undefined {
   if (occurrenceIndex === undefined) {
     return contextualCandidates.length === 1 ? contextualCandidates[0] : undefined;
   }
@@ -122,7 +128,11 @@ function selectCandidate(candidates: Candidate[], contextualCandidates: Candidat
     return undefined;
   }
 
-  return contextualCandidates.find((candidate) => candidate.startOffset === selectedByOccurrence.startOffset && candidate.endOffset === selectedByOccurrence.endOffset);
+  return contextualCandidates.find(
+    (candidate) =>
+      candidate.startOffset === selectedByOccurrence.startOffset &&
+      candidate.endOffset === selectedByOccurrence.endOffset,
+  );
 }
 
 function normalizeCurlyQuotes(value: string): string {

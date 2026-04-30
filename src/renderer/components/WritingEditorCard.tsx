@@ -20,12 +20,19 @@ export function WritingEditorCard({
   onSkipStarterPrompt,
 }: WritingEditorCardProps): React.JSX.Element {
   return (
-    <section className="flex min-h-0 flex-col rounded-[2rem] border border-base-300/80 bg-base-100/95 p-5 shadow-2xl shadow-primary/5" aria-labelledby="writing-editor-title">
+    <section
+      className="flex min-h-0 flex-col rounded-[2rem] border border-base-300/80 bg-base-100/95 p-5 shadow-2xl shadow-primary/5"
+      aria-labelledby="writing-editor-title"
+    >
       <div className="mb-5 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.18em] text-primary/70">Writing editor</p>
-          <h2 id="writing-editor-title" className="mt-1 text-2xl font-semibold tracking-[-0.03em]">{template.title}</h2>
-          <p className="mt-2 text-sm text-base-content/55">Spellcheck is off on purpose: write independently now, review later.</p>
+          <h2 id="writing-editor-title" className="mt-1 text-2xl font-semibold tracking-[-0.03em]">
+            {template.title}
+          </h2>
+          <p className="mt-2 text-sm text-base-content/55">
+            Spellcheck is off on purpose: write independently now, review later.
+          </p>
         </div>
         <AutosaveStatus state={saveState} lastAutosaveAt={lastAutosaveAt} error={saveError} />
       </div>
@@ -33,17 +40,39 @@ export function WritingEditorCard({
       <div className="mb-4 grid gap-3 rounded-2xl border border-base-300 bg-base-200/45 p-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-base-content/45">Starter prompt/topic</p>
-            <p className="mt-1 text-sm text-base-content/60">Use AI for a starter topic, regenerate before writing, or skip and write from your own goal.</p>
+            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-base-content/45">
+              Starter prompt/topic
+            </p>
+            <p className="mt-1 text-sm text-base-content/60">
+              Use AI for a starter topic, regenerate before writing, or skip and write from your own goal.
+            </p>
           </div>
           <div className="flex flex-wrap gap-2">
-            <button type="button" className="btn btn-primary btn-sm rounded-2xl" disabled={starterPromptState === 'generating'} onClick={onGenerateStarterPrompt}>
-              {starterPromptState === 'generating' ? <><span className="loading loading-spinner loading-xs" />Generating...</> : generatedPrompt ? 'Regenerate' : 'Generate starter'}
+            <button
+              type="button"
+              className="btn btn-primary btn-sm rounded-2xl"
+              disabled={starterPromptState === 'generating'}
+              onClick={onGenerateStarterPrompt}
+            >
+              {starterPromptState === 'generating' ? (
+                <>
+                  <span className="loading loading-spinner loading-xs" />
+                  Generating...
+                </>
+              ) : generatedPrompt ? (
+                'Regenerate'
+              ) : (
+                'Generate starter'
+              )}
             </button>
-            <button type="button" className="btn btn-ghost btn-sm rounded-2xl" onClick={onSkipStarterPrompt}>Skip generation</button>
+            <button type="button" className="btn btn-ghost btn-sm rounded-2xl" onClick={onSkipStarterPrompt}>
+              Skip generation
+            </button>
           </div>
         </div>
-        {generatedPrompt ? <p className="rounded-2xl bg-base-100 p-3 text-sm leading-6 text-base-content/75">{generatedPrompt.text}</p> : null}
+        {generatedPrompt ? (
+          <p className="rounded-2xl bg-base-100 p-3 text-sm leading-6 text-base-content/75">{generatedPrompt.text}</p>
+        ) : null}
         <label className="form-control">
           <span className="label-text text-sm font-medium">Optional goal/topic for review context</span>
           <input
@@ -53,7 +82,14 @@ export function WritingEditorCard({
             placeholder="Example: practice giving reasons, describing a memory, or responding to a CET topic."
           />
         </label>
-        {starterPromptError ? <div className="alert alert-error py-2 text-sm"><span>{starterPromptError}</span><button type="button" className="btn btn-error btn-xs" onClick={onGenerateStarterPrompt}>Retry</button></div> : null}
+        {starterPromptError ? (
+          <div className="alert alert-error py-2 text-sm">
+            <span>{starterPromptError}</span>
+            <button type="button" className="btn btn-error btn-xs" onClick={onGenerateStarterPrompt}>
+              Retry
+            </button>
+          </div>
+        ) : null}
       </div>
 
       {highlightedContent ? (

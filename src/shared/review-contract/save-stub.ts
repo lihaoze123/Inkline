@@ -32,7 +32,9 @@ export class ReviewSaveStub {
   summary(): SaveSimulationSummary {
     return {
       savedReviewRunIds: Array.from(this.savedRuns.keys()).sort(),
-      patternCountIncrements: Object.fromEntries(Array.from(this.patternCountIncrements.entries()).sort(([left], [right]) => left.localeCompare(right))),
+      patternCountIncrements: Object.fromEntries(
+        Array.from(this.patternCountIncrements.entries()).sort(([left], [right]) => left.localeCompare(right)),
+      ),
       rewriteTaskIds: Array.from(this.rewriteTaskIds).sort(),
       referenceRewriteIds: Array.from(this.referenceRewriteIds).sort(),
       selfRepairAttemptIds: Array.from(this.selfRepairAttemptIds).sort(),
@@ -42,7 +44,10 @@ export class ReviewSaveStub {
   private applyOperations(reviewRunId: string, operations: PreviewOperations): void {
     operations.patternOperations.forEach((operation) => {
       if (operation.kind === 'reuse_pattern') {
-        this.patternCountIncrements.set(operation.patternId, (this.patternCountIncrements.get(operation.patternId) ?? 0) + 1);
+        this.patternCountIncrements.set(
+          operation.patternId,
+          (this.patternCountIncrements.get(operation.patternId) ?? 0) + 1,
+        );
       }
     });
 

@@ -12,7 +12,9 @@ type OpenAiCompatibleRuntimeConfig = {
   model: string;
 };
 
-type ReviewStructuredGeneration = <Output>(input: Parameters<typeof generateStructuredObject<Output>>[0]) => Promise<Awaited<ReturnType<typeof generateStructuredObject<Output>>>>;
+type ReviewStructuredGeneration = <Output>(
+  input: Parameters<typeof generateStructuredObject<Output>>[0],
+) => Promise<Awaited<ReturnType<typeof generateStructuredObject<Output>>>>;
 
 type OpenAiCompatibleAgentOptions = Partial<Omit<OpenAiCompatibleRuntimeConfig, 'provider'>> & {
   apiKey?: string | null;
@@ -55,9 +57,15 @@ function buildRuntimeConfigFromOptions(
 
 export function createOpenAiCompatibleReviewAgent(options: OpenAiCompatibleAgentOptions = {}): ReviewAgent {
   return async (request): Promise<ReviewAgentResponse> => {
-    const runtimeConfig = options.apiKey !== undefined && options.baseUrl && options.model
-      ? { provider: 'openai-compatible' as const, apiKey: options.apiKey, baseUrl: options.baseUrl, model: options.model }
-      : await (options.getRuntimeConfig ?? loadDefaultRuntimeConfig)();
+    const runtimeConfig =
+      options.apiKey !== undefined && options.baseUrl && options.model
+        ? {
+            provider: 'openai-compatible' as const,
+            apiKey: options.apiKey,
+            baseUrl: options.baseUrl,
+            model: options.model,
+          }
+        : await (options.getRuntimeConfig ?? loadDefaultRuntimeConfig)();
     const generation = options.generateStructured ?? generateStructuredObject;
     const result = await generation({
       runtimeConfig: buildRuntimeConfigFromOptions(options, runtimeConfig),

@@ -3,7 +3,11 @@ import { eq } from 'drizzle-orm';
 import { db } from '../../../db/client';
 import { writingAttempts, writingRevisions, reviewRuns } from '../../../db/schema';
 import { getWritingTemplate } from '../../../../shared/writing/templates';
-import { validateReviewResult, type PreviewOperations, type ReviewValidationResult } from '../../../../shared/review-contract';
+import {
+  validateReviewResult,
+  type PreviewOperations,
+  type ReviewValidationResult,
+} from '../../../../shared/review-contract';
 import {
   reviewProgressEventSchema,
   reviewRunSummarySchema,
@@ -56,7 +60,12 @@ function createPhaseTimingState(startedAt: number): PhaseTimingState {
   };
 }
 
-function beginPhase(runId: string, timingState: PhaseTimingState, phase: ReviewProgressPhase, onProgress: StartReviewOptions['onProgress']): void {
+function beginPhase(
+  runId: string,
+  timingState: PhaseTimingState,
+  phase: ReviewProgressPhase,
+  onProgress: StartReviewOptions['onProgress'],
+): void {
   const at = Date.now();
   timingState.currentPhase = phase;
   timingState.phaseStartedAt = at;
@@ -69,7 +78,11 @@ function beginPhase(runId: string, timingState: PhaseTimingState, phase: ReviewP
   });
 }
 
-function completeCurrentPhase(runId: string, timingState: PhaseTimingState, onProgress: StartReviewOptions['onProgress']): void {
+function completeCurrentPhase(
+  runId: string,
+  timingState: PhaseTimingState,
+  onProgress: StartReviewOptions['onProgress'],
+): void {
   const phase = timingState.currentPhase;
   const phaseStartedAt = timingState.phaseStartedAt;
   if (!phase || phaseStartedAt === null) {
@@ -119,7 +132,10 @@ function emitProgress(onProgress: StartReviewOptions['onProgress'], event: Revie
   onProgress?.(reviewProgressEventSchema.parse(event));
 }
 
-export async function startReview(input: StartReviewInput, options: StartReviewOptions = {}): Promise<StartReviewOutput> {
+export async function startReview(
+  input: StartReviewInput,
+  options: StartReviewOptions = {},
+): Promise<StartReviewOutput> {
   const parseResult = startReviewInputSchema.safeParse(input);
   if (!parseResult.success) {
     return { success: false, error: parseResult.error.issues[0].message };
@@ -127,15 +143,27 @@ export async function startReview(input: StartReviewInput, options: StartReviewO
 
   const hasDisclosureAcknowledgement = options.hasDisclosureAcknowledgement ?? hasReviewDisclosureAcknowledgement;
   if (!hasDisclosureAcknowledgement()) {
-    return { success: false, disclosureRequired: true, error: 'Provider disclosure acknowledgement is required before review.' };
+    return {
+      success: false,
+      disclosureRequired: true,
+      error: 'Provider disclosure acknowledgement is required before review.',
+    };
   }
 
-  const revision = db.select().from(writingRevisions).where(eq(writingRevisions.id, parseResult.data.writingRevisionId)).get();
+  const revision = db
+    .select()
+    .from(writingRevisions)
+    .where(eq(writingRevisions.id, parseResult.data.writingRevisionId))
+    .get();
   if (!revision || revision.writingAttemptId !== parseResult.data.writingAttemptId) {
     return { success: false, error: 'Current writing revision was not found.' };
   }
 
-  const entry = db.select().from(writingAttempts).where(eq(writingAttempts.id, parseResult.data.writingAttemptId)).get();
+  const entry = db
+    .select()
+    .from(writingAttempts)
+    .where(eq(writingAttempts.id, parseResult.data.writingAttemptId))
+    .get();
   if (!entry || entry.activeRevisionId !== revision.id) {
     return { success: false, error: 'Review requires the current active writing revision.' };
   }
@@ -147,7 +175,9 @@ export async function startReview(input: StartReviewInput, options: StartReviewO
 
   const settings = options.settings ?? (await getSettingsSnapshot());
   const reviewProviderMetadata = getReviewProviderMetadata(settings);
-  const generatedPrompt = entry.generatedPromptJson ? (JSON.parse(entry.generatedPromptJson) as { text?: unknown }).text : null;
+  const generatedPrompt = entry.generatedPromptJson
+    ? (JSON.parse(entry.generatedPromptJson) as { text?: unknown }).text
+    : null;
   const template = getWritingTemplate(entry.templateId);
   const reviewInput = buildReviewInput({
     writingContent: revision.content,
@@ -227,7 +257,11 @@ export async function startReview(input: StartReviewInput, options: StartReviewO
         .returning()
         .get();
 
-      return { success: false, reviewRun: reviewRunToSnapshot(failedRun), error: 'Review output did not pass validation.' };
+      return {
+        success: false,
+        reviewRun: reviewRunToSnapshot(failedRun),
+        error: 'Review output did not pass validation.',
+      };
     }
 
     completeCurrentPhase(reviewRunId, timingState, options.onProgress);
@@ -297,7 +331,9 @@ export async function startReview(input: StartReviewInput, options: StartReviewO
   }
 }
 
-function getReviewProviderMetadata(settings: ReviewSettingsSnapshot): Pick<ReviewSettingsSnapshot, 'provider' | 'model'> {
+function getReviewProviderMetadata(
+  settings: ReviewSettingsSnapshot,
+): Pick<ReviewSettingsSnapshot, 'provider' | 'model'> {
   const providerSettings = getProviderSettingsForFeature(settings, 'review');
   return {
     provider: providerSettings.provider,
@@ -343,7 +379,8 @@ function statsFromOperations(operations: PreviewOperations | null): ReviewRunSum
 
   return {
     anchoredCorrections: operations.corrections.filter((correction) => correction.status !== 'low_confidence').length,
-    lowConfidenceCorrections: operations.corrections.filter((correction) => correction.status === 'low_confidence').length,
+    lowConfidenceCorrections: operations.corrections.filter((correction) => correction.status === 'low_confidence')
+      .length,
     generatedRewriteTasks: operations.rewritePractice.length,
     generatedSelfRepairAttempts: operations.selfRepair ? 1 : 0,
     generatedReferenceRewrites: operations.referenceRewrites.length,
@@ -353,12 +390,12 @@ function statsFromOperations(operations: PreviewOperations | null): ReviewRunSum
 function classifyReviewError(message: string): ReviewErrorCategory {
   const normalizedMessage = message.toLowerCase();
   if (
-    normalizedMessage.includes('provider api key')
-    || normalizedMessage.includes('api key is not configured')
-    || normalizedMessage.includes('api key is unavailable')
-    || normalizedMessage.includes('base url')
-    || normalizedMessage.includes('model')
-    || normalizedMessage.includes('keychain')
+    normalizedMessage.includes('provider api key') ||
+    normalizedMessage.includes('api key is not configured') ||
+    normalizedMessage.includes('api key is unavailable') ||
+    normalizedMessage.includes('base url') ||
+    normalizedMessage.includes('model') ||
+    normalizedMessage.includes('keychain')
   ) {
     return 'missing_config';
   }

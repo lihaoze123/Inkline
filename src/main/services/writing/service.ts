@@ -163,13 +163,22 @@ function getMostRecentStaleReview(attemptId: string): ReviewRun | undefined {
 function getPendingRewritePractice(now = new Date()): RewriteTaskRow | null {
   const cutoff = new Date(now.getTime() - REWRITE_PRACTICE_MAX_AGE_MS);
 
-  return db
-    .select()
-    .from(rewriteTasks)
-    .where(and(eq(rewriteTasks.status, 'pending'), eq(rewriteTasks.kind, 'rewrite_original'), lte(rewriteTasks.dueAt, now), gte(rewriteTasks.createdAt, cutoff)))
-    .orderBy(desc(rewriteTasks.dueAt), desc(rewriteTasks.createdAt))
-    .all()
-    .find((task) => task.spacedStage === 'D+1') ?? null;
+  return (
+    db
+      .select()
+      .from(rewriteTasks)
+      .where(
+        and(
+          eq(rewriteTasks.status, 'pending'),
+          eq(rewriteTasks.kind, 'rewrite_original'),
+          lte(rewriteTasks.dueAt, now),
+          gte(rewriteTasks.createdAt, cutoff),
+        ),
+      )
+      .orderBy(desc(rewriteTasks.dueAt), desc(rewriteTasks.createdAt))
+      .all()
+      .find((task) => task.spacedStage === 'D+1') ?? null
+  );
 }
 
 function buildSnapshot(entry: WritingAttempt): WritingAttemptSnapshot {
@@ -256,7 +265,11 @@ export async function generateStarterPrompt(input: GenerateStarterPromptInput): 
   }
 
   if (!(await hasStarterPromptDisclosureAcknowledgement())) {
-    return { success: false, disclosureRequired: true, error: 'Provider disclosure acknowledgement is required before generating a starter prompt.' };
+    return {
+      success: false,
+      disclosureRequired: true,
+      error: 'Provider disclosure acknowledgement is required before generating a starter prompt.',
+    };
   }
 
   const template = getWritingTemplate(parseResult.data.templateId);
@@ -329,15 +342,17 @@ export function saveWritingAttempt(input: SaveWritingAttemptInput): SaveWritingA
       .returning()
       .get();
 
-    tx.update(writingAttempts).set({ activeRevisionId: revision.id, userGoal: normalizedUserGoal }).where(eq(writingAttempts.id, entry.id)).run();
+    tx.update(writingAttempts)
+      .set({ activeRevisionId: revision.id, userGoal: normalizedUserGoal })
+      .where(eq(writingAttempts.id, entry.id))
+      .run();
 
     if (entry.lastReviewRunId) {
       const lastReviewRun = tx.select().from(reviewRuns).where(eq(reviewRuns.id, entry.lastReviewRunId)).get();
 
       if (lastReviewRun?.status === 'review_saved' && lastReviewRun.contentHash !== contentHash) {
         tx.update(reviewRuns).set({ status: 'stale' }).where(eq(reviewRuns.id, lastReviewRun.id)).run();
-        tx
-          .update(writingAttempts)
+        tx.update(writingAttempts)
           .set({ lastReviewRunId: null, reviewedAt: null })
           .where(eq(writingAttempts.id, entry.id))
           .run();
@@ -368,7 +383,9 @@ export function completeRewritePractice(input: CompleteRewritePracticeInput): Re
   }
 
   const reviewRun = db.select().from(reviewRuns).where(eq(reviewRuns.id, task.reviewRunId)).get();
-  const entry = reviewRun ? db.select().from(writingAttempts).where(eq(writingAttempts.id, reviewRun.writingAttemptId)).get() : undefined;
+  const entry = reviewRun
+    ? db.select().from(writingAttempts).where(eq(writingAttempts.id, reviewRun.writingAttemptId)).get()
+    : undefined;
   const currentWriting = entry ? buildSnapshot(entry) : getWritingAttempt();
 
   if (task.status !== 'pending' && task.status !== 'in_progress') {
@@ -402,7 +419,9 @@ export function skipRewritePractice(input: SkipRewritePracticeInput): RewritePra
   }
 
   const reviewRun = db.select().from(reviewRuns).where(eq(reviewRuns.id, task.reviewRunId)).get();
-  const entry = reviewRun ? db.select().from(writingAttempts).where(eq(writingAttempts.id, reviewRun.writingAttemptId)).get() : undefined;
+  const entry = reviewRun
+    ? db.select().from(writingAttempts).where(eq(writingAttempts.id, reviewRun.writingAttemptId)).get()
+    : undefined;
   const currentWriting = entry ? buildSnapshot(entry) : getWritingAttempt();
 
   if (task.status !== 'pending' && task.status !== 'in_progress') {

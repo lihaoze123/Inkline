@@ -35,7 +35,14 @@ export const staleReviewSchema = z.object({
   createdAt: z.number(),
 });
 
-export const rewritePracticeStatusSchema = z.enum(['pending', 'in_progress', 'completed', 'skipped', 'snoozed', 'expired']);
+export const rewritePracticeStatusSchema = z.enum([
+  'pending',
+  'in_progress',
+  'completed',
+  'skipped',
+  'snoozed',
+  'expired',
+]);
 
 export const rewritePracticeSnapshotSchema = z.object({
   id: z.string().min(1),
