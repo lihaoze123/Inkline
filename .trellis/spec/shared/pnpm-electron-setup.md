@@ -427,6 +427,107 @@ new VitePlugin({
 
 ---
 
+## Scenario: Electron Forge Vite Renderer Output with Custom Root
+
+### 1. Scope / Trigger
+
+- Trigger: Any Electron Forge + Vite renderer config that sets `root` to a subdirectory such as `src/renderer`.
+- This applies to packaged apps because the main process loads renderer files from the packaged app root, not from the renderer source root.
+
+### 2. Signatures
+
+Main process packaged renderer load path:
+
+```typescript
+void mainWindow.loadFile(path.join(__dirname, `../renderer/${MAIN_WINDOW_VITE_NAME}/index.html`));
+```
+
+Renderer Forge target:
+
+```typescript
+new VitePlugin({
+  renderer: [{ name: 'main_window', config: 'vite.renderer.config.ts' }],
+});
+```
+
+Renderer Vite output when using a custom root:
+
+```typescript
+export default defineConfig({
+  root: path.resolve(__dirname, 'src/renderer'),
+  build: {
+    outDir: path.resolve(__dirname, '.vite/renderer/main_window'),
+    emptyOutDir: true,
+  },
+});
+```
+
+### 3. Contracts
+
+| Field | Type | Constraint |
+| --- | --- | --- |
+| `renderer[].name` | string | Must match the folder segment used by `MAIN_WINDOW_VITE_NAME`; e.g. `main_window`. |
+| `vite.renderer.config.ts.root` | absolute path | May point to `src/renderer`, but then `build.outDir` must be absolute. |
+| `build.outDir` | absolute path | Must resolve to project-root `.vite/renderer/<window-name>`, not `<root>/.vite/renderer/<window-name>`. |
+| Packaged ASAR entry | file path | Must include `/.vite/renderer/<window-name>/index.html`. |
+
+### 4. Validation & Error Matrix
+
+| Condition | Behavior |
+| --- | --- |
+| `root` is `src/renderer` and `build.outDir` is omitted | Vite writes `src/renderer/.vite/renderer/<window-name>/index.html`; packaged app misses root `.vite/renderer/...`. |
+| Packaged ASAR lacks `/.vite/renderer/<window-name>/index.html` | Electron logs `Failed to load URL ... ERR_FILE_NOT_FOUND` when creating the window. |
+| `build.outDir` uses project-root absolute `.vite/renderer/<window-name>` | Forge packages the renderer entry at the path the main process loads. |
+| `renderer[].name` changes without updating `build.outDir` | Build can succeed but the packaged main process loads the wrong directory. |
+
+### 5. Good/Base/Bad Cases
+
+- Good: `vite.renderer.config.ts` sets `root: path.resolve(__dirname, 'src/renderer')` and absolute `build.outDir: path.resolve(__dirname, '.vite/renderer/main_window')`; `app.asar` contains `/.vite/renderer/main_window/index.html`.
+- Base: A renderer config that does not override `root` can rely on Forge Vite's default relative `.vite/renderer/<window-name>` output.
+- Bad: `root` points to `src/renderer` while `outDir` is omitted or relative; renderer files are generated under `src/renderer/.vite`, outside the packaged app root expected by Electron.
+
+### 6. Tests Required
+
+- Renderer build smoke:
+  - Run `pnpm exec vite build --config vite.renderer.config.ts`.
+  - Assert `.vite/renderer/<window-name>/index.html` exists at the project root.
+- Package smoke:
+  - Run `pnpm package`.
+  - Assert `pnpm exec asar list out/<app>-linux-x64/resources/app.asar` includes `/.vite/renderer/<window-name>/index.html`.
+- Runtime smoke:
+  - Launch the packaged binary long enough to create the main window.
+  - Assert there is no `ERR_FILE_NOT_FOUND` or `Failed to load URL` for `.vite/renderer/<window-name>/index.html`.
+
+### 7. Wrong vs Correct
+
+#### Wrong
+
+```typescript
+export default defineConfig({
+  root: path.resolve(__dirname, 'src/renderer'),
+  plugins: [react()],
+});
+```
+
+This writes the production renderer output under `src/renderer/.vite/renderer/main_window`, while the packaged main process resolves `../renderer/main_window/index.html` from app-root `.vite/build`.
+
+#### Correct
+
+```typescript
+export default defineConfig({
+  root: path.resolve(__dirname, 'src/renderer'),
+  plugins: [react()],
+  build: {
+    outDir: path.resolve(__dirname, '.vite/renderer/main_window'),
+    emptyOutDir: true,
+  },
+});
+```
+
+Keep the renderer source root for Vite's HTML entry resolution, but make the output directory absolute so Forge packages the renderer beside `.vite/build` at the app root.
+
+---
+
 ## 常见问题排查
 
 ### 问题 1：`Cannot find module 'better-sqlite3'`
