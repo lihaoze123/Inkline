@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import type { StartupStatus } from '@shared/types/app';
 import type { WritingAttemptSnapshot, WritingTemplateId } from '@shared/types/writing';
 import { WRITING_TEMPLATES } from '@shared/writing/templates';
@@ -14,11 +15,9 @@ import { SettingsDrawer } from './components/SettingsDrawer';
 import { PracticeHeader } from './components/PracticeHeader';
 import { getFocusCorrection } from './components/review-utils';
 import type { AppStatusModel, ReviewProgressModel, ReviewState, SaveState } from './components/types';
-
-type LoadState =
-  | { status: 'loading' }
-  | { status: 'ready'; writing: WritingAttemptSnapshot; settings: SettingsSnapshot; startup: StartupStatus }
-  | { status: 'error'; message: string };
+import { useFoundationState } from './query/foundation';
+import { queryKeys } from './query/keys';
+import { updateWritingAttemptCache, useSaveWritingAttempt, useWritingAttempt } from './query/writing';
 
 const AUTOSAVE_DELAY_MS = 900;
 
@@ -32,38 +31,9 @@ function emptyReviewProgress(): ReviewProgressModel {
 }
 
 export function App(): React.JSX.Element {
-  const [loadState, setLoadState] = useState<LoadState>({ status: 'loading' });
+  const foundationState = useFoundationState();
 
-  useEffect(() => {
-    let cancelled = false;
-
-    async function loadFoundationState(): Promise<void> {
-      try {
-        const [writing, settings, startup] = await Promise.all([
-          window.api.writing.getCurrentAttempt(),
-          window.api.settings.get(),
-          window.api.app.getStartupStatus(),
-        ]);
-
-        if (!cancelled) {
-          setLoadState({ status: 'ready', writing, settings, startup });
-        }
-      } catch (error) {
-        const message = error instanceof Error ? error.message : 'Unable to load application state.';
-        if (!cancelled) {
-          setLoadState({ status: 'error', message });
-        }
-      }
-    }
-
-    void loadFoundationState();
-
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  if (loadState.status === 'loading') {
+  if (foundationState.status === 'loading') {
     return (
       <main className="grid min-h-screen place-items-center bg-base-200 p-8">
         <div className="rounded-[2rem] border border-base-300 bg-base-100 p-8 text-center shadow-xl">
@@ -74,17 +44,17 @@ export function App(): React.JSX.Element {
     );
   }
 
-  if (loadState.status === 'error') {
+  if (foundationState.status === 'error') {
     return (
       <main className="grid min-h-screen place-items-center bg-base-200 p-8">
         <div className="alert alert-error max-w-lg rounded-[1.5rem] shadow-xl">
-          <span>{loadState.message}</span>
+          <span>{foundationState.message}</span>
         </div>
       </main>
     );
   }
 
-  return <PracticePage initialWriting={loadState.writing} settings={loadState.settings} startup={loadState.startup} />;
+  return <PracticePage initialWriting={foundationState.data.writing} settings={foundationState.data.settings} startup={foundationState.data.startup} />;
 }
 
 type PracticePageProps = {
@@ -94,9 +64,15 @@ type PracticePageProps = {
 };
 
 function PracticePage({ initialWriting, settings, startup }: PracticePageProps): React.JSX.Element {
+  const queryClient = useQueryClient();
   const [appSettings, setAppSettings] = useState(settings);
-  const [writing, setWriting] = useState(initialWriting);
   const [selectedTemplateId, setSelectedTemplateId] = useState<WritingTemplateId>(initialWriting.templateId);
+  const writingQuery = useWritingAttempt({
+    templateId: selectedTemplateId,
+    initialData: selectedTemplateId === initialWriting.templateId ? initialWriting : undefined,
+  });
+  const { mutateAsync: saveWritingAttempt } = useSaveWritingAttempt();
+  const writing = writingQuery.data ?? initialWriting;
   const [content, setContent] = useState(initialWriting.activeRevision?.content ?? '');
   const [userGoal, setUserGoal] = useState(initialWriting.userGoal ?? '');
   const [starterPromptState, setStarterPromptState] = useState<'idle' | 'generating' | 'error'>('idle');
@@ -129,6 +105,10 @@ function PracticePage({ initialWriting, settings, startup }: PracticePageProps):
   const lastSavedContentRef = useRef(initialWriting.activeRevision?.content ?? '');
   const activeReviewRef = useRef(false);
 
+  const updateWritingCache = useCallback((nextWriting: WritingAttemptSnapshot): void => {
+    updateWritingAttemptCache(queryClient, nextWriting);
+  }, [queryClient]);
+
   const hasWritten = content.trim().length > 0;
   const appStatus = useMemo(() => getAppStatus(startup, appSettings), [appSettings, startup]);
   const focusCorrection = reviewPreview ? getFocusCorrection(reviewPreview) : null;
@@ -153,9 +133,11 @@ function PracticePage({ initialWriting, settings, startup }: PracticePageProps):
   }, []);
 
   const selectTemplate = useCallback(async (templateId: WritingTemplateId): Promise<void> => {
-    const nextWriting = await window.api.writing.getWritingAttempt({ templateId });
+    const nextWriting = await queryClient.fetchQuery({
+      queryKey: queryKeys.writing.attempt(templateId),
+      queryFn: () => window.api.writing.getWritingAttempt({ templateId }),
+    });
     setSelectedTemplateId(templateId);
-    setWriting(nextWriting);
     setContent(nextWriting.activeRevision?.content ?? '');
     setUserGoal(nextWriting.userGoal ?? '');
     lastSavedContentRef.current = nextWriting.activeRevision?.content ?? '';
@@ -167,16 +149,15 @@ function PracticePage({ initialWriting, settings, startup }: PracticePageProps):
     setRewritePracticeInput('');
     setStarterPromptError(null);
     setStarterPromptState('idle');
-  }, []);
+  }, [queryClient]);
 
   const saveContent = useCallback(async (nextContent: string): Promise<void> => {
     setSaveState('saving');
     setSaveError(null);
 
     try {
-      const savedWriting = await window.api.writing.saveWritingAttempt({ templateId: selectedTemplateId, content: nextContent, userGoal });
+      const savedWriting = await saveWritingAttempt({ templateId: selectedTemplateId, content: nextContent, userGoal });
       lastSavedContentRef.current = savedWriting.activeRevision?.content ?? nextContent;
-      setWriting(savedWriting);
       if (savedWriting.staleReview) {
         setReviewPreview(null);
         setLatestReviewRun(null);
@@ -187,7 +168,7 @@ function PracticePage({ initialWriting, settings, startup }: PracticePageProps):
       setSaveError(message);
       setSaveState('error');
     }
-  }, [selectedTemplateId, userGoal]);
+  }, [saveWritingAttempt, selectedTemplateId, userGoal]);
 
   useEffect(() => {
     if (content === lastSavedContentRef.current) {
@@ -244,7 +225,7 @@ function PracticePage({ initialWriting, settings, startup }: PracticePageProps):
         const preview = await window.api.review.getPreview({ reviewRunId: result.reviewRun.id });
         setReviewPreview(preview);
         setReviewState(preview ? 'ready' : 'failed');
-        setWriting(await window.api.writing.getWritingAttempt({ templateId: targetWriting.templateId }));
+        await queryClient.invalidateQueries({ queryKey: queryKeys.writing.attempt(targetWriting.templateId) });
         if (!preview) {
           setReviewError('Review preview is unavailable.');
         }
@@ -257,13 +238,12 @@ function PracticePage({ initialWriting, settings, startup }: PracticePageProps):
       activeReviewRef.current = false;
       throw error;
     }
-  }, []);
+  }, [queryClient]);
 
   const reviewCurrentContent = useCallback(async (): Promise<void> => {
     try {
-      const savedWriting = await window.api.writing.saveWritingAttempt({ templateId: selectedTemplateId, content, userGoal });
+      const savedWriting = await saveWritingAttempt({ templateId: selectedTemplateId, content, userGoal });
       lastSavedContentRef.current = savedWriting.activeRevision?.content ?? content;
-      setWriting(savedWriting);
       setSaveState('saved');
       await startReviewForWriting(savedWriting);
     } catch (error) {
@@ -271,7 +251,7 @@ function PracticePage({ initialWriting, settings, startup }: PracticePageProps):
       setReviewState('failed');
       setReviewError(message);
     }
-  }, [content, selectedTemplateId, startReviewForWriting, userGoal]);
+  }, [content, saveWritingAttempt, selectedTemplateId, startReviewForWriting, userGoal]);
 
   const generateStarterPrompt = useCallback(async (): Promise<void> => {
     setStarterPromptState('generating');
@@ -285,7 +265,7 @@ function PracticePage({ initialWriting, settings, startup }: PracticePageProps):
     }
 
     if (result.success && result.writing) {
-      setWriting(result.writing);
+      updateWritingCache(result.writing);
       setUserGoal(result.writing.userGoal ?? userGoal);
       setStarterPromptState('idle');
       return;
@@ -293,7 +273,7 @@ function PracticePage({ initialWriting, settings, startup }: PracticePageProps):
 
     setStarterPromptState('error');
     setStarterPromptError(result.error ?? 'Starter prompt generation failed.');
-  }, [selectedTemplateId, userGoal]);
+  }, [selectedTemplateId, updateWritingCache, userGoal]);
 
   const acknowledgeStarterDisclosureAndGenerate = useCallback(async (): Promise<void> => {
     await window.api.writing.acknowledgeStarterPromptDisclosure({ acknowledged: true });
@@ -320,14 +300,14 @@ function PracticePage({ initialWriting, settings, startup }: PracticePageProps):
     });
 
     if (result.success && result.writing) {
-      setWriting(result.writing);
+      updateWritingCache(result.writing);
       setReviewState('saved');
       return;
     }
 
     setReviewState('failed');
     setReviewError(result.error ?? 'Unable to save review.');
-  }, [modelAnswerRevealed, reviewPreview, selfRepairAttempt]);
+  }, [modelAnswerRevealed, reviewPreview, selfRepairAttempt, updateWritingCache]);
 
   const completePendingRewritePractice = useCallback(async (): Promise<void> => {
     if (!writing.pendingRewritePractice) {
@@ -341,14 +321,14 @@ function PracticePage({ initialWriting, settings, startup }: PracticePageProps):
     });
 
     if (result.success && result.writing && result.rewritePractice) {
-      setWriting(result.writing);
+      updateWritingCache(result.writing);
       setCompletedRewritePractice(result.rewritePractice);
       setRewritePracticeInput(result.rewritePractice.userRewriteText ?? rewritePracticeInput.trim());
       return;
     }
 
     setRewritePracticeError(result.error ?? 'Unable to complete rewrite practice.');
-  }, [writing.pendingRewritePractice, rewritePracticeInput]);
+  }, [updateWritingCache, writing.pendingRewritePractice, rewritePracticeInput]);
 
   const skipPendingRewritePractice = useCallback(async (): Promise<void> => {
     if (!writing.pendingRewritePractice) {
@@ -359,14 +339,14 @@ function PracticePage({ initialWriting, settings, startup }: PracticePageProps):
     const result = await window.api.writing.skipRewritePractice({ rewriteTaskId: writing.pendingRewritePractice.id });
 
     if (result.success && result.writing) {
-      setWriting(result.writing);
+      updateWritingCache(result.writing);
       setCompletedRewritePractice(null);
       setRewritePracticeInput('');
       return;
     }
 
     setRewritePracticeError(result.error ?? 'Unable to skip rewrite practice.');
-  }, [writing.pendingRewritePractice]);
+  }, [updateWritingCache, writing.pendingRewritePractice]);
 
   const acknowledgeDisclosureAndReview = useCallback(async (): Promise<void> => {
     await window.api.review.acknowledgeDisclosure({ acknowledged: true });
