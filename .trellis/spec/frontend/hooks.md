@@ -167,6 +167,10 @@ export const queryKeys = {
   writing: {
     attempt: (templateId: WritingTemplateId) => ['writing', 'attempt', templateId] as const,
   },
+  review: {
+    run: (reviewRunId: string) => ['review', 'run', reviewRunId] as const,
+    preview: (reviewRunId: string) => ['review', 'preview', reviewRunId] as const,
+  },
 } as const;
 ```
 
@@ -187,13 +191,23 @@ export function useSaveWritingAttempt(): UseMutationResult<
   Error,
   SaveWritingAttemptInput
 >;
+
+export function useStartReview(): UseMutationResult<
+  StartReviewOutput,
+  Error,
+  StartReviewInput & { templateId: WritingTemplateId }
+>;
+
+export function useSettingsSnapshot(initialData?: SettingsSnapshot): UseQueryResult<SettingsSnapshot>;
+export function useSetProviderConfig(): UseMutationResult<SettingsSnapshot, Error, SetProviderConfigInput>;
 ```
 
 ### 3. Contracts
 
 - `QueryClientProvider` must wrap the renderer app before any component calls `useQuery`, `useMutation`, or `useQueryClient`.
 - Query functions call the typed preload API only, e.g. `window.api.writing.getWritingAttempt({ templateId })`. Renderer query hooks must not import Electron, Node APIs, database modules, or main-process services.
-- Query keys must include every input that changes returned data. For example, writing attempt data is keyed by `templateId`.
+- Query keys must include every input that changes returned data. For example, writing attempt data is keyed by `templateId`, while review preview data is keyed by `reviewRunId`.
+- Settings are a singleton snapshot keyed by `queryKeys.settings.snapshot`; successful settings/config mutations should update that cache when they return a fresh snapshot, and credential mutations should invalidate it when the snapshot must be refetched.
 - Local IPC query defaults should be conservative:
   - `retry: false`
   - `refetchOnWindowFocus: false`
@@ -210,13 +224,16 @@ export function useSaveWritingAttempt(): UseMutationResult<
 | Local IPC query fails because configuration is missing | Do not retry repeatedly; show the returned error/configuration state. |
 | Mutation succeeds and returns a fresh snapshot | `setQueryData(queryKeys.<domain>..., snapshot)` updates the cache. |
 | Mutation succeeds but affects related data not returned in response | `invalidateQueries({ queryKey })` refetches the affected cache entries. |
+| Review start emits progress events while also returning snapshots | Keep progress events in local React state; cache the final run/preview snapshots by `reviewRunId`. |
+| Provider credential mutation succeeds but does not return a full settings snapshot | Invalidate `queryKeys.settings.snapshot` so credential status refetches. |
 | Autosave mutation fails | Keep local draft state unchanged and show autosave error state. |
-| Query key omits an input such as `templateId` | This is invalid because cache entries can bleed across templates/entities. |
+| Query key omits an input such as `templateId` or `reviewRunId` | This is invalid because cache entries can bleed across templates/entities/runs. |
 
 ### 5. Good/Base/Bad Cases
 
 - Good: `useWritingAttempt({ templateId })` calls `window.api.writing.getWritingAttempt({ templateId })`, keys by `['writing', 'attempt', templateId]`, and autosave writes the returned snapshot into that same cache key.
-- Base: A review-start mutation invalidates the active writing-attempt query after review state changes because the mutation flow does not directly own every derived field.
+- Good: settings/provider mutations that return `SettingsSnapshot` update `queryKeys.settings.snapshot`; credential-only mutations invalidate that singleton settings key.
+- Base: A review-start mutation invalidates the active writing-attempt query after review state changes because the mutation flow does not directly own every derived field, while the progress event stream remains local state.
 - Bad: A component stores IPC snapshots in `useState` and manually tracks loading/error/saved state when a query/mutation hook would provide the same lifecycle.
 - Bad: A query key like `['writing', 'attempt']` is reused for Journal, CET-4, CET-6, and Free Writing.
 - Bad: An autosave failure replaces the editor's local draft with stale cached content.

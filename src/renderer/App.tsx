@@ -17,7 +17,23 @@ import { getFocusCorrection } from './components/review-utils';
 import type { AppStatusModel, ReviewProgressModel, ReviewState, SaveState } from './components/types';
 import { useFoundationState } from './query/foundation';
 import { queryKeys } from './query/keys';
-import { updateWritingAttemptCache, useSaveWritingAttempt, useWritingAttempt } from './query/writing';
+import { setReviewPreviewCache, useSaveReview, useStartReview } from './query/review';
+import {
+  useDeleteProviderApiKey,
+  useSetDefaultProvider,
+  useSetProviderApiKey,
+  useSetProviderConfig,
+  useSetRawResponseStorage,
+  useSettingsSnapshot,
+} from './query/settings';
+import {
+  updateWritingAttemptCache,
+  useCompleteRewritePractice,
+  useGenerateStarterPrompt,
+  useSaveWritingAttempt,
+  useSkipRewritePractice,
+  useWritingAttempt,
+} from './query/writing';
 
 const AUTOSAVE_DELAY_MS = 900;
 
@@ -65,13 +81,24 @@ type PracticePageProps = {
 
 function PracticePage({ initialWriting, settings, startup }: PracticePageProps): React.JSX.Element {
   const queryClient = useQueryClient();
-  const [appSettings, setAppSettings] = useState(settings);
   const [selectedTemplateId, setSelectedTemplateId] = useState<WritingTemplateId>(initialWriting.templateId);
   const writingQuery = useWritingAttempt({
     templateId: selectedTemplateId,
     initialData: selectedTemplateId === initialWriting.templateId ? initialWriting : undefined,
   });
+  const settingsQuery = useSettingsSnapshot(settings);
+  const appSettings = settingsQuery.data ?? settings;
   const { mutateAsync: saveWritingAttempt } = useSaveWritingAttempt();
+  const { mutateAsync: startReview } = useStartReview();
+  const { mutateAsync: saveReviewMutation } = useSaveReview();
+  const { mutateAsync: generateStarterPromptMutation } = useGenerateStarterPrompt();
+  const { mutateAsync: completeRewritePracticeMutation } = useCompleteRewritePractice();
+  const { mutateAsync: skipRewritePracticeMutation } = useSkipRewritePractice();
+  const { mutateAsync: setDefaultProviderMutation } = useSetDefaultProvider();
+  const { mutateAsync: setProviderConfigMutation } = useSetProviderConfig();
+  const { mutateAsync: setProviderApiKeyMutation } = useSetProviderApiKey();
+  const { mutateAsync: deleteProviderApiKeyMutation } = useDeleteProviderApiKey();
+  const { mutateAsync: setRawResponseStorageMutation } = useSetRawResponseStorage();
   const writing = writingQuery.data ?? initialWriting;
   const [content, setContent] = useState(initialWriting.activeRevision?.content ?? '');
   const [userGoal, setUserGoal] = useState(initialWriting.userGoal ?? '');
@@ -200,7 +227,8 @@ function PracticePage({ initialWriting, settings, startup }: PracticePageProps):
     setModelAnswerRevealed(false);
 
     try {
-      const result = await window.api.review.start({
+      const result = await startReview({
+        templateId: targetWriting.templateId,
         writingAttemptId: targetWriting.attemptId,
         writingRevisionId: targetWriting.activeRevision.id,
       });
@@ -222,7 +250,12 @@ function PracticePage({ initialWriting, settings, startup }: PracticePageProps):
       }
 
       if (result.success === true && result.reviewRun) {
-        const preview = await window.api.review.getPreview({ reviewRunId: result.reviewRun.id });
+        const reviewRun = result.reviewRun;
+        const preview: ReviewPreviewSnapshot | null = result.preview ?? await queryClient.fetchQuery({
+          queryKey: queryKeys.review.preview(reviewRun.id),
+          queryFn: () => window.api.review.getPreview({ reviewRunId: reviewRun.id }),
+        });
+        setReviewPreviewCache(queryClient, { reviewRunId: reviewRun.id }, preview);
         setReviewPreview(preview);
         setReviewState(preview ? 'ready' : 'failed');
         await queryClient.invalidateQueries({ queryKey: queryKeys.writing.attempt(targetWriting.templateId) });
@@ -238,7 +271,7 @@ function PracticePage({ initialWriting, settings, startup }: PracticePageProps):
       activeReviewRef.current = false;
       throw error;
     }
-  }, [queryClient]);
+  }, [queryClient, startReview]);
 
   const reviewCurrentContent = useCallback(async (): Promise<void> => {
     try {
@@ -256,7 +289,7 @@ function PracticePage({ initialWriting, settings, startup }: PracticePageProps):
   const generateStarterPrompt = useCallback(async (): Promise<void> => {
     setStarterPromptState('generating');
     setStarterPromptError(null);
-    const result = await window.api.writing.generateStarterPrompt({ templateId: selectedTemplateId, userGoal });
+    const result = await generateStarterPromptMutation({ templateId: selectedTemplateId, userGoal });
 
     if (result.disclosureRequired) {
       setStarterPromptState('idle');
@@ -273,7 +306,7 @@ function PracticePage({ initialWriting, settings, startup }: PracticePageProps):
 
     setStarterPromptState('error');
     setStarterPromptError(result.error ?? 'Starter prompt generation failed.');
-  }, [selectedTemplateId, updateWritingCache, userGoal]);
+  }, [generateStarterPromptMutation, selectedTemplateId, updateWritingCache, userGoal]);
 
   const acknowledgeStarterDisclosureAndGenerate = useCallback(async (): Promise<void> => {
     await window.api.writing.acknowledgeStarterPromptDisclosure({ acknowledged: true });
@@ -293,7 +326,7 @@ function PracticePage({ initialWriting, settings, startup }: PracticePageProps):
 
     setReviewState('saving');
     setReviewError(null);
-    const result = await window.api.review.save({
+    const result = await saveReviewMutation({
       reviewRunId: reviewPreview.reviewRun.id,
       selfRepairAttemptText: selfRepairAttempt,
       revealedWithoutAttempt: modelAnswerRevealed,
@@ -307,7 +340,7 @@ function PracticePage({ initialWriting, settings, startup }: PracticePageProps):
 
     setReviewState('failed');
     setReviewError(result.error ?? 'Unable to save review.');
-  }, [modelAnswerRevealed, reviewPreview, selfRepairAttempt, updateWritingCache]);
+  }, [modelAnswerRevealed, reviewPreview, saveReviewMutation, selfRepairAttempt, updateWritingCache]);
 
   const completePendingRewritePractice = useCallback(async (): Promise<void> => {
     if (!writing.pendingRewritePractice) {
@@ -315,7 +348,7 @@ function PracticePage({ initialWriting, settings, startup }: PracticePageProps):
     }
 
     setRewritePracticeError(null);
-    const result = await window.api.writing.completeRewritePractice({
+    const result = await completeRewritePracticeMutation({
       rewriteTaskId: writing.pendingRewritePractice.id,
       userRewriteText: rewritePracticeInput,
     });
@@ -328,7 +361,7 @@ function PracticePage({ initialWriting, settings, startup }: PracticePageProps):
     }
 
     setRewritePracticeError(result.error ?? 'Unable to complete rewrite practice.');
-  }, [updateWritingCache, writing.pendingRewritePractice, rewritePracticeInput]);
+  }, [completeRewritePracticeMutation, updateWritingCache, writing.pendingRewritePractice, rewritePracticeInput]);
 
   const skipPendingRewritePractice = useCallback(async (): Promise<void> => {
     if (!writing.pendingRewritePractice) {
@@ -336,7 +369,7 @@ function PracticePage({ initialWriting, settings, startup }: PracticePageProps):
     }
 
     setRewritePracticeError(null);
-    const result = await window.api.writing.skipRewritePractice({ rewriteTaskId: writing.pendingRewritePractice.id });
+    const result = await skipRewritePracticeMutation({ rewriteTaskId: writing.pendingRewritePractice.id });
 
     if (result.success && result.writing) {
       updateWritingCache(result.writing);
@@ -346,7 +379,7 @@ function PracticePage({ initialWriting, settings, startup }: PracticePageProps):
     }
 
     setRewritePracticeError(result.error ?? 'Unable to skip rewrite practice.');
-  }, [updateWritingCache, writing.pendingRewritePractice]);
+  }, [skipRewritePracticeMutation, updateWritingCache, writing.pendingRewritePractice]);
 
   const acknowledgeDisclosureAndReview = useCallback(async (): Promise<void> => {
     await window.api.review.acknowledgeDisclosure({ acknowledged: true });
@@ -358,25 +391,23 @@ function PracticePage({ initialWriting, settings, startup }: PracticePageProps):
     setSettingsError(null);
     setSettingsMessage(null);
     try {
-      const updatedSettings = await window.api.settings.setDefaultProvider({ providerId });
-      setAppSettings(updatedSettings);
+      await setDefaultProviderMutation({ providerId });
       setSettingsMessage('Default provider updated.');
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Unable to update default provider.';
       setSettingsError(message);
     }
-  }, []);
+  }, [setDefaultProviderMutation]);
 
   const saveOpenAiProviderConfig = useCallback(async (): Promise<void> => {
     setSettingsError(null);
     setSettingsMessage(null);
     try {
-      const updatedSettings = await window.api.settings.setProviderConfig({
+      const updatedSettings = await setProviderConfigMutation({
         providerId: 'openai-compatible',
         baseUrl: openAiBaseUrlInput,
         model: openAiModelInput,
       });
-      setAppSettings(updatedSettings);
       setOpenAiBaseUrlInput(updatedSettings.aiModelSettings?.providers['openai-compatible'].baseUrl ?? updatedSettings.baseUrl);
       setOpenAiModelInput(updatedSettings.aiModelSettings?.providers['openai-compatible'].model ?? updatedSettings.model);
       setSettingsMessage('OpenAI-compatible settings saved.');
@@ -384,21 +415,20 @@ function PracticePage({ initialWriting, settings, startup }: PracticePageProps):
       const message = error instanceof Error ? error.message : 'Unable to save OpenAI-compatible settings.';
       setSettingsError(message);
     }
-  }, [openAiBaseUrlInput, openAiModelInput]);
+  }, [openAiBaseUrlInput, openAiModelInput, setProviderConfigMutation]);
 
   const saveAnthropicProviderConfig = useCallback(async (): Promise<void> => {
     setSettingsError(null);
     setSettingsMessage(null);
     try {
-      const updatedSettings = await window.api.settings.setProviderConfig({ providerId: 'anthropic', model: anthropicModelInput });
-      setAppSettings(updatedSettings);
+      const updatedSettings = await setProviderConfigMutation({ providerId: 'anthropic', model: anthropicModelInput });
       setAnthropicModelInput(updatedSettings.aiModelSettings?.providers.anthropic.model ?? updatedSettings.model);
       setSettingsMessage('Anthropic settings saved.');
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Unable to save Anthropic settings.';
       setSettingsError(message);
     }
-  }, [anthropicModelInput]);
+  }, [anthropicModelInput, setProviderConfigMutation]);
 
   const updateProviderApiKeyInput = useCallback((providerId: AiProviderId, value: string): void => {
     setProviderApiKeyInputs((current) => ({ ...current, [providerId]: value }));
@@ -407,34 +437,29 @@ function PracticePage({ initialWriting, settings, startup }: PracticePageProps):
   const saveProviderApiKey = useCallback(async (providerId: AiProviderId): Promise<void> => {
     setSettingsError(null);
     setSettingsMessage(null);
-    const result = await window.api.credentials.setProviderApiKey({ providerId, apiKey: providerApiKeyInputs[providerId] });
+    const result = await setProviderApiKeyMutation({ providerId, apiKey: providerApiKeyInputs[providerId] });
     if (result.success && result.status) {
-      const updatedSettings = await window.api.settings.get();
-      setAppSettings(updatedSettings);
       setProviderApiKeyInputs((current) => ({ ...current, [providerId]: '' }));
       setSettingsMessage('Provider API key saved to the OS keychain.');
       return;
     }
     setSettingsError(result.error ?? 'Unable to save provider API key.');
-  }, [providerApiKeyInputs]);
+  }, [providerApiKeyInputs, setProviderApiKeyMutation]);
 
   const deleteProviderKey = useCallback(async (providerId: AiProviderId): Promise<void> => {
     setSettingsError(null);
     setSettingsMessage(null);
-    const result = await window.api.credentials.deleteProviderApiKey({ providerId });
+    const result = await deleteProviderApiKeyMutation({ providerId });
     if (result.success && result.status) {
-      const updatedSettings = await window.api.settings.get();
-      setAppSettings(updatedSettings);
       setSettingsMessage('Provider API key deleted.');
       return;
     }
     setSettingsError(result.error ?? 'Unable to delete provider API key.');
-  }, []);
+  }, [deleteProviderApiKeyMutation]);
 
   const toggleRawResponseStorage = useCallback(async (enabled: boolean): Promise<void> => {
-    const rawResponseStorageEnabled = await window.api.settings.setRawResponseStorage({ enabled });
-    setAppSettings({ ...appSettings, rawResponseStorageEnabled });
-  }, [appSettings]);
+    await setRawResponseStorageMutation({ enabled });
+  }, [setRawResponseStorageMutation]);
 
   const requestRevealModelAnswer = useCallback((): void => {
     if (modelAnswerRevealed || selfRepairAttempt.trim().length > 0) {

@@ -29,6 +29,9 @@ Introduce TanStack Query in the renderer to replace the highest-churn hand-writt
 * Define stable query keys for migrated IPC resources.
 * Use a phased migration path that can eventually fully replace hand-written async/server-state handling in `App.tsx`.
 * Phase 1 should establish the architecture and migrate a useful vertical slice, without attempting a broad rewrite in one diff.
+* Phase 2 should migrate review start/save/rewrite mutations and review snapshot cache where feasible while keeping progress events local.
+* Phase 3 should migrate settings/provider mutations to Query cache updates or invalidation.
+* Phase 4 cleanup should remove obsolete manual async/server-state only where naturally replaced, not rewrite transient UI state.
 * Preserve current behavior for writing practice, review, and settings unless explicitly included in the current phase.
 
 ## Acceptance Criteria
@@ -39,6 +42,9 @@ Introduce TanStack Query in the renderer to replace the highest-churn hand-writt
 * [x] Migrated mutations update or invalidate the relevant cache.
 * [x] Phase boundaries for the remaining migration are recorded in the PRD.
 * [x] Current user-visible behavior remains equivalent for the migrated slice.
+* [x] Review start/save/rewrite mutations use Query mutation hooks where feasible; progress events remain local.
+* [x] Settings/provider mutations update or invalidate the settings query cache.
+* [x] Obsolete manual async/server-state was removed where naturally replaced, while transient UI state remains local.
 * [x] `pnpm lint`, `pnpm typecheck`, and relevant tests pass.
 
 ## Definition of Done (team quality bar)
@@ -62,7 +68,10 @@ Introduce TanStack Query in the renderer to replace the highest-churn hand-writt
 ## Technical Notes
 
 * Implemented Phase 1 in `src/renderer/main.tsx`, `src/renderer/query/*`, and `src/renderer/App.tsx`.
-* Added `test/renderer-query.test.ts` to lock the local IPC QueryClient defaults and stable foundation query keys.
+* Implemented Phase 2 review mutations/cache helpers in `src/renderer/query/review.ts` and kept review progress subscription state local in `App.tsx`.
+* Implemented Phase 3 settings/provider mutation hooks in `src/renderer/query/settings.ts`; settings snapshot cache is updated or invalidated after successful mutations.
+* Phase 4 cleanup removed naturally replaced manual settings/writing/review async-server-state, while draft inputs, status messages, dialogs, and review progress remain local UI state.
+* Added `test/renderer-query.test.ts` to lock the local IPC QueryClient defaults, stable query keys, and cache update helpers.
 * `pnpm typecheck`, `pnpm lint`, and `pnpm test` pass; `pnpm dev` launched Vite/Electron successfully.
 * TanStack Query v5 docs recommend `QueryClientProvider`, object-form `useQuery`, `useMutation`, and invalidating related query keys after successful mutations.
 * For local IPC, recommended defaults are likely `retry: false` and `refetchOnWindowFocus: false`, because failures are local/application errors rather than transient network failures.
