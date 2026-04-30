@@ -413,3 +413,36 @@ Generalized the app from journal-first to Writing Practice with same-level templ
 ### Next Steps
 
 - None - task complete
+
+
+## Session 13: AI SDK multi-provider backend
+
+**Date**: 2026-04-30
+**Task**: AI SDK multi-provider backend
+**Branch**: `main`
+
+### Summary
+
+Migrated AI backend to Vercel AI SDK shared generation, added OpenAI-compatible and Anthropic provider settings/credentials/UI, and preserved review/starter validation flows.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `705cbc3` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
