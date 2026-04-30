@@ -4,7 +4,7 @@
 
 ## Product Context
 
-Read [`../product/index.md`](../product/index.md) for every backend task that touches journal persistence, review runs, correction anchoring, agent calls, pattern operations, privacy settings, or save transactions.
+Read [`../product/index.md`](../product/index.md) for every backend task that touches writing persistence, practice templates, starter prompt/topic generation, review runs, correction anchoring, agent calls, pattern operations, privacy settings, or save transactions.
 
 ## Related Guidelines
 

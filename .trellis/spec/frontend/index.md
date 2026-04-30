@@ -14,7 +14,7 @@
 
 ## Product Context
 
-Read [`../product/index.md`](../product/index.md) for every UI task that touches Today, Review Result, self-repair, correction presentation, rewrite practice, settings, privacy disclosure, or stale review behavior.
+Read [`../product/index.md`](../product/index.md) for every UI task that touches Practice, template selection, starter prompt/topic generation, Review Result, self-repair, correction presentation, rewrite practice, settings, privacy disclosure, or stale review behavior.
 
 ## Documentation Files
 

@@ -6,7 +6,7 @@
 
 ## Product Context
 
-Read [`../product/index.md`](../product/index.md) for shared types that model review contracts, journal revisions, validation statuses, correction categories, privacy defaults, or learning-flow state.
+Read [`../product/index.md`](../product/index.md) for shared types that model writing attempts/revisions, practice templates, review contracts, validation statuses, correction categories, privacy defaults, or learning-flow state.
 
 ## Documentation Files
 

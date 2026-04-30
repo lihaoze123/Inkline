@@ -183,8 +183,8 @@ type MigrationResult =
 ```
 
 - Required v0.1 foundation tables:
-  - `journal_entries`
-  - `journal_revisions`
+  - `writing_attempts`
+  - `writing_revisions`
   - `review_runs`
   - `corrections`
   - `self_repair_attempts`

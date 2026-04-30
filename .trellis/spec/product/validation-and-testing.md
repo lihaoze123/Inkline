@@ -7,9 +7,10 @@ Before full UI work is considered reliable, build a harness that exercises revie
 Inputs:
 
 ```text
-sample journal
+sample writing
 mock agent output
 existing patterns
+template context, generated prompt/topic, and user goal/topic when relevant
 ```
 
 Outputs:
@@ -28,13 +29,13 @@ validation_status
 ### 1. Scope / Trigger
 
 - Trigger: Any task that validates review-agent output, generates review preview operations, or simulates `saveReviewRun` idempotency.
-- The harness is the shared contract between mock agent output, future live pi-mono integration, and Review Result UI persistence.
+- The harness is the shared contract between mock agent output, future live model integration, and Review Result UI persistence.
 - Do not create a second validation path in UI or main-process code; import the shared contract functions instead.
 
 ### 2. Signatures
 
 ```ts
-normalizeJournalContent(content: string): string;
+normalizeWritingContent(content: string): string;
 locateAnchor(content: string, anchor: CorrectionAnchor): AnchorResult;
 validateReviewResult(
   input: ReviewInput,
@@ -55,7 +56,7 @@ pnpm run review:harness
 
 ### 3. Contracts
 
-- `ReviewInput.contentHash` must equal `sha256(normalizeJournalContent(journalContent))`.
+- `ReviewInput.contentHash` must equal `sha256(normalizeWritingContent(writingContent))`.
 - `agentOutput` is `unknown` until it passes the Zod review output schema.
 - `CorrectionAnchor.exact`, `prefix`, and `suffix` are located against LF-normalized content without normal-space collapsing.
 - Successful anchors return JavaScript UTF-16 `startOffset` and `endOffset` for the reviewed content hash.
@@ -68,7 +69,7 @@ pnpm run review:harness
 | Condition | Result |
 | --- | --- |
 | Zod schema parse fails | `schemaValid: false`, `validationStatus: invalid`, `schema_invalid`, empty operations |
-| `contentHash` mismatches normalized journal content | `content_hash_mismatch`, `validationStatus: invalid`, empty operations |
+| `contentHash` mismatches normalized writing content | `content_hash_mismatch`, `validationStatus: invalid`, empty operations |
 | Anchor exact text cannot be located | Correction becomes `low_confidence`; too many low-confidence anchors make the result `invalid` |
 | `originalText` differs from anchored exact text | Warning; anchor exact text remains authoritative |
 | `matchedPatternId` is absent from `existingPatterns` | `matched_pattern_missing`, `validationStatus: invalid`, empty operations |
@@ -78,7 +79,7 @@ pnpm run review:harness
 
 ### 5. Good/Base/Bad Cases
 
-- Good: Short journal, one focus correction, one concrete `whatWentWell`, valid anchor, existing matched pattern, reference rewrite with `noticeTheGap`, one `rewrite_original` task.
+- Good: Short writing sample, one focus correction, one concrete `whatWentWell`, valid anchor, existing matched pattern, reference rewrite with `noticeTheGap`, one `rewrite_original` task.
 - Base: Anchoring succeeds after LF normalization or curly-quote fallback; result may be `valid_with_warnings` but preview operations remain non-persistent.
 - Bad: Paraphrased `exact`, missing focus pattern, multiple focus patterns, generic/empty `whatWentWell`, missing pattern ID, leaked self-repair answer, or rewrite task indexes that do not exist.
 
@@ -96,11 +97,89 @@ Wrong: validate schema in one place, locate anchors in another, then let UI gene
 
 Correct: `validateReviewResult` is the only boundary from raw agent JSON to preview operations, and save code consumes those validated operations.
 
-## Required Test Cases
+## Scenario: Writing Practice Feature Validation
+
+### 1. Scope / Trigger
+
+- Trigger: Any task that changes template selection, starter prompt generation, writing attempt persistence, template-aware review input, or D+1 rewrite practice.
+- This validates the full product loop, not only TypeScript correctness.
+
+### 2. Signatures
+
+Commands:
+
+```bash
+pnpm typecheck
+pnpm lint
+pnpm test
+pnpm review:harness
+pnpm dev
+```
+
+Core test targets:
+
+```text
+writing content normalization/hash
+writing attempt/revision service
+starter prompt generation service
+review start/save service
+review contract validation
+rewrite practice service
+renderer manual smoke
+```
+
+### 3. Contracts
+
+- Automated checks must include lint, typecheck, and unit/integration tests for changed behavior.
+- Review-flow changes must also run `pnpm review:harness`.
+- Frontend/product-flow changes require a dev-app launch and manual UI verification when a graphical environment is available.
+- Manual UI verification should cover template picker, starter disclosure, generate/regenerate, retry or failure copy, skip generation, optional goal/topic, autosave, review, save review, and due D+1 rewrite practice.
+- If manual UI verification cannot be fully performed, report the limitation explicitly; do not claim it was done.
+
+### 4. Validation & Error Matrix
+
+| Condition | Required Response |
+| --- | --- |
+| Typecheck fails | Fix before reporting completion. |
+| Lint fails | Fix before reporting completion. |
+| Tests fail | Fix or document blocker; do not mark task complete. |
+| Review harness fails | Fix review contract regression before completion. |
+| `pnpm dev` cannot launch | Report environment/startup error and what was not manually verified. |
+| UI cannot be interacted with in the environment | Report that only launch/build was verified, not full manual golden path. |
+
+### 5. Good/Base/Bad Cases
+
+- Good: A feature touching review and UI passes `typecheck`, `lint`, `test`, `review:harness`, launches Electron, and has a manual golden-path note.
+- Base: Headless session can launch Electron but not interact; report launch success and manual interaction limitation.
+- Bad: Only running tests after a frontend flow change and claiming the UI was manually verified.
+
+### 6. Tests Required
+
+- Template selection test: per-template attempts/drafts do not overwrite each other.
+- Starter prompt tests: disclosure gate, success persistence, provider error/retry state, no essay content in provider request.
+- Review input test: `writingTemplate`, `generatedPrompt`, `userGoal`, and `writingContent` are present as expected.
+- Rewrite practice tests: save creates one D+1 focus task; complete/skip update state and return snapshots needed by UI reveal.
+- Regression test: non-Journal review/save returns the selected template's writing snapshot.
+
+### 7. Wrong vs Correct
+
+#### Wrong
+
+```text
+pnpm test passed, so the template picker and starter prompt UI are verified.
+```
+
+#### Correct
+
+```text
+pnpm typecheck, pnpm lint, pnpm test, and pnpm review:harness passed. Electron dev launched. Full manual interaction was not possible in this headless session, so UI golden path still needs human verification.
+```
+
+## Required Review Harness Cases
 
 The harness must include cases for:
 
-1. Normal short journal.
+1. Normal short writing.
 2. Repeated phrase.
 3. Multiline text.
 4. Mixed Chinese and English.
