@@ -25,15 +25,22 @@ export function ReviewDisclosureDialog({
           <p>Your writing stays local by default.</p>
           <p>
             {isStarter
-              ? 'When you generate a starter prompt/topic, the selected template and optional goal/topic are sent to your configured model provider. No user essay content is sent for this generation step.'
-              : 'When you click Review, the current writing attempt, selected template context, and selected learning history will be sent to your configured model provider.'}
+              ? 'AI will be called to generate a prompt/topic. No user essay/writing content is sent for this generation step; only the selected template and optional goal/topic are sent to your configured model provider.'
+              : 'When you click Review, the current writing attempt, selected template context, generated prompt/topic if present, optional goal/topic if present, and selected learning history will be sent to your configured model provider.'}
           </p>
         </div>
         <dl className="mt-6 grid gap-3 rounded-2xl border border-base-300 bg-base-200/55 p-4 text-sm">
           <DisclosureRow label="Provider" value={settings.provider} />
           <DisclosureRow label="Model" value={settings.model} />
           <DisclosureRow label="Local model" value={settings.isLocalModel ? 'Yes' : 'No'} />
-          <DisclosureRow label="Review context" value={settings.reviewContextDescription} />
+          <DisclosureRow
+            label="Context sent"
+            value={
+              isStarter
+                ? 'Selected template and optional goal/topic only; no essay draft.'
+                : settings.reviewContextDescription
+            }
+          />
           <DisclosureRow label="Raw model responses saved" value={settings.rawResponseStorageEnabled ? 'Yes' : 'No'} />
         </dl>
         <div className="modal-action">

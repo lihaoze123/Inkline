@@ -19,20 +19,9 @@ export type ReviewProgressModel = {
   startedAt: number | null;
 };
 
-export type AppReadiness = 'ready' | 'setup-needed' | 'error';
-
-export type AppStatusModel = {
-  readiness: AppReadiness;
-  label: string;
-  detail: string;
-};
-
 export type PracticeHeaderProps = {
   practicePromptTitle: string;
   selectedTemplateTitle: string;
-  instruction: string;
-  startup: StartupStatus;
-  status: AppStatusModel;
 };
 
 export type AutosaveStatusProps = {
@@ -78,8 +67,6 @@ export type WritingEditorCardProps = {
   lastAutosaveAt: number | null;
   saveState: SaveState;
   saveError: string | null;
-  highlightedContent: string | null;
-  highlightedCorrections: AnchoredCorrectionOperationSnapshot[];
   onContentChange: (value: string) => void;
   onUserGoalChange: (value: string) => void;
   onGenerateStarterPrompt: () => void;
@@ -95,11 +82,7 @@ export type LearningPanelProps = {
   reviewProgress: ReviewProgressModel;
   latestReviewRun: ReviewRunSnapshot | null;
   preview: ReviewPreviewSnapshot | null;
-  selfRepairAttempt: string;
-  modelAnswerRevealed: boolean;
-  onSelfRepairAttemptChange: (value: string) => void;
-  onRevealModelAnswer: () => void;
-  onSaveReview: () => void;
+  onOpenFeedback: () => void;
   rewritePracticeInput: string;
   completedRewritePractice: WritingAttemptSnapshot['pendingRewritePractice'];
   rewritePracticeError: string | null;

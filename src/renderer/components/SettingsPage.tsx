@@ -42,7 +42,7 @@ export function SettingsPage({
 
   return (
     <section className="flex min-h-0 flex-col" aria-labelledby="settings-page-title">
-      <div className="mb-8 border-b border-base-300/60 pb-7">
+      <div className="mb-10 pb-2">
         <p className="text-xs font-semibold uppercase tracking-[0.18em] text-primary/70">Settings</p>
         <h1 id="settings-page-title" className="editorial-heading mt-4 text-5xl text-base-content">
           AI provider
@@ -53,150 +53,127 @@ export function SettingsPage({
       </div>
 
       <div className="scrollable min-h-0 flex-1 overflow-y-auto pr-1" style={{ scrollbarGutter: 'stable' }}>
-        <div className="grid max-w-4xl gap-8 pb-8">
-          <section className="border-b border-base-300/60 pb-7">
+        <div className="grid max-w-4xl gap-12 pb-8">
+          <section>
             <h2 className="editorial-copy text-2xl text-base-content">Global default</h2>
-            <p className="mt-1 text-sm leading-6 text-base-content/55">
+            <p className="mt-1 max-w-2xl text-sm leading-6 text-base-content/55">
               This first UI version uses one global default provider/model. Feature-specific model overrides are
               reserved internally for later.
             </p>
-            <label className="form-control mt-5 max-w-xl">
-              <span className="label-text font-medium">Default provider</span>
-              <select
-                className="select select-bordered mt-2"
-                value={defaultProviderId}
-                aria-label="Default AI provider"
-                onChange={(event) => onDefaultProviderChange(event.target.value as AiProviderId)}
-              >
-                {PROVIDER_OPTIONS.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-            </label>
+            <div className="mt-5 grid gap-5">
+              <FormRow label="Default provider" htmlFor="default-provider-select">
+                <select
+                  id="default-provider-select"
+                  className="select select-bordered w-full"
+                  value={defaultProviderId}
+                  aria-label="Default AI provider"
+                  onChange={(event) => onDefaultProviderChange(event.target.value as AiProviderId)}
+                >
+                  {PROVIDER_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </FormRow>
+            </div>
           </section>
 
-          <section className="border-b border-base-300/60 pb-7">
-            <div className="flex flex-wrap items-start justify-between gap-3">
-              <div>
-                <h2 className="editorial-copy text-2xl text-base-content">OpenAI-compatible</h2>
-                <p className="mt-2 text-sm text-base-content/55">
-                  Use OpenAI or another OpenAI-compatible base endpoint, such as https://api.deepseek.com/v1.
-                </p>
-              </div>
-              <span className="text-sm text-base-content/50">{formatProviderKeyStatus(openAiCredentialStatus.status)}</span>
-            </div>
-            <div className="mt-5 grid max-w-2xl gap-4">
-              <label className="form-control">
-                <span className="label-text font-medium">Base URL</span>
-                <input
-                  className="input input-bordered mt-2"
-                  value={openAiBaseUrlInput}
-                  onChange={(event) => onOpenAiBaseUrlChange(event.target.value)}
-                  aria-label="OpenAI-compatible base URL"
-                  placeholder="https://api.deepseek.com/v1"
-                />
-                <span className="mt-1 text-xs text-base-content/45">
-                  Paste the provider base URL; /chat/completions is removed automatically.
-                </span>
-              </label>
-              <label className="form-control">
-                <span className="label-text font-medium">Model</span>
-                <input
-                  className="input input-bordered mt-2"
-                  value={openAiModelInput}
-                  onChange={(event) => onOpenAiModelChange(event.target.value)}
-                  aria-label="OpenAI-compatible model"
-                />
-              </label>
-              <button
-                type="button"
-                className="btn btn-outline justify-self-start rounded-[0.7rem]"
-                onClick={onSaveOpenAiConfig}
-              >
-                Save OpenAI-compatible settings
-              </button>
-              <ProviderCredentialForm
-                providerId="openai-compatible"
-                providerName="OpenAI-compatible"
-                status={openAiCredentialStatus}
-                apiKeyInput={apiKeyInputs['openai-compatible']}
-                onApiKeyChange={onApiKeyChange}
-                onSaveApiKey={onSaveApiKey}
-                onDeleteApiKey={onDeleteApiKey}
+          <ProviderSettingsSection
+            providerId="openai-compatible"
+            title="OpenAI-compatible"
+            description="Use OpenAI or another OpenAI-compatible base endpoint, such as https://api.deepseek.com/v1."
+            status={openAiCredentialStatus}
+            apiKeyInput={apiKeyInputs['openai-compatible']}
+            onApiKeyChange={onApiKeyChange}
+            onSaveApiKey={onSaveApiKey}
+            onDeleteApiKey={onDeleteApiKey}
+            onSaveSettings={onSaveOpenAiConfig}
+          >
+            <FormRow
+              label="Base URL"
+              htmlFor="openai-base-url-input"
+              helperText="Paste the provider base URL; /chat/completions is removed automatically."
+            >
+              <input
+                id="openai-base-url-input"
+                className="input input-bordered w-full"
+                value={openAiBaseUrlInput}
+                onChange={(event) => onOpenAiBaseUrlChange(event.target.value)}
+                aria-label="OpenAI-compatible base URL"
+                placeholder="https://api.deepseek.com/v1"
               />
-              {openAiSettings ? (
-                <p className="text-xs text-base-content/45">Current saved model: {openAiSettings.model}</p>
-              ) : null}
-            </div>
-          </section>
-
-          <section className="border-b border-base-300/60 pb-7">
-            <div className="flex flex-wrap items-start justify-between gap-3">
-              <div>
-                <h2 className="editorial-copy text-2xl text-base-content">Anthropic Claude</h2>
-                <p className="mt-2 text-sm text-base-content/55">Use Anthropic's Claude models with a separate key.</p>
-              </div>
-              <span className="text-sm text-base-content/50">{formatProviderKeyStatus(anthropicCredentialStatus.status)}</span>
-            </div>
-            <div className="mt-5 grid max-w-2xl gap-4">
-              <label className="form-control">
-                <span className="label-text font-medium">Model</span>
-                <input
-                  className="input input-bordered mt-2"
-                  value={anthropicModelInput}
-                  onChange={(event) => onAnthropicModelChange(event.target.value)}
-                  aria-label="Anthropic model"
-                />
-              </label>
-              <button
-                type="button"
-                className="btn btn-outline justify-self-start rounded-[0.7rem]"
-                onClick={onSaveAnthropicConfig}
-              >
-                Save Anthropic settings
-              </button>
-              <ProviderCredentialForm
-                providerId="anthropic"
-                providerName="Anthropic Claude"
-                status={anthropicCredentialStatus}
-                apiKeyInput={apiKeyInputs.anthropic}
-                onApiKeyChange={onApiKeyChange}
-                onSaveApiKey={onSaveApiKey}
-                onDeleteApiKey={onDeleteApiKey}
+            </FormRow>
+            <FormRow
+              label="Model"
+              htmlFor="openai-model-input"
+              helperText={openAiSettings ? `Current saved model: ${openAiSettings.model}` : undefined}
+            >
+              <input
+                id="openai-model-input"
+                className="input input-bordered w-full"
+                value={openAiModelInput}
+                onChange={(event) => onOpenAiModelChange(event.target.value)}
+                aria-label="OpenAI-compatible model"
               />
-              {anthropicSettings ? (
-                <p className="text-xs text-base-content/45">Current saved model: {anthropicSettings.model}</p>
-              ) : null}
-            </div>
-          </section>
+            </FormRow>
+          </ProviderSettingsSection>
 
-          <section className="border-b border-base-300/60 pb-7">
+          <ProviderSettingsSection
+            providerId="anthropic"
+            title="Anthropic Claude"
+            description="Use Anthropic's Claude models with a separate key."
+            status={anthropicCredentialStatus}
+            apiKeyInput={apiKeyInputs.anthropic}
+            onApiKeyChange={onApiKeyChange}
+            onSaveApiKey={onSaveApiKey}
+            onDeleteApiKey={onDeleteApiKey}
+            onSaveSettings={onSaveAnthropicConfig}
+          >
+            <FormRow
+              label="Model"
+              htmlFor="anthropic-model-input"
+              helperText={anthropicSettings ? `Current saved model: ${anthropicSettings.model}` : undefined}
+            >
+              <input
+                id="anthropic-model-input"
+                className="input input-bordered w-full"
+                value={anthropicModelInput}
+                onChange={(event) => onAnthropicModelChange(event.target.value)}
+                aria-label="Anthropic model"
+              />
+            </FormRow>
+          </ProviderSettingsSection>
+
+          <section>
             <h2 className="editorial-copy text-2xl text-base-content">Privacy and debug</h2>
             <p className="mt-2 max-w-2xl text-sm leading-6 text-base-content/55">
               Your writing stays local by default. Review sends the current writing, template context, and bounded
               learning context to your configured provider.
             </p>
-            <label className="mt-5 flex max-w-2xl cursor-pointer items-start gap-3 border-l border-warning/45 pl-4">
-              <input
-                className="toggle toggle-warning mt-1"
-                type="checkbox"
-                checked={settings.rawResponseStorageEnabled}
-                onChange={(event) => onRawResponseStorageChange(event.target.checked)}
-              />
-              <span>
-                <span className="block font-medium">Save raw model responses for debugging</span>
-                <span className="mt-1 block text-sm text-base-content/55">
-                  Raw responses may contain writing content and stay local unless explicitly exported later.
-                </span>
-              </span>
-            </label>
+            <div className="mt-5 grid gap-5">
+              <FormRow
+                label="Raw responses"
+                htmlFor="raw-response-storage-toggle"
+                helperText="Raw responses may contain writing content and stay local unless explicitly exported later."
+              >
+                <label className="flex max-w-xl cursor-pointer items-start gap-3 border-l border-warning/45 pl-4">
+                  <input
+                    id="raw-response-storage-toggle"
+                    className="toggle toggle-warning mt-1"
+                    type="checkbox"
+                    checked={settings.rawResponseStorageEnabled}
+                    onChange={(event) => onRawResponseStorageChange(event.target.checked)}
+                  />
+                  <span className="font-medium">Save raw model responses for debugging</span>
+                </label>
+              </FormRow>
+            </div>
           </section>
 
-          <section className="border-b border-base-300/60 pb-7">
+          <section>
             <h2 className="editorial-copy text-2xl text-base-content">Status</h2>
-            <dl className="mt-5 grid gap-3 text-sm md:grid-cols-2 md:gap-x-10">
+            <dl className="mt-5 grid gap-4 text-sm">
               <StatusRow label="Default provider" value={settings.provider} />
               <StatusRow label="Default model" value={settings.model} />
               <StatusRow label="OpenAI-compatible key" value={formatProviderKeyStatus(openAiCredentialStatus.status)} />
@@ -226,57 +203,106 @@ export function SettingsPage({
   );
 }
 
-function ProviderCredentialForm({
+function ProviderSettingsSection({
   providerId,
-  providerName,
+  title,
+  description,
   status,
   apiKeyInput,
+  children,
   onApiKeyChange,
   onSaveApiKey,
   onDeleteApiKey,
+  onSaveSettings,
 }: {
   providerId: AiProviderId;
-  providerName: string;
+  title: string;
+  description: string;
   status: ProviderKeyStatus;
   apiKeyInput: string;
+  children: React.ReactNode;
   onApiKeyChange: (providerId: AiProviderId, value: string) => void;
   onSaveApiKey: (providerId: AiProviderId) => void;
   onDeleteApiKey: (providerId: AiProviderId) => void;
+  onSaveSettings: () => void;
+}): React.JSX.Element {
+  const statusText = formatProviderKeyStatus(status.status);
+
+  return (
+    <section>
+      <div>
+        <h2 className="editorial-copy text-2xl text-base-content">{title}</h2>
+        <p className="mt-1 text-sm text-base-content/50">
+          Key status: {statusText}; storage: {status.storage}
+        </p>
+        <p className="mt-2 max-w-2xl text-sm leading-6 text-base-content/55">{description}</p>
+      </div>
+
+      <div className="mt-5 grid gap-5">
+        {children}
+        <FormRow
+          label="API key"
+          htmlFor={`${providerId}-api-key-input`}
+          helperText="API keys are stored through the OS keychain and never returned to the renderer."
+        >
+          <input
+            id={`${providerId}-api-key-input`}
+            className="input input-bordered w-full"
+            value={apiKeyInput}
+            onChange={(event) => onApiKeyChange(providerId, event.target.value)}
+            aria-label={`${title} API key`}
+            type="password"
+            placeholder={status.status === 'configured' ? 'Key is saved in OS keychain' : 'Paste key to save'}
+          />
+        </FormRow>
+        <div className="grid gap-2 md:grid-cols-[10rem_minmax(0,36rem)] md:items-center">
+          <div aria-hidden="true" />
+          <div className="flex flex-wrap gap-2">
+            <button type="button" className="btn btn-outline rounded-[0.7rem]" onClick={onSaveSettings}>
+              Save settings
+            </button>
+            <button
+              type="button"
+              className="btn btn-outline rounded-[0.7rem]"
+              disabled={apiKeyInput.trim().length === 0}
+              onClick={() => onSaveApiKey(providerId)}
+            >
+              Save API key
+            </button>
+            <button
+              type="button"
+              className="btn btn-ghost rounded-[0.7rem] text-base-content/65"
+              disabled={status.status !== 'configured'}
+              onClick={() => onDeleteApiKey(providerId)}
+            >
+              Delete key
+            </button>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function FormRow({
+  label,
+  htmlFor,
+  helperText,
+  children,
+}: {
+  label: string;
+  htmlFor: string;
+  helperText?: string;
+  children: React.ReactNode;
 }): React.JSX.Element {
   return (
-    <div className="border-t border-base-300/60 pt-4">
-      <h3 className="font-medium">{providerName} credentials</h3>
-      <p className="mt-1 text-sm text-base-content/55">
-        API keys are stored through the OS keychain and never returned to the renderer.
-      </p>
-      <label className="form-control mt-4">
-        <span className="label-text font-medium">API key</span>
-        <input
-          className="input input-bordered mt-2"
-          value={apiKeyInput}
-          onChange={(event) => onApiKeyChange(providerId, event.target.value)}
-          aria-label={`${providerName} API key`}
-          type="password"
-          placeholder={status.status === 'configured' ? 'Key is saved in OS keychain' : 'Paste key to save'}
-        />
+    <div className="grid gap-2 md:grid-cols-[10rem_minmax(0,36rem)] md:items-start">
+      <label className="pt-0 text-sm font-medium text-base-content/72 md:pt-3" htmlFor={htmlFor}>
+        {label}
       </label>
-      <div className="mt-4 flex flex-wrap gap-2">
-        <button
-          type="button"
-          className="btn btn-outline rounded-[0.7rem]"
-          disabled={apiKeyInput.trim().length === 0}
-          onClick={() => onSaveApiKey(providerId)}
-        >
-          Save API key
-        </button>
-        <button
-          type="button"
-          className="btn btn-outline rounded-[0.7rem]"
-          disabled={status.status !== 'configured'}
-          onClick={() => onDeleteApiKey(providerId)}
-        >
-          Delete API key
-        </button>
+      <div className="max-w-xl">
+        {children}
+        {helperText ? <p className="mt-1 max-w-xl text-xs leading-5 text-base-content/45">{helperText}</p> : null}
       </div>
     </div>
   );
@@ -301,9 +327,9 @@ function getCredentialStatus(settings: SettingsSnapshot, providerId: AiProviderI
 
 function StatusRow({ label, value }: { label: string; value: string }): React.JSX.Element {
   return (
-    <div className="grid gap-1 border-t border-base-300/55 pt-3">
-      <dt className="text-xs font-semibold uppercase tracking-[0.14em] text-base-content/40">{label}</dt>
-      <dd className="break-words text-base-content/72">{value}</dd>
+    <div className="grid gap-2 md:grid-cols-[10rem_minmax(0,36rem)]">
+      <dt className="text-xs font-semibold uppercase tracking-[0.14em] text-base-content/40 md:pt-1">{label}</dt>
+      <dd className="max-w-xl break-words text-base-content/72">{value}</dd>
     </div>
   );
 }

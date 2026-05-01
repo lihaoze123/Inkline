@@ -1,15 +1,12 @@
 import { useEffect, useState } from 'react';
 import type { WritingAttemptSnapshot } from '@shared/types/writing';
 import type {
-  PreviewOperationsSnapshot,
   ReviewErrorCategory,
-  ReviewPreviewSnapshot,
   ReviewProgressPhase,
   ReviewRunSnapshot,
   ReviewRunSummary,
 } from '@shared/types/review';
 import { formatTime } from './format';
-import { CorrectionCard, getFocusCorrection, patternRule } from './review-utils';
 import type { LearningPanelProps, ReviewProgressModel, ReviewState, SaveState } from './types';
 
 export function LearningPanel({
@@ -21,11 +18,7 @@ export function LearningPanel({
   reviewProgress,
   latestReviewRun,
   preview,
-  selfRepairAttempt,
-  modelAnswerRevealed,
-  onSelfRepairAttemptChange,
-  onRevealModelAnswer,
-  onSaveReview,
+  onOpenFeedback,
   rewritePracticeInput,
   completedRewritePractice,
   rewritePracticeError,
@@ -34,68 +27,51 @@ export function LearningPanel({
   onSkipRewritePractice,
   onReviewCurrentVersion,
 }: LearningPanelProps): React.JSX.Element {
-  const panelEyebrow = preview ? 'Feedback & Rewrite' : reviewState === 'reviewing' ? 'Coach is reading' : 'Coach';
-  const panelTitle = preview
-    ? 'One useful pattern'
+  const statusSentence = preview
+    ? 'Your focused review is ready when you want to inspect it.'
     : reviewState === 'reviewing'
-      ? 'Reading your draft'
+      ? 'Reading your draft for one useful pattern.'
       : hasWritten
-        ? 'Ready for feedback'
-        : 'Write first';
-  const panelCopy = preview
-    ? 'Review the focus note, try your own rewrite, then save the learning step.'
-    : reviewState === 'reviewing'
-      ? 'Finding a small, transferable improvement instead of grading every sentence.'
-      : hasWritten
-        ? 'Ask for feedback when your draft says what you wanted to say.'
-        : 'No corrections while you write. The coach waits until you finish.';
+        ? 'When the draft feels complete enough, ask for one focused note.'
+        : 'Write first. The coach will wait quietly.';
 
   return (
     <aside
-      className="scrollable flex min-h-0 flex-col gap-5 overflow-y-auto border-l border-base-300/60 pl-5"
-      aria-labelledby="learning-panel-title"
+      className="scrollable flex min-h-0 flex-col gap-5 overflow-y-auto text-sm text-base-content/62 lg:pl-3"
+      aria-label="Writing coach"
     >
-      <div className="pb-2">
-        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-secondary/70">{panelEyebrow}</p>
-        <h2 id="learning-panel-title" className="editorial-copy mt-2 text-xl text-base-content">
-          {panelTitle}
-        </h2>
-        <p className="mt-2 text-sm leading-6 text-base-content/55">{panelCopy}</p>
-      </div>
-
-      {!preview ? <HelpfulHintsCard /> : null}
+      <p id="learning-panel-title" className="leading-6 text-base-content/58">
+        {statusSentence}
+      </p>
 
       {writing.staleReview ? <StaleReviewCard onReviewCurrentVersion={onReviewCurrentVersion} /> : null}
 
       {writing.pendingRewritePractice || completedRewritePractice ? (
-        <RewritePracticeCard
-          practice={completedRewritePractice ?? writing.pendingRewritePractice}
-          inputValue={rewritePracticeInput}
-          error={rewritePracticeError}
-          onInputChange={onRewritePracticeInputChange}
-          onComplete={onCompleteRewritePractice}
-          onSkip={onSkipRewritePractice}
-        />
+        <details className="text-sm text-base-content/62">
+          <summary className="cursor-pointer font-medium text-base-content/70">Rewrite practice is waiting</summary>
+          <RewritePracticeCard
+            practice={completedRewritePractice ?? writing.pendingRewritePractice}
+            inputValue={rewritePracticeInput}
+            error={rewritePracticeError}
+            onInputChange={onRewritePracticeInputChange}
+            onComplete={onCompleteRewritePractice}
+            onSkip={onSkipRewritePractice}
+          />
+        </details>
       ) : null}
-
-      {!hasWritten ? (
-        <BeforeWritingState
-          dateKey={writing.dateKey}
-          hasPendingRewritePractice={Boolean(writing.pendingRewritePractice || completedRewritePractice)}
-        />
+      {hasWritten && reviewState === 'reviewing' ? (
+        <details className="text-sm text-base-content/62">
+          <summary className="cursor-pointer font-medium text-base-content/70">Review progress</summary>
+          <ReviewProgressCard progress={reviewProgress} />
+        </details>
       ) : null}
-      {hasWritten && reviewState === 'reviewing' ? <ReviewProgressCard progress={reviewProgress} /> : null}
       {hasWritten && preview ? (
-        <ReviewPreview
-          preview={preview}
-          reviewState={reviewState}
-          selfRepairAttempt={selfRepairAttempt}
-          modelAnswerRevealed={modelAnswerRevealed}
-          onSelfRepairAttemptChange={onSelfRepairAttemptChange}
-          onRevealModelAnswer={onRevealModelAnswer}
-          onSaveReview={onSaveReview}
-          onReviewCurrentVersion={onReviewCurrentVersion}
-        />
+        <div className="space-y-3">
+          <p className="text-sm leading-6 text-base-content/60">Focused review is ready.</p>
+          <button type="button" className="btn btn-ghost btn-sm rounded-xl px-0 text-primary" onClick={onOpenFeedback}>
+            Open focused review
+          </button>
+        </div>
       ) : null}
       {hasWritten && !preview ? (
         <AfterWritingState
@@ -134,37 +110,6 @@ const phaseDescriptions: Record<ReviewProgressPhase, string> = {
   building_preview: 'Turning the review into a small rewrite step you can inspect before saving.',
 };
 
-const errorTitles: Record<ReviewErrorCategory, string> = {
-  missing_config: 'Review needs setup',
-  provider_error: 'AI service connection failed',
-  timeout: 'AI service is taking too long',
-  invalid_json: 'AI response could not be read',
-  validation_failed: 'AI suggestions were not reliable enough',
-  stale_content: 'Review is out of date',
-};
-
-function HelpfulHintsCard(): React.JSX.Element {
-  return (
-    <section className="border-t border-base-300/55 pt-5">
-      <h3 className="editorial-copy flex items-center gap-3 text-lg text-base-content">
-        <span className="inline-icon text-warning" aria-hidden="true">
-          <svg viewBox="0 0 24 24">
-            <path d="M9 18h6" />
-            <path d="M10 22h4" />
-            <path d="M8.5 14a6 6 0 1 1 7 0c-.7.5-1 1.1-1 2h-5c0-.9-.3-1.5-1-2Z" />
-          </svg>
-        </span>
-        Helpful hints
-      </h3>
-      <ul className="mt-4 grid gap-3 text-sm leading-6 text-base-content/64">
-        <li className="flex gap-3"><span className="mt-2 size-1.5 rounded-full bg-secondary/60" />Write independently before asking for feedback.</li>
-        <li className="flex gap-3"><span className="mt-2 size-1.5 rounded-full bg-secondary/60" />Use the optional topic only as context for review.</li>
-        <li className="flex gap-3"><span className="mt-2 size-1.5 rounded-full bg-secondary/60" />The coach will focus on one transferable pattern after you finish.</li>
-      </ul>
-    </section>
-  );
-}
-
 function PanelCard({
   children,
   tone = 'base',
@@ -173,14 +118,14 @@ function PanelCard({
   tone?: 'base' | 'primary' | 'warning' | 'success' | 'error';
 }): React.JSX.Element {
   const toneClassName = {
-    base: 'border-base-300/55',
-    primary: 'border-primary/25',
-    warning: 'border-warning/40',
-    success: 'border-success/35',
-    error: 'border-error/40',
+    base: '',
+    primary: '',
+    warning: 'border-l border-warning/40 pl-4',
+    success: '',
+    error: 'border-l border-error/40 pl-4',
   }[tone];
 
-  return <section className={`border-t pt-5 ${toneClassName}`}>{children}</section>;
+  return <section className={toneClassName}>{children}</section>;
 }
 
 function StaleReviewCard({ onReviewCurrentVersion }: { onReviewCurrentVersion: () => void }): React.JSX.Element {
@@ -193,28 +138,6 @@ function StaleReviewCard({ onReviewCurrentVersion }: { onReviewCurrentVersion: (
       <button type="button" className="btn btn-warning btn-sm mt-4 rounded-xl" onClick={onReviewCurrentVersion}>
         Review current version
       </button>
-    </PanelCard>
-  );
-}
-
-function BeforeWritingState({
-  dateKey,
-  hasPendingRewritePractice,
-}: {
-  dateKey: string;
-  hasPendingRewritePractice: boolean;
-}): React.JSX.Element {
-  return (
-    <PanelCard tone="primary">
-      <h3 className="font-semibold">Your desk is ready</h3>
-      <p className="mt-2 text-sm leading-6 text-base-content/65">
-        Today's writing is ready for {dateKey}. Start with your own words; feedback comes later.
-      </p>
-      <p className="mt-3 text-sm text-base-content/50">
-        {hasPendingRewritePractice
-          ? 'A saved sentence is waiting too, but it does not block today’s writing.'
-          : 'No pending rewrite practice yet.'}
-      </p>
     </PanelCard>
   );
 }
@@ -244,12 +167,10 @@ function RewritePracticeCard({
 
   return (
     <PanelCard tone="success">
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-success">D+1 rewrite practice</p>
-          <h3 className="mt-1 font-semibold">Practice this sentence</h3>
-        </div>
-        <span className="badge badge-success badge-soft">{practice.spacedStage}</span>
+      <div>
+        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-success">D+1 rewrite practice</p>
+        <h3 className="mt-1 font-semibold">Practice this sentence</h3>
+        <p className="mt-1 text-xs text-base-content/45">{practice.spacedStage}</p>
       </div>
       <div className="mt-4 space-y-3 text-sm leading-6 text-base-content/70">
         <p>
@@ -307,8 +228,6 @@ function ReviewProgressCard({ progress }: { progress: ReviewProgressModel }): Re
 
   const currentPhase = progress.currentEvent?.phase ?? 'preparing';
   const currentTimestamp = now ?? progress.currentEvent?.at ?? progress.startedAt ?? 0;
-  const startedAt = progress.startedAt ?? progress.currentEvent?.at ?? currentTimestamp;
-  const elapsedMs = Math.max(0, currentTimestamp - startedAt);
   const waitingStartedEvent = latestProgressEvent(progress, 'waiting');
   const waitingElapsedMs =
     currentPhase === 'waiting' && waitingStartedEvent?.event === 'started'
@@ -318,12 +237,9 @@ function ReviewProgressCard({ progress }: { progress: ReviewProgressModel }): Re
 
   return (
     <PanelCard tone="primary">
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-primary/70">Review in progress</p>
-          <h3 className="mt-1 font-semibold">{phaseLabels[currentPhase]}</h3>
-        </div>
-        <span className="badge badge-primary badge-soft">{formatDuration(elapsedMs)}</span>
+      <div>
+        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-primary/70">Review in progress</p>
+        <h3 className="mt-1 font-semibold">{phaseLabels[currentPhase]}</h3>
       </div>
       <p className="mt-2 text-sm leading-6 text-base-content/65">{phaseDescriptions[currentPhase]}</p>
       {showSlowHint ? (
@@ -331,11 +247,14 @@ function ReviewProgressCard({ progress }: { progress: ReviewProgressModel }): Re
           <span>The AI provider is still working. You can keep writing while this runs.</span>
         </div>
       ) : null}
-      <ol className="mt-4 grid gap-2 text-sm">
-        {reviewPhases.map((phase) => (
-          <ReviewPhaseRow key={phase} phase={phase} progress={progress} currentPhase={currentPhase} />
-        ))}
-      </ol>
+      <details className="mt-4 text-sm text-base-content/62">
+        <summary className="cursor-pointer font-medium text-base-content/70">Review progress steps</summary>
+        <ol className="mt-3 grid gap-2">
+          {reviewPhases.map((phase) => (
+            <ReviewPhaseRow key={phase} phase={phase} progress={progress} currentPhase={currentPhase} />
+          ))}
+        </ol>
+      </details>
     </PanelCard>
   );
 }
@@ -393,15 +312,11 @@ function AfterWritingState({
   const reviewDisabled = saveState === 'saving' || reviewState === 'reviewing';
   const failedCategory =
     reviewState === 'failed' ? (latestReviewRun?.summary?.errorCategory ?? inferErrorCategory(reviewError)) : null;
-  const title = failedCategory ? errorTitles[failedCategory] : 'Get feedback';
-  const copy = failedCategory
-    ? failureCopyFor(failedCategory, reviewError)
-    : 'Read once for the main idea, then ask the coach for one focused pattern.';
+  const copy = failedCategory ? failureCopyFor(failedCategory, reviewError) : null;
 
   return (
     <PanelCard tone={failedCategory ? 'error' : 'primary'}>
-      <h3 className="font-semibold">{title}</h3>
-      <p className="mt-2 text-sm leading-6 text-base-content/60">{copy}</p>
+      {copy ? <p className="text-sm leading-6 text-base-content/60">{copy}</p> : null}
       {failedCategory ? (
         <p className="mt-2 text-sm leading-6 text-base-content/55">
           Retry reviews the current editor content and creates a new review run.
@@ -409,7 +324,7 @@ function AfterWritingState({
       ) : null}
       <button
         type="button"
-        className={`btn mt-4 w-full rounded-xl ${failedCategory ? 'btn-error' : 'btn-primary'}`}
+        className={`btn w-full rounded-xl ${failedCategory ? 'btn-error mt-4' : 'btn-primary'}`}
         disabled={reviewDisabled}
         aria-disabled={reviewDisabled}
         onClick={onReviewCurrentVersion}
@@ -425,228 +340,10 @@ function AfterWritingState({
           'Get Feedback'
         )}
       </button>
-      <p className="mt-3 text-sm text-base-content/50">
-        {lastAutosaveAt ? `Last autosave ${formatTime(lastAutosaveAt)}` : 'Autosave will appear here after writing.'}
+      <p className="mt-3 text-xs text-base-content/38">
+        {lastAutosaveAt ? `Autosaved ${formatTime(lastAutosaveAt)}` : 'Autosave will appear after writing.'}
       </p>
       {failedCategory ? <ReviewDetails reviewRun={latestReviewRun} fallbackErrorCategory={failedCategory} /> : null}
-    </PanelCard>
-  );
-}
-
-function ReviewPreview({
-  preview,
-  reviewState,
-  selfRepairAttempt,
-  modelAnswerRevealed,
-  onSelfRepairAttemptChange,
-  onRevealModelAnswer,
-  onSaveReview,
-  onReviewCurrentVersion,
-}: {
-  preview: ReviewPreviewSnapshot;
-  reviewState: ReviewState;
-  selfRepairAttempt: string;
-  modelAnswerRevealed: boolean;
-  onSelfRepairAttemptChange: (value: string) => void;
-  onRevealModelAnswer: () => void;
-  onSaveReview: () => void;
-  onReviewCurrentVersion: () => void;
-}): React.JSX.Element {
-  const focusCorrection = getFocusCorrection(preview);
-  const topCorrections = preview.operations.corrections.filter(
-    (correction) =>
-      correction.status !== 'low_confidence' && correction.correctionIndex !== focusCorrection?.correctionIndex,
-  );
-  const lowConfidenceCorrections = preview.operations.corrections.filter(
-    (correction) => correction.status === 'low_confidence',
-  );
-  const firstReferenceRewrite = preview.operations.referenceRewrites[0];
-  const firstRewritePractice = preview.operations.rewritePractice[0];
-  const focusPatternTitle = focusCorrection
-    ? (patternRule(focusCorrection) ?? focusCorrection.category)
-    : 'Focus pattern';
-
-  if (!focusCorrection || !preview.operations.selfRepair) {
-    return (
-      <PanelCard>
-        <h3 className="font-semibold">Review unavailable</h3>
-        <p className="mt-2 text-sm text-base-content/60">This review does not contain exactly one focus correction.</p>
-      </PanelCard>
-    );
-  }
-
-  return (
-    <section className="grid gap-4" aria-label="Review preview">
-      <ReviewQualitySummary preview={preview} focusPatternTitle={focusPatternTitle} />
-      {preview.isStaleForCurrentWriting ? (
-        <button type="button" className="btn btn-warning rounded-xl" onClick={onReviewCurrentVersion}>
-          Retry current version
-        </button>
-      ) : null}
-
-      <PanelCard tone="success">
-        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-success">What you did well</p>
-        <ul className="mt-3 list-disc space-y-2 pl-5 text-sm leading-6 text-base-content/70">
-          {preview.parsedOutput.summary.whatWentWell.map((item) => (
-            <li key={item}>{item}</li>
-          ))}
-        </ul>
-      </PanelCard>
-
-      <PanelCard tone="primary">
-        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-primary/70">Today’s focus</p>
-        <h3 className="mt-2 text-lg font-semibold">{focusPatternTitle}</h3>
-        <p className="mt-2 text-sm leading-6 text-base-content/60">
-          {preview.parsedOutput.summary.focusPattern.reason}
-        </p>
-      </PanelCard>
-
-      <PanelCard>
-        <h3 className="font-semibold">Try rewriting this sentence</h3>
-        <p className="mt-2 text-sm leading-6 text-base-content/65">{preview.operations.selfRepair.prompt}</p>
-        <div className="mt-4 rounded-xl border border-info/25 bg-info/10 p-3 text-sm leading-6 text-base-content/70">
-          Hint: {preview.operations.selfRepair.hint}
-        </div>
-        <textarea
-          className="textarea textarea-bordered mt-4 min-h-28 w-full resize-y rounded-xl bg-base-100"
-          value={selfRepairAttempt}
-          onChange={(event) => onSelfRepairAttemptChange(event.target.value)}
-          placeholder="Try your own rewrite before revealing the model answer."
-          aria-label="Self-repair attempt"
-        />
-        <div className="mt-4 flex flex-wrap gap-2">
-          <button type="button" className="btn btn-outline btn-sm rounded-xl" onClick={onRevealModelAnswer}>
-            Reveal model answer
-          </button>
-        </div>
-        {modelAnswerRevealed ? (
-          <p className="mt-4 rounded-xl border border-primary/20 bg-primary/10 p-3 text-sm leading-6">
-            <strong>Model answer:</strong> {focusCorrection.correctedText}
-          </p>
-        ) : null}
-      </PanelCard>
-
-      <CorrectionCard
-        correction={focusCorrection}
-        showAnswer={modelAnswerRevealed}
-        reason={preview.parsedOutput.summary.focusPattern.reason}
-      />
-
-      <ReviewAccordion title="Other notes" badge={`${topCorrections.length}`}>
-        {topCorrections.length > 0 ? (
-          <div className="grid gap-3">
-            {topCorrections.map((correction) => (
-              <CorrectionCard correction={correction} key={correction.correctionIndex} showAnswer />
-            ))}
-          </div>
-        ) : (
-          <p className="text-sm text-base-content/55">No other anchored notes for this review.</p>
-        )}
-      </ReviewAccordion>
-
-      {lowConfidenceCorrections.length > 0 ? (
-        <ReviewAccordion title="Low-confidence suggestions" badge={`${lowConfidenceCorrections.length}`}>
-          <div className="grid gap-3">
-            {lowConfidenceCorrections.map((correction) => (
-              <CorrectionCard correction={correction} key={correction.correctionIndex} showAnswer />
-            ))}
-          </div>
-          <p className="mt-3 text-sm text-base-content/50">
-            These suggestions stay separate and will not update learning history.
-          </p>
-        </ReviewAccordion>
-      ) : null}
-
-      {firstReferenceRewrite ? (
-        <ReviewAccordion title="Reference rewrite" badge="1">
-          <p className="writing-practice-surface rounded-xl bg-base-200 p-4 text-base text-base-content/75">
-            {firstReferenceRewrite.text}
-          </p>
-          <p className="mt-3 rounded-xl border border-info/25 bg-info/10 p-3 text-sm leading-6 text-base-content/70">
-            Notice the gap: {firstReferenceRewrite.noticeTheGap}
-          </p>
-        </ReviewAccordion>
-      ) : null}
-
-      {firstRewritePractice ? <ScheduledPracticeCard practice={firstRewritePractice} /> : null}
-
-      <button
-        type="button"
-        className="btn btn-primary rounded-xl"
-        disabled={reviewState === 'saving' || reviewState === 'saved'}
-        onClick={onSaveReview}
-      >
-        {reviewState === 'saving' ? (
-          <>
-            <span className="loading loading-spinner loading-xs" />
-            Saving review...
-          </>
-        ) : reviewState === 'saved' ? (
-          'Review saved'
-        ) : (
-          'Save review and update learning history'
-        )}
-      </button>
-      {reviewState === 'saved' ? <SaveSummaryCard /> : null}
-    </section>
-  );
-}
-
-function ReviewQualitySummary({
-  preview,
-  focusPatternTitle,
-}: {
-  preview: ReviewPreviewSnapshot;
-  focusPatternTitle: string;
-}): React.JSX.Element {
-  const summary = preview.reviewRun.summary;
-  const lowConfidenceCount = preview.operations.corrections.filter(
-    (correction) => correction.status === 'low_confidence',
-  ).length;
-  const hasWarnings = (summary?.warningCount ?? 0) > 0 || lowConfidenceCount > 0;
-
-  return (
-    <PanelCard tone="success">
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-success">Feedback ready</p>
-          <h3 className="mt-1 font-semibold">Your coach found one focus pattern.</h3>
-        </div>
-        {summary?.durationMs ? (
-          <span className="badge badge-success badge-soft">{formatDuration(summary.durationMs)}</span>
-        ) : null}
-      </div>
-      <p className="mt-4 text-sm leading-6 text-base-content/65">
-        <strong>Focus:</strong> {focusPatternTitle}
-      </p>
-      <p className="mt-2 text-sm leading-6 text-base-content/55">
-        The technical review details are still available below, but the learning path stays focused on one pattern.
-      </p>
-      {preview.isStaleForCurrentWriting ? (
-        <p className="mt-3 rounded-xl border border-warning/25 bg-warning/10 p-3 text-sm leading-6 text-base-content/65">
-          This preview is based on an earlier writing version. Saving will keep it as stale history; use Retry current
-          version for feedback on your latest writing.
-        </p>
-      ) : null}
-      {hasWarnings ? (
-        <p className="mt-3 rounded-xl border border-warning/25 bg-warning/10 p-3 text-sm leading-6 text-base-content/65">
-          Warnings do not block saving. Low-confidence suggestions are shown separately and will not update learning
-          history.
-        </p>
-      ) : null}
-      <ReviewDetails reviewRun={preview.reviewRun} />
-    </PanelCard>
-  );
-}
-
-function SaveSummaryCard(): React.JSX.Element {
-  return (
-    <PanelCard tone="success">
-      <h3 className="font-semibold">Learning history updated</h3>
-      <p className="mt-2 text-sm leading-6 text-base-content/65">
-        Anchored corrections, your self-repair attempt, reference rewrite, and tomorrow's practice are saved separately
-        from the AI review progress.
-      </p>
     </PanelCard>
   );
 }
@@ -660,8 +357,8 @@ function ReviewDetails({
 }): React.JSX.Element | null {
   if (!reviewRun) {
     return fallbackErrorCategory ? (
-      <details className="mt-4 rounded-xl border border-base-300 bg-base-100 p-3 text-sm">
-        <summary className="cursor-pointer font-semibold">Details</summary>
+      <details className="mt-4 text-sm text-base-content/65">
+        <summary className="cursor-pointer font-semibold text-base-content/72">Details</summary>
         <dl className="mt-3 grid gap-2 text-base-content/65">
           <DetailRow label="Error category" value={fallbackErrorCategory} />
         </dl>
@@ -672,8 +369,8 @@ function ReviewDetails({
   const summary = reviewRun.summary;
 
   return (
-    <details className="mt-4 rounded-xl border border-base-300 bg-base-100 p-3 text-sm">
-      <summary className="cursor-pointer font-semibold">Details</summary>
+    <details className="mt-4 text-sm text-base-content/65">
+      <summary className="cursor-pointer font-semibold text-base-content/72">Details</summary>
       <dl className="mt-3 grid gap-2 text-base-content/65">
         <DetailRow label="Run id" value={reviewRun.id} mono />
         <DetailRow label="Provider" value={reviewRun.provider} />
@@ -719,7 +416,7 @@ function DetailRow({
 
 function ReviewStatsDetails({ summary }: { summary: ReviewRunSummary }): React.JSX.Element {
   return (
-    <div className="mt-4 border-t border-base-300 pt-3">
+    <div className="mt-4">
       <p className="font-semibold">Review stats</p>
       <dl className="mt-3 grid gap-2 text-sm text-base-content/65">
         <DetailRow label="Anchored" value={`${summary.reviewStats.anchoredCorrections}`} />
@@ -734,7 +431,7 @@ function ReviewStatsDetails({ summary }: { summary: ReviewRunSummary }): React.J
 
 function PhaseTimingList({ summary }: { summary: ReviewRunSummary }): React.JSX.Element {
   return (
-    <div className="mt-4 border-t border-base-300 pt-3">
+    <div className="mt-4">
       <p className="font-semibold">Phase timings</p>
       <dl className="mt-3 grid gap-2 text-sm text-base-content/65">
         {reviewPhases.map((phase) => (
@@ -746,58 +443,6 @@ function PhaseTimingList({ summary }: { summary: ReviewRunSummary }): React.JSX.
         ))}
       </dl>
     </div>
-  );
-}
-
-function ReviewAccordion({
-  title,
-  badge,
-  defaultOpen = false,
-  children,
-}: {
-  title: string;
-  badge: string;
-  defaultOpen?: boolean;
-  children: React.ReactNode;
-}): React.JSX.Element {
-  return (
-    <div className="collapse collapse-arrow rounded-xl border border-base-300 bg-base-100">
-      <input type="checkbox" defaultChecked={defaultOpen} aria-label={title} />
-      <div className="collapse-title flex items-center justify-between gap-3 font-semibold">
-        <span>{title}</span>
-        <span className="badge badge-ghost">{badge}</span>
-      </div>
-      <div className="collapse-content">{children}</div>
-    </div>
-  );
-}
-
-function ScheduledPracticeCard({
-  practice,
-}: {
-  practice: PreviewOperationsSnapshot['rewritePractice'][number];
-}): React.JSX.Element {
-  const focusIndexes = practice.focusCorrectionIndexes.join(', ');
-
-  return (
-    <PanelCard tone="success">
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-success">Tomorrow practice scheduled</p>
-          <h3 className="mt-1 font-semibold">One sentence saved for D+1</h3>
-        </div>
-        <span className="badge badge-success badge-soft">D+{practice.dueOffsetDays}</span>
-      </div>
-      <div className="mt-3 space-y-2 text-sm leading-6 text-base-content/65">
-        <p>
-          <strong>Reason:</strong> This follows today's focus correction{focusIndexes ? ` #${focusIndexes}` : ''}.
-        </p>
-        <p>
-          <strong>Prompt:</strong> {practice.prompt}
-        </p>
-      </div>
-      <p className="mt-3 text-sm text-base-content/50">The input field appears when this practice is due.</p>
-    </PanelCard>
   );
 }
 

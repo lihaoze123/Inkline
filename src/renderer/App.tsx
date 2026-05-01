@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import type { StartupStatus } from '@shared/types/app';
 import type { WritingAttemptSnapshot, WritingTemplateId } from '@shared/types/writing';
@@ -8,13 +8,12 @@ import type { AiProviderId } from '@shared/types/credentials';
 import type { SettingsSnapshot } from '@shared/types/settings';
 import { WritingEditorCard } from './components/WritingEditorCard';
 import { LearningPanel } from './components/LearningPanel';
-import { PracticeTemplatePicker } from './components/PracticeTemplatePicker';
 import { RevealAnswerDialog } from './components/RevealAnswerDialog';
 import { ReviewDisclosureDialog } from './components/ReviewDisclosureDialog';
 import { SettingsPage } from './components/SettingsPage';
 import { PracticeHeader } from './components/PracticeHeader';
 import { getFocusCorrection, HighlightedWriting, patternRule } from './components/review-utils';
-import type { AppStatusModel, ReviewProgressModel, ReviewState, SaveState } from './components/types';
+import type { ReviewProgressModel, ReviewState, SaveState } from './components/types';
 import { useFoundationState } from './query/foundation';
 import { queryKeys } from './query/keys';
 import { setReviewPreviewCache, useSaveReview, useStartReview } from './query/review';
@@ -170,18 +169,7 @@ function PracticePage({ initialWriting, settings, startup }: PracticePageProps):
   );
 
   const hasWritten = content.trim().length > 0;
-  const appStatus = useMemo(() => getAppStatus(startup, appSettings), [appSettings, startup]);
   const practicePromptTitle = getPracticePromptTitle(writing);
-  const practiceInstruction = getPracticeInstruction(writing);
-  const focusCorrection = reviewPreview ? getFocusCorrection(reviewPreview) : null;
-  const highlightedContent =
-    reviewPreview && focusCorrection && reviewPreview.isStaleForCurrentWriting === false
-      ? reviewPreview.reviewedContent
-      : null;
-  const highlightedCorrections =
-    reviewPreview && focusCorrection && reviewPreview.isStaleForCurrentWriting === false
-      ? reviewPreview.operations.corrections
-      : [];
 
   useEffect(() => {
     return window.api.review.onProgress((event: ReviewProgressEvent) => {
@@ -202,6 +190,14 @@ function PracticePage({ initialWriting, settings, startup }: PracticePageProps):
 
   const selectTemplate = useCallback(
     async (templateId: WritingTemplateId): Promise<void> => {
+      if (content !== lastSavedContentRef.current || userGoal !== lastSavedUserGoalRef.current) {
+        const savedWriting = await saveWritingAttempt({ templateId: selectedTemplateId, content, userGoal });
+        updateWritingCache(savedWriting);
+        lastSavedContentRef.current = savedWriting.activeRevision?.content ?? content;
+        lastSavedUserGoalRef.current = savedWriting.userGoal ?? userGoal;
+        setSaveState('saved');
+      }
+
       const nextWriting = await queryClient.fetchQuery({
         queryKey: queryKeys.writing.attempt(templateId),
         queryFn: () => window.api.writing.getWritingAttempt({ templateId }),
@@ -220,7 +216,7 @@ function PracticePage({ initialWriting, settings, startup }: PracticePageProps):
       setStarterPromptError(null);
       setStarterPromptState('idle');
     },
-    [queryClient],
+    [content, queryClient, saveWritingAttempt, selectedTemplateId, updateWritingCache, userGoal],
   );
 
   const saveContent = useCallback(
@@ -314,9 +310,6 @@ function PracticePage({ initialWriting, settings, startup }: PracticePageProps):
           setReviewPreviewCache(queryClient, { reviewRunId: reviewRun.id }, preview);
           setReviewPreview(preview);
           setReviewState(preview ? 'ready' : 'failed');
-          if (preview) {
-            setActiveArea('feedback');
-          }
           await queryClient.invalidateQueries({ queryKey: queryKeys.writing.attempt(targetWriting.templateId) });
           if (!preview) {
             setReviewError('Review preview is unavailable.');
@@ -663,7 +656,7 @@ function PracticePage({ initialWriting, settings, startup }: PracticePageProps):
                   <div className="illustration-placeholder hidden lg:block" aria-hidden="true" />
                 </div>
 
-                <section className="border-y border-base-300/60 py-8">
+                <section className="py-8">
                   <p className="text-xs font-bold uppercase tracking-[0.2em] text-primary/85">Today's practice</p>
                   <h2 className="editorial-heading mt-7 max-w-3xl text-[3.45rem] leading-[1.05] text-base-content">
                     {practicePromptTitle}
@@ -685,92 +678,42 @@ function PracticePage({ initialWriting, settings, startup }: PracticePageProps):
                   </button>
                 </section>
 
-                {hasWritten ? (
-                  <section className="grid gap-5 border-b border-base-300/60 py-6 md:grid-cols-[minmax(0,1fr)_auto] md:items-center">
-                    <div>
-                      <h2 className="editorial-copy text-xl text-base-content">Continue last draft</h2>
-                      <p className="writing-practice-surface mt-3 line-clamp-2 text-base italic text-base-content/72">
-                        “{content}”
-                      </p>
-                    </div>
-                    <div className="text-right">
-                      <button type="button" className="btn btn-outline rounded-[0.65rem]" onClick={() => setActiveArea('write')}>
-                        Resume
-                        <span aria-hidden="true">›</span>
-                      </button>
-                      <p className="mt-2 text-xs text-base-content/42">
-                        {writing.lastAutosaveAt ? 'Saved recently' : 'Draft in progress'}
-                      </p>
-                    </div>
-                  </section>
-                ) : null}
-
-                <div className="grid gap-8 border-b border-base-300/60 py-7 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.08fr)]">
-                  <section>
-                    <h2 className="editorial-copy flex items-center gap-3 text-2xl text-base-content">
-                      <span className="inline-icon text-secondary" aria-hidden="true">
-                        <svg viewBox="0 0 24 24">
-                          <path d="M5 20c8-1 13-6 14-14" />
-                          <path d="M5 20c1-8 6-13 14-14" />
-                        </svg>
-                      </span>
-                      Recent progress
-                    </h2>
-                    <ul className="mt-5 divide-y divide-base-300/55 text-sm leading-6 text-base-content/68">
-                      <li className="py-3">{hasWritten ? 'Current draft in progress' : 'Ready for today’s first draft'}</li>
-                      <li className="py-3">{writing.pendingRewritePractice ? 'Rewrite waiting' : 'Rewrite practice starts after feedback'}</li>
-                      <li className="py-3">Review will focus on one transferable pattern.</li>
-                    </ul>
-                  </section>
-                  <section className="border-t border-base-300/60 pt-7 lg:border-l lg:border-t-0 lg:pl-8 lg:pt-0">
-                    <div className="flex items-start justify-between gap-4">
-                      <h2 className="editorial-copy text-2xl text-base-content">Notebook</h2>
-                      <button type="button" className="text-sm text-primary" onClick={() => setActiveArea('notebook')}>
-                        View all
-                      </button>
-                    </div>
-                    <p className="mt-5 max-w-md text-sm leading-6 text-base-content/60">
-                      Expressions saved from future feedback will appear here. For this MVP, Notebook stays lightweight.
-                    </p>
-                  </section>
-                </div>
-
-                <PracticeTemplatePicker
-                  templates={WRITING_TEMPLATES}
-                  selectedTemplateId={selectedTemplateId}
-                  onSelectTemplate={(templateId) => {
-                    void selectTemplate(templateId).then(() => setActiveArea('write'));
-                  }}
-                />
+                <button
+                  type="button"
+                  className="mt-2 self-start text-sm text-base-content/50 transition hover:text-primary"
+                  onClick={() => setActiveArea('write')}
+                >
+                  Choose a different practice scenario in Practice
+                </button>
               </section>
             ) : null}
 
             {activeArea === 'write' ? (
               <section className="flex min-h-0 flex-1 flex-col gap-6">
-                <PracticeHeader
-                  practicePromptTitle={practicePromptTitle}
-                  selectedTemplateTitle={writing.template.title}
-                  instruction={practiceInstruction}
-                  startup={startup}
-                  status={appStatus}
-                />
-                <div className="flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-base-300/60 pb-3 text-sm text-base-content/55">
-                  <span className="font-medium text-base-content/70">Scenario</span>
-                  {WRITING_TEMPLATES.map((template) => (
-                    <button
-                      key={template.id}
-                      type="button"
-                      className={`transition ${template.id === selectedTemplateId ? 'font-semibold text-primary' : 'hover:text-base-content'}`}
-                      onClick={() => {
-                        void selectTemplate(template.id);
-                      }}
-                    >
-                      {template.title}
-                    </button>
-                  ))}
-                </div>
+                <PracticeHeader practicePromptTitle={practicePromptTitle} selectedTemplateTitle={writing.template.title} />
+                <details className="group text-sm text-base-content/50">
+                  <summary className="flex cursor-pointer list-none items-center gap-2 transition hover:text-base-content [&::-webkit-details-marker]:hidden">
+                    <span>{writing.template.title}</span>
+                    <span className="text-xs text-primary/70 group-open:hidden">Change</span>
+                    <span className="hidden text-xs text-primary/70 group-open:inline">Close</span>
+                  </summary>
+                  <div className="mt-3 flex flex-col items-start gap-2 sm:flex-row sm:flex-wrap sm:gap-x-4">
+                    {WRITING_TEMPLATES.map((template) => (
+                      <button
+                        key={template.id}
+                        type="button"
+                        className={`text-left transition ${template.id === selectedTemplateId ? 'font-semibold text-primary' : 'hover:text-base-content'}`}
+                        onClick={() => {
+                          void selectTemplate(template.id);
+                        }}
+                      >
+                        {template.title}
+                      </button>
+                    ))}
+                  </div>
+                </details>
 
-                <div className="grid min-h-0 flex-1 gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(17rem,18.5rem)] xl:grid-cols-[minmax(0,1fr)_19rem]">
+                <div className="grid min-h-0 flex-1 gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(14.5rem,16rem)] xl:grid-cols-[minmax(0,1fr)_16.5rem]">
                   <WritingEditorCard
                     template={writing.template}
                     generatedPrompt={writing.generatedPrompt}
@@ -781,8 +724,6 @@ function PracticePage({ initialWriting, settings, startup }: PracticePageProps):
                     lastAutosaveAt={writing.lastAutosaveAt}
                     saveState={saveState}
                     saveError={saveError}
-                    highlightedContent={highlightedContent}
-                    highlightedCorrections={highlightedCorrections}
                     onContentChange={setContent}
                     onUserGoalChange={setUserGoal}
                     onGenerateStarterPrompt={() => {
@@ -799,13 +740,7 @@ function PracticePage({ initialWriting, settings, startup }: PracticePageProps):
                     reviewProgress={reviewProgress}
                     latestReviewRun={latestReviewRun}
                     preview={reviewPreview}
-                    selfRepairAttempt={selfRepairAttempt}
-                    modelAnswerRevealed={modelAnswerRevealed}
-                    onSelfRepairAttemptChange={setSelfRepairAttempt}
-                    onRevealModelAnswer={requestRevealModelAnswer}
-                    onSaveReview={() => {
-                      void saveReview();
-                    }}
+                    onOpenFeedback={() => setActiveArea('feedback')}
                     rewritePracticeInput={rewritePracticeInput}
                     completedRewritePractice={completedRewritePractice}
                     rewritePracticeError={rewritePracticeError}
@@ -1022,22 +957,6 @@ function getPracticePromptTitle(writing: WritingAttemptSnapshot): string {
   return 'Write about one idea you want to express clearly.';
 }
 
-function getPracticeInstruction(writing: WritingAttemptSnapshot): string {
-  if (writing.templateId === 'journal') {
-    return 'Write 80–150 words. Try to explain what you chose and why.';
-  }
-
-  if (writing.templateId === 'cet4') {
-    return 'Write a short, clear paragraph. Keep the focus on your reason and example.';
-  }
-
-  if (writing.templateId === 'cet6') {
-    return 'Write one focused response with a clear point, support, and reflective ending.';
-  }
-
-  return 'Write freely in English. Keep it personal, specific, and easy to follow.';
-}
-
 function NavIcon({ name }: { name: NavIconName }): React.JSX.Element {
   switch (name) {
     case 'home':
@@ -1117,7 +1036,7 @@ function FeedbackRewritePage({
   if (!preview) {
     return (
       <section className="flex min-h-0 flex-1 flex-col gap-8" aria-labelledby="feedback-page-title">
-        <div className="flex min-h-[8rem] items-start justify-between gap-8 border-b border-base-300/60 pb-7">
+        <div className="flex min-h-[8rem] items-start justify-between gap-8 pb-3">
           <div>
             <p className="text-sm text-base-content/55">Practice › Feedback & Rewrite</p>
             <h1 id="feedback-page-title" className="editorial-heading mt-4 text-5xl text-base-content">
@@ -1129,10 +1048,10 @@ function FeedbackRewritePage({
           </div>
           <div className="illustration-placeholder hidden lg:block" aria-hidden="true" />
         </div>
-        <div className="max-w-xl border-t border-base-300/60 pt-7">
+        <div className="max-w-xl pt-4">
           <h2 className="text-xl font-semibold">No feedback preview yet</h2>
           <p className="mt-3 text-sm leading-6 text-base-content/60">Write first, then ask the coach for one focused note.</p>
-          <button type="button" className="btn btn-primary mt-6 rounded-[0.7rem]" onClick={onBackToDraft}>
+          <button type="button" className="btn btn-outline mt-6 rounded-[0.7rem]" onClick={onBackToDraft}>
             Back to draft
           </button>
         </div>
@@ -1156,7 +1075,7 @@ function FeedbackRewritePage({
             Feedback & Rewrite
           </h1>
           <p className="mt-4 max-w-3xl text-base leading-7 text-base-content/60">
-            You expressed the idea clearly. Now let’s make it sound more natural and connected.
+            Try one small rewrite from your review, then save it when you are ready.
           </p>
         </div>
         <div className="illustration-placeholder hidden lg:block" aria-hidden="true" />
@@ -1171,8 +1090,8 @@ function FeedbackRewritePage({
         </div>
       ) : null}
 
-      <div className="grid min-h-0 gap-5 xl:grid-cols-[minmax(0,0.92fr)_minmax(0,1.25fr)]">
-        <div className="grid gap-6 divide-y divide-base-300/60">
+      <div className="grid min-h-0 gap-8 xl:grid-cols-[minmax(0,0.92fr)_minmax(0,1.25fr)]">
+        <div className="grid content-start gap-9">
           <section className="pb-1">
             <h2 className="editorial-copy flex items-center gap-3 text-xl text-base-content">
               <span className="inline-icon text-secondary" aria-hidden="true">
@@ -1187,44 +1106,37 @@ function FeedbackRewritePage({
             </p>
           </section>
 
-          <section className="pt-6">
+          <section>
             <h2 className="editorial-copy text-xl text-base-content">One focus pattern</h2>
             <p className="mt-3 text-sm font-semibold text-primary">{focusPatternTitle}</p>
-            <ul className="mt-4 list-disc space-y-2 pl-5 text-sm leading-6 text-base-content/70">
-              {preview.parsedOutput.summary.whatWentWell.slice(0, 2).map((item) => (
-                <li key={item}>{item}</li>
-              ))}
-            </ul>
+            {preview.parsedOutput.summary.whatWentWell[0] ? (
+              <p className="mt-4 max-w-xl text-sm leading-6 text-base-content/65">
+                {preview.parsedOutput.summary.whatWentWell[0]}
+              </p>
+            ) : null}
           </section>
 
-          <section className="pt-6">
+          <section>
             <h2 className="editorial-copy mb-3 text-xl text-base-content">Original draft</h2>
             <HighlightedWriting content={preview.reviewedContent} corrections={preview.operations.corrections} />
           </section>
 
           {referenceRewrite ? (
-            <section className="pt-6">
-              <h2 className="editorial-copy flex items-center gap-3 text-xl text-base-content">
-                <span className="inline-icon text-secondary" aria-hidden="true">
-                  <svg viewBox="0 0 24 24">
-                    <path d="m12 3 1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8Z" />
-                  </svg>
-                </span>
-                Suggested rewrite
-              </h2>
-              <p className="writing-practice-surface mt-3 whitespace-pre-wrap border-l border-base-300/70 pl-4 text-base leading-7 text-base-content/78">
+            <details className="pt-6 text-sm text-base-content/62">
+              <summary className="cursor-pointer font-medium text-base-content/70">Reference rewrite and noticing-the-gap</summary>
+              <p className="writing-practice-surface mt-3 whitespace-pre-wrap text-base leading-7 text-base-content/78">
                 {referenceRewrite.text}
               </p>
-              <p className="mt-3 border-l border-base-300/70 pl-4 text-sm leading-6 text-base-content/60">
+              <p className="mt-3 leading-6">
                 {referenceRewrite.noticeTheGap}
               </p>
-            </section>
+            </details>
           ) : null}
         </div>
 
         <div className="grid gap-4 xl:grid-rows-[minmax(31rem,1fr)_auto]">
           <section className="flex min-h-0 flex-col">
-            <div className="mb-4 flex items-start justify-between gap-4 border-b border-base-300/60 pb-4">
+            <div className="mb-4 flex items-start justify-between gap-4">
               <div>
                 <h2 className="editorial-copy flex items-center gap-3 text-2xl text-base-content">
                   <span className="inline-icon text-primary" aria-hidden="true">
@@ -1239,7 +1151,7 @@ function FeedbackRewritePage({
               </div>
             </div>
             {focusCorrection ? (
-              <p className="mb-4 border-l border-base-300/70 pl-4 text-sm leading-6 text-base-content/70">
+              <p className="mb-4 max-w-2xl text-sm leading-6 text-base-content/70">
                 Hint: {preview.operations.selfRepair?.hint ?? focusCorrection.explanation}
               </p>
             ) : null}
@@ -1254,12 +1166,8 @@ function FeedbackRewritePage({
               aria-label="Your rewrite"
               spellCheck={false}
             />
-            <div className="mt-4 flex items-center justify-between gap-3 text-sm text-base-content/55">
-              <span>{rewriteText.trim().split(/\s+/).filter(Boolean).length} words</span>
-              <span>✓ Saved just now</span>
-            </div>
             {focusCorrection && modelAnswerRevealed ? (
-              <p className="mt-4 border-l border-primary/35 pl-4 text-sm leading-6 text-base-content/70">
+              <p className="mt-4 text-sm leading-6 text-base-content/70">
                 <strong>Model answer:</strong> {focusCorrection.correctedText}
               </p>
             ) : null}
@@ -1270,29 +1178,6 @@ function FeedbackRewritePage({
             ) : null}
           </section>
 
-          <div className="grid gap-4 border-t border-base-300/60 pt-5 md:grid-cols-2">
-            <section>
-              <h2 className="editorial-copy flex items-center gap-3 text-xl text-base-content">
-                <span className="inline-icon text-secondary" aria-hidden="true">
-                  <svg viewBox="0 0 24 24">
-                    <path d="M12 22c6-4 8-9 7-16-7-1-12 1-16 7 3 0 6 1 9 4" />
-                  </svg>
-                </span>
-                What to keep
-              </h2>
-              <ul className="mt-4 list-disc space-y-2 pl-5 text-sm leading-6 text-base-content/68">
-                {preview.parsedOutput.summary.whatWentWell.map((item) => (
-                  <li key={item}>{item}</li>
-                ))}
-              </ul>
-            </section>
-            <section className="border-t border-base-300/60 pt-5 md:border-l md:border-t-0 md:pl-5 md:pt-0">
-              <h2 className="editorial-copy text-xl text-base-content">Notebook</h2>
-              <p className="mt-4 text-sm leading-6 text-base-content/60">
-                Expression saving stays out of scope for this visual pass and will be added when Notebook persistence is designed.
-              </p>
-            </section>
-          </div>
         </div>
       </div>
 
@@ -1319,30 +1204,3 @@ function FeedbackRewritePage({
   );
 }
 
-function getAppStatus(startup: StartupStatus, settings: SettingsSnapshot): AppStatusModel {
-  const defaultKeyStatus =
-    settings.providerCredentialStatuses?.[settings.providerId ?? 'openai-compatible'].status ??
-    settings.providerApiKeyStatus;
-
-  if (!startup.databaseReady || !startup.migrationsApplied || defaultKeyStatus === 'unavailable') {
-    return {
-      readiness: 'error',
-      label: 'Error',
-      detail: !startup.databaseReady ? 'Database unavailable' : 'Keychain unavailable',
-    };
-  }
-
-  if (defaultKeyStatus !== 'configured') {
-    return {
-      readiness: 'setup-needed',
-      label: 'Setup needed',
-      detail: 'Add an API key before review',
-    };
-  }
-
-  return {
-    readiness: 'ready',
-    label: 'Ready',
-    detail: 'AI is configured',
-  };
-}
