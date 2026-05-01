@@ -113,7 +113,7 @@ pnpm typecheck
 pnpm lint
 pnpm test
 pnpm review:harness
-pnpm dev
+pnpm dev -- --remote-debugging-port=9222
 ```
 
 Core test targets:
@@ -133,6 +133,7 @@ renderer manual smoke
 - Automated checks must include lint, typecheck, and unit/integration tests for changed behavior.
 - Review-flow changes must also run `pnpm review:harness`.
 - Frontend/product-flow changes require a dev-app launch and manual UI verification when a graphical environment is available.
+- Electron launches used for Chrome DevTools verification must expose the remote debugging port on `9222`; use `pnpm dev -- --remote-debugging-port=9222` rather than plain `pnpm dev`.
 - Manual UI verification should cover template picker, starter disclosure, generate/regenerate, retry or failure copy, skip generation, optional goal/topic, autosave, review, save review, and due D+1 rewrite practice.
 - If manual UI verification cannot be fully performed, report the limitation explicitly; do not claim it was done.
 
@@ -145,12 +146,13 @@ renderer manual smoke
 | Tests fail | Fix or document blocker; do not mark task complete. |
 | Review harness fails | Fix review contract regression before completion. |
 | `pnpm dev` cannot launch | Report environment/startup error and what was not manually verified. |
+| Port `9222` is unavailable | Stop the stale Electron/Chrome debug process or report the port conflict; do not silently launch on another port for DevTools verification. |
 | UI cannot be interacted with in the environment | Report that only launch/build was verified, not full manual golden path. |
 
 ### 5. Good/Base/Bad Cases
 
 - Good: A feature touching review and UI passes `typecheck`, `lint`, `test`, `review:harness`, launches Electron, and has a manual golden-path note.
-- Base: Headless session can launch Electron but not interact; report launch success and manual interaction limitation.
+- Base: Headless session can launch Electron on remote debugging port `9222` but not interact; report launch success and manual interaction limitation.
 - Bad: Only running tests after a frontend flow change and claiming the UI was manually verified.
 
 ### 6. Tests Required
@@ -172,7 +174,7 @@ pnpm test passed, so the template picker and starter prompt UI are verified.
 #### Correct
 
 ```text
-pnpm typecheck, pnpm lint, pnpm test, and pnpm review:harness passed. Electron dev launched. Full manual interaction was not possible in this headless session, so UI golden path still needs human verification.
+pnpm typecheck, pnpm lint, pnpm test, and pnpm review:harness passed. Electron dev launched with --remote-debugging-port=9222. Full manual interaction was not possible in this headless session, so UI golden path still needs human verification.
 ```
 
 ## Required Review Harness Cases
