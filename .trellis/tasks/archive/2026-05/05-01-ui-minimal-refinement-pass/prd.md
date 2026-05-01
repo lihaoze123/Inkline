@@ -110,6 +110,17 @@ Settings should remain a clear preference/configuration page:
 * Settings save/delete/config actions should generally be outline/text actions.
 * Secondary navigation/actions should not use primary styling.
 
+### 6. Welcome Intro: Replace Brand Placeholder
+
+The first-run welcome intro should no longer show the `EC` text placeholder as the brand mark.
+
+* Use the project-owned English Coach app icon as the welcome intro brand mark.
+* Do not add an extra blue/primary-tinted wrapper behind the icon; the intro mark should read as the app icon itself on the warm paper background.
+* Keep the brand first screen visible long enough to register the app identity before advancing to the slides.
+* Keep the intro minimal and editorial; do not add extra badges, slogans, decorative art, or product-tour metadata.
+* Preserve the existing first-run intro behavior: brand hold, reduced-motion continue path, slide navigation, skip/dismiss behavior, and accessibility labels.
+* Avoid pulling runtime resources directly from Electron `process.resourcesPath` in the renderer; use a bundled renderer asset or another Vite-safe asset path.
+
 ## Acceptance Criteria
 
 * [ ] Today page renders as a single focused hero entry with one primary CTA and no default dashboard modules.
@@ -119,6 +130,7 @@ Settings should remain a clear preference/configuration page:
 * [ ] No concept-art-only metadata is introduced: timers, difficulty, focus chips, honor/status labels, fake metrics, streaks, or badges.
 * [ ] Each page has at most one primary deep sea-blue CTA.
 * [ ] Existing product contracts remain intact: independent writing before review, autosave, provider disclosures, one focus pattern, hint-before-answer, save-review boundary, local-first Settings privacy.
+* [ ] Welcome intro brand mark uses the app icon instead of the `EC` text placeholder.
 * [ ] `pnpm typecheck && pnpm lint` passes.
 * [ ] If the Electron runtime is available, perform a UI smoke test for Today → Practice → Feedback → Settings.
 
@@ -150,6 +162,7 @@ Likely files:
 * `src/renderer/components/LearningPanel.tsx` — Coach collapse/reduced default state.
 * `src/renderer/components/WritingEditorCard.tsx` — editor-centered layout compatibility.
 * `src/renderer/components/SettingsPage.tsx` — single-column quiet Settings adjustments.
+* `src/renderer/components/OnboardingIntro.tsx` — welcome intro brand placeholder replacement.
 * `src/renderer/styles.css` — minimal visual tokens only if needed.
 
 Relevant specs:
@@ -165,4 +178,5 @@ Relevant specs:
 2. Writing Workspace Coach collapsed/reduced default.
 3. Feedback & Rewrite coach-note + rewrite simplification.
 4. Settings final single-column/button hierarchy audit.
-5. Validation and UI smoke test where available.
+5. Welcome intro brand placeholder replacement.
+6. Validation and UI smoke test where available.

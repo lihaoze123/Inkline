@@ -1,0 +1,6 @@
+{"file": ".trellis/spec/backend/index.md", "reason": "Verify Electron main-process and packaging changes against project conventions."}
+{"file": ".trellis/spec/backend/environment.md", "reason": "Verify runtime path handling for packaged and dev execution."}
+{"file": ".trellis/spec/backend/quality.md", "reason": "Verify main-process import and quality rules."}
+{"file": ".trellis/spec/shared/code-quality.md", "reason": "Verify mandatory shared code quality rules."}
+{"file": ".trellis/spec/shared/typescript.md", "reason": "Verify TypeScript conventions in changed files."}
+{"file": ".trellis/spec/frontend/css-design.md", "reason": "Verify icon styling stays aligned with English Coach visual contract."}

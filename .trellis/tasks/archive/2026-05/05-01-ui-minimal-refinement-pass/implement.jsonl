@@ -2,5 +2,6 @@
 {"file":".trellis/tasks/04-30-quiet-writing-desk-ui-redesign/prd.md","reason":"Parent quiet writing desk UI redesign context and constraints."}
 {"file":".trellis/spec/frontend/css-design.md","reason":"English Coach visual contract: minimal, elegant, flat sections, coordinated sidebar, one writing-paper surface."}
 {"file":".trellis/spec/frontend/components.md","reason":"Semantic HTML and scrollable container behavior."}
+{"file":".trellis/spec/frontend/react-pitfalls.md","reason":"React state/effect and rendering conventions for onboarding component edits."}
 {"file":".trellis/spec/product/learning-flow.md","reason":"Writing/review/self-repair product contract; preserve one-focus-pattern and hint-before-answer behavior."}
 {"file":".trellis/spec/product/privacy-security.md","reason":"Settings provider/privacy/keychain/raw-response visibility and boundaries."}
