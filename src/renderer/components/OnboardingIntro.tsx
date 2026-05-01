@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import appIconUrl from '../assets/app-icon.png';
 
-const BRAND_HOLD_MS = 2400;
+const BRAND_HOLD_MS = 4500;
 const SLIDE_AUTO_ADVANCE_MS = 5600;
 
 type IntroStage = 'brand' | 'slides';
