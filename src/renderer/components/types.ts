@@ -24,12 +24,13 @@ export type AppReadiness = 'ready' | 'setup-needed' | 'error';
 export type AppStatusModel = {
   readiness: AppReadiness;
   label: string;
-  toneClassName: string;
   detail: string;
 };
 
 export type PracticeHeaderProps = {
+  practicePromptTitle: string;
   selectedTemplateTitle: string;
+  instruction: string;
   startup: StartupStatus;
   status: AppStatusModel;
 };

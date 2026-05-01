@@ -13,7 +13,7 @@ import { RevealAnswerDialog } from './components/RevealAnswerDialog';
 import { ReviewDisclosureDialog } from './components/ReviewDisclosureDialog';
 import { SettingsPage } from './components/SettingsPage';
 import { PracticeHeader } from './components/PracticeHeader';
-import { getFocusCorrection } from './components/review-utils';
+import { getFocusCorrection, HighlightedWriting, patternRule } from './components/review-utils';
 import type { AppStatusModel, ReviewProgressModel, ReviewState, SaveState } from './components/types';
 import { useFoundationState } from './query/foundation';
 import { queryKeys } from './query/keys';
@@ -37,13 +37,16 @@ import {
 
 const AUTOSAVE_DELAY_MS = 900;
 
-type AppArea = 'today' | 'write' | 'library' | 'settings';
+type AppArea = 'today' | 'write' | 'feedback' | 'notebook' | 'progress' | 'settings';
+type NavIconName = 'home' | 'pen' | 'book' | 'bars' | 'settings';
 
-const APP_NAV_ITEMS: { id: AppArea; label: string; shortLabel: string }[] = [
-  { id: 'today', label: 'Today', shortLabel: 'Today' },
-  { id: 'write', label: 'Write / Practice', shortLabel: 'Write' },
-  { id: 'library', label: 'Library', shortLabel: 'Library' },
-  { id: 'settings', label: 'Settings', shortLabel: 'Settings' },
+const APP_NAV_ITEMS: { id: AppArea; label: string; icon: NavIconName; isHidden?: boolean }[] = [
+  { id: 'today', label: 'Today', icon: 'home' },
+  { id: 'write', label: 'Practice', icon: 'pen' },
+  { id: 'feedback', label: 'Practice', icon: 'pen', isHidden: true },
+  { id: 'notebook', label: 'Notebook', icon: 'book' },
+  { id: 'progress', label: 'Progress', icon: 'bars' },
+  { id: 'settings', label: 'Settings', icon: 'settings' },
 ];
 
 function emptyReviewProgress(): ReviewProgressModel {
@@ -53,6 +56,10 @@ function emptyReviewProgress(): ReviewProgressModel {
     currentEvent: null,
     startedAt: null,
   };
+}
+
+function getErrorMessage(error: unknown, fallback: string): string {
+  return error instanceof Error ? error.message : fallback;
 }
 
 export function App(): React.JSX.Element {
@@ -164,6 +171,8 @@ function PracticePage({ initialWriting, settings, startup }: PracticePageProps):
 
   const hasWritten = content.trim().length > 0;
   const appStatus = useMemo(() => getAppStatus(startup, appSettings), [appSettings, startup]);
+  const practicePromptTitle = getPracticePromptTitle(writing);
+  const practiceInstruction = getPracticeInstruction(writing);
   const focusCorrection = reviewPreview ? getFocusCorrection(reviewPreview) : null;
   const highlightedContent =
     reviewPreview && focusCorrection && reviewPreview.isStaleForCurrentWriting === false
@@ -305,6 +314,9 @@ function PracticePage({ initialWriting, settings, startup }: PracticePageProps):
           setReviewPreviewCache(queryClient, { reviewRunId: reviewRun.id }, preview);
           setReviewPreview(preview);
           setReviewState(preview ? 'ready' : 'failed');
+          if (preview) {
+            setActiveArea('feedback');
+          }
           await queryClient.invalidateQueries({ queryKey: queryKeys.writing.attempt(targetWriting.templateId) });
           if (!preview) {
             setReviewError('Review preview is unavailable.');
@@ -316,7 +328,8 @@ function PracticePage({ initialWriting, settings, startup }: PracticePageProps):
         setReviewError(result.error ?? 'Review failed.');
       } catch (error) {
         activeReviewRef.current = false;
-        throw error;
+        setReviewState('failed');
+        setReviewError(getErrorMessage(error, 'Review failed.'));
       }
     },
     [queryClient, startReview],
@@ -339,36 +352,49 @@ function PracticePage({ initialWriting, settings, startup }: PracticePageProps):
   const generateStarterPrompt = useCallback(async (): Promise<void> => {
     setStarterPromptState('generating');
     setStarterPromptError(null);
-    if (content !== lastSavedContentRef.current || userGoal !== lastSavedUserGoalRef.current) {
-      const savedWriting = await saveWritingAttempt({ templateId: selectedTemplateId, content, userGoal });
-      lastSavedContentRef.current = savedWriting.activeRevision?.content ?? content;
-      lastSavedUserGoalRef.current = savedWriting.userGoal ?? userGoal;
-      setSaveState('saved');
+
+    try {
+      if (content !== lastSavedContentRef.current || userGoal !== lastSavedUserGoalRef.current) {
+        const savedWriting = await saveWritingAttempt({ templateId: selectedTemplateId, content, userGoal });
+        lastSavedContentRef.current = savedWriting.activeRevision?.content ?? content;
+        lastSavedUserGoalRef.current = savedWriting.userGoal ?? userGoal;
+        setSaveState('saved');
+      }
+
+      const result = await generateStarterPromptMutation({ templateId: selectedTemplateId, userGoal });
+
+      if (result.disclosureRequired) {
+        setStarterPromptState('idle');
+        setShowStarterDisclosure(true);
+        return;
+      }
+
+      if (result.success && result.writing) {
+        updateWritingCache(result.writing);
+        setUserGoal(result.writing.userGoal ?? userGoal);
+        setStarterPromptState('idle');
+        return;
+      }
+
+      setStarterPromptState('error');
+      setStarterPromptError(result.error ?? 'Starter prompt generation failed.');
+    } catch (error) {
+      setStarterPromptState('error');
+      setStarterPromptError(getErrorMessage(error, 'Starter prompt generation failed.'));
     }
-
-    const result = await generateStarterPromptMutation({ templateId: selectedTemplateId, userGoal });
-
-    if (result.disclosureRequired) {
-      setStarterPromptState('idle');
-      setShowStarterDisclosure(true);
-      return;
-    }
-
-    if (result.success && result.writing) {
-      updateWritingCache(result.writing);
-      setUserGoal(result.writing.userGoal ?? userGoal);
-      setStarterPromptState('idle');
-      return;
-    }
-
-    setStarterPromptState('error');
-    setStarterPromptError(result.error ?? 'Starter prompt generation failed.');
   }, [content, generateStarterPromptMutation, saveWritingAttempt, selectedTemplateId, updateWritingCache, userGoal]);
 
   const acknowledgeStarterDisclosureAndGenerate = useCallback(async (): Promise<void> => {
-    await window.api.writing.acknowledgeStarterPromptDisclosure({ acknowledged: true });
-    setShowStarterDisclosure(false);
-    await generateStarterPrompt();
+    setStarterPromptError(null);
+    try {
+      await window.api.writing.acknowledgeStarterPromptDisclosure({ acknowledged: true });
+      setShowStarterDisclosure(false);
+      await generateStarterPrompt();
+    } catch (error) {
+      setShowStarterDisclosure(false);
+      setStarterPromptState('error');
+      setStarterPromptError(getErrorMessage(error, 'Starter prompt generation failed.'));
+    }
   }, [generateStarterPrompt]);
 
   const skipStarterPrompt = useCallback((): void => {
@@ -383,20 +409,26 @@ function PracticePage({ initialWriting, settings, startup }: PracticePageProps):
 
     setReviewState('saving');
     setReviewError(null);
-    const result = await saveReviewMutation({
-      reviewRunId: reviewPreview.reviewRun.id,
-      selfRepairAttemptText: selfRepairAttempt,
-      revealedWithoutAttempt: modelAnswerRevealed,
-    });
 
-    if (result.success && result.writing) {
-      updateWritingCache(result.writing);
-      setReviewState('saved');
-      return;
+    try {
+      const result = await saveReviewMutation({
+        reviewRunId: reviewPreview.reviewRun.id,
+        selfRepairAttemptText: selfRepairAttempt,
+        revealedWithoutAttempt: modelAnswerRevealed,
+      });
+
+      if (result.success && result.writing) {
+        updateWritingCache(result.writing);
+        setReviewState('saved');
+        return;
+      }
+
+      setReviewState('failed');
+      setReviewError(result.error ?? 'Unable to save review.');
+    } catch (error) {
+      setReviewState('failed');
+      setReviewError(getErrorMessage(error, 'Unable to save review.'));
     }
-
-    setReviewState('failed');
-    setReviewError(result.error ?? 'Unable to save review.');
   }, [modelAnswerRevealed, reviewPreview, saveReviewMutation, selfRepairAttempt, updateWritingCache]);
 
   const completePendingRewritePractice = useCallback(async (): Promise<void> => {
@@ -405,19 +437,24 @@ function PracticePage({ initialWriting, settings, startup }: PracticePageProps):
     }
 
     setRewritePracticeError(null);
-    const result = await completeRewritePracticeMutation({
-      rewriteTaskId: writing.pendingRewritePractice.id,
-      userRewriteText: rewritePracticeInput,
-    });
 
-    if (result.success && result.writing && result.rewritePractice) {
-      updateWritingCache(result.writing);
-      setCompletedRewritePractice(result.rewritePractice);
-      setRewritePracticeInput(result.rewritePractice.userRewriteText ?? rewritePracticeInput.trim());
-      return;
+    try {
+      const result = await completeRewritePracticeMutation({
+        rewriteTaskId: writing.pendingRewritePractice.id,
+        userRewriteText: rewritePracticeInput,
+      });
+
+      if (result.success && result.writing && result.rewritePractice) {
+        updateWritingCache(result.writing);
+        setCompletedRewritePractice(result.rewritePractice);
+        setRewritePracticeInput(result.rewritePractice.userRewriteText ?? rewritePracticeInput.trim());
+        return;
+      }
+
+      setRewritePracticeError(result.error ?? 'Unable to complete rewrite practice.');
+    } catch (error) {
+      setRewritePracticeError(getErrorMessage(error, 'Unable to complete rewrite practice.'));
     }
-
-    setRewritePracticeError(result.error ?? 'Unable to complete rewrite practice.');
   }, [completeRewritePracticeMutation, updateWritingCache, writing.pendingRewritePractice, rewritePracticeInput]);
 
   const skipPendingRewritePractice = useCallback(async (): Promise<void> => {
@@ -426,22 +463,34 @@ function PracticePage({ initialWriting, settings, startup }: PracticePageProps):
     }
 
     setRewritePracticeError(null);
-    const result = await skipRewritePracticeMutation({ rewriteTaskId: writing.pendingRewritePractice.id });
 
-    if (result.success && result.writing) {
-      updateWritingCache(result.writing);
-      setCompletedRewritePractice(null);
-      setRewritePracticeInput('');
-      return;
+    try {
+      const result = await skipRewritePracticeMutation({ rewriteTaskId: writing.pendingRewritePractice.id });
+
+      if (result.success && result.writing) {
+        updateWritingCache(result.writing);
+        setCompletedRewritePractice(null);
+        setRewritePracticeInput('');
+        return;
+      }
+
+      setRewritePracticeError(result.error ?? 'Unable to skip rewrite practice.');
+    } catch (error) {
+      setRewritePracticeError(getErrorMessage(error, 'Unable to skip rewrite practice.'));
     }
-
-    setRewritePracticeError(result.error ?? 'Unable to skip rewrite practice.');
   }, [skipRewritePracticeMutation, updateWritingCache, writing.pendingRewritePractice]);
 
   const acknowledgeDisclosureAndReview = useCallback(async (): Promise<void> => {
-    await window.api.review.acknowledgeDisclosure({ acknowledged: true });
-    setShowDisclosure(false);
-    await reviewCurrentContent();
+    setReviewError(null);
+    try {
+      await window.api.review.acknowledgeDisclosure({ acknowledged: true });
+      setShowDisclosure(false);
+      await reviewCurrentContent();
+    } catch (error) {
+      setShowDisclosure(false);
+      setReviewState('failed');
+      setReviewError(getErrorMessage(error, 'Review failed.'));
+    }
   }, [reviewCurrentContent]);
 
   const setDefaultProvider = useCallback(
@@ -502,13 +551,17 @@ function PracticePage({ initialWriting, settings, startup }: PracticePageProps):
     async (providerId: AiProviderId): Promise<void> => {
       setSettingsError(null);
       setSettingsMessage(null);
-      const result = await setProviderApiKeyMutation({ providerId, apiKey: providerApiKeyInputs[providerId] });
-      if (result.success && result.status) {
-        setProviderApiKeyInputs((current) => ({ ...current, [providerId]: '' }));
-        setSettingsMessage('Provider API key saved to the OS keychain.');
-        return;
+      try {
+        const result = await setProviderApiKeyMutation({ providerId, apiKey: providerApiKeyInputs[providerId] });
+        if (result.success && result.status) {
+          setProviderApiKeyInputs((current) => ({ ...current, [providerId]: '' }));
+          setSettingsMessage('Provider API key saved to the OS keychain.');
+          return;
+        }
+        setSettingsError(result.error ?? 'Unable to save provider API key.');
+      } catch (error) {
+        setSettingsError(getErrorMessage(error, 'Unable to save provider API key.'));
       }
-      setSettingsError(result.error ?? 'Unable to save provider API key.');
     },
     [providerApiKeyInputs, setProviderApiKeyMutation],
   );
@@ -517,19 +570,29 @@ function PracticePage({ initialWriting, settings, startup }: PracticePageProps):
     async (providerId: AiProviderId): Promise<void> => {
       setSettingsError(null);
       setSettingsMessage(null);
-      const result = await deleteProviderApiKeyMutation({ providerId });
-      if (result.success && result.status) {
-        setSettingsMessage('Provider API key deleted.');
-        return;
+      try {
+        const result = await deleteProviderApiKeyMutation({ providerId });
+        if (result.success && result.status) {
+          setSettingsMessage('Provider API key deleted.');
+          return;
+        }
+        setSettingsError(result.error ?? 'Unable to delete provider API key.');
+      } catch (error) {
+        setSettingsError(getErrorMessage(error, 'Unable to delete provider API key.'));
       }
-      setSettingsError(result.error ?? 'Unable to delete provider API key.');
     },
     [deleteProviderApiKeyMutation],
   );
 
   const toggleRawResponseStorage = useCallback(
     async (enabled: boolean): Promise<void> => {
-      await setRawResponseStorageMutation({ enabled });
+      setSettingsError(null);
+      setSettingsMessage(null);
+      try {
+        await setRawResponseStorageMutation({ enabled });
+      } catch (error) {
+        setSettingsError(getErrorMessage(error, 'Unable to update raw response storage.'));
+      }
     },
     [setRawResponseStorageMutation],
   );
@@ -549,130 +612,155 @@ function PracticePage({ initialWriting, settings, startup }: PracticePageProps):
   }, []);
 
   return (
-    <main className="min-h-screen overflow-hidden bg-base-200 text-base-content">
-      <div className="grid h-screen grid-cols-[4.75rem_minmax(0,1fr)]">
-        <nav
-          className="flex flex-col items-center border-r border-base-300/70 bg-base-100/90 py-4"
-          aria-label="App areas"
-        >
-          <div className="mb-6 grid size-10 place-items-center rounded-xl bg-neutral text-sm font-semibold text-neutral-content">
-            EC
+    <main className="app-chrome min-h-screen overflow-hidden text-base-content">
+      <div className="relative grid h-screen grid-cols-[19.5rem_minmax(0,1fr)]">
+        <nav className="quiet-sidebar relative z-10 flex flex-col border-r border-base-300/45 px-9 py-10" aria-label="App areas">
+          <div>
+            <p className="editorial-heading text-[2rem] leading-none text-base-content">English Coach</p>
           </div>
-          <div className="flex flex-1 flex-col items-center gap-2">
-            {APP_NAV_ITEMS.map((item) => {
-              const isActive = activeArea === item.id;
+          <div className="mt-10 flex flex-1 flex-col gap-2">
+            {APP_NAV_ITEMS.filter((item) => !item.isHidden).map((item) => {
+              const isActive = activeArea === item.id || (item.id === 'write' && activeArea === 'feedback');
               return (
                 <button
                   key={item.id}
                   type="button"
-                  className={`w-16 rounded-xl px-2 py-3 text-xs font-medium transition ${
+                  className={`flex items-center gap-4 px-4 py-3.5 text-left text-lg transition ${
                     isActive
-                      ? 'bg-primary/10 text-primary'
-                      : 'text-base-content/55 hover:bg-base-200 hover:text-base-content'
+                      ? 'font-semibold text-primary'
+                      : 'text-base-content/62 hover:text-base-content'
                   }`}
                   aria-current={isActive ? 'page' : undefined}
-                  title={item.label}
                   onClick={() => setActiveArea(item.id)}
                 >
-                  {item.shortLabel}
+                  <span className="nav-icon grid size-7 place-items-center" aria-hidden="true">
+                    <NavIcon name={item.icon} />
+                  </span>
+                  <span>{item.label}</span>
                 </button>
               );
             })}
           </div>
         </nav>
 
-        <div className="scrollable min-h-0 overflow-y-auto" style={{ scrollbarGutter: 'stable' }}>
-          <div className="mx-auto flex min-h-screen max-w-[92rem] flex-col px-8 py-7">
+        <div className="scrollable relative z-10 min-h-0 overflow-y-auto" style={{ scrollbarGutter: 'stable' }}>
+          <div
+            className={`mx-auto flex min-h-screen flex-col px-10 py-9 ${
+              activeArea === 'write' || activeArea === 'feedback' ? 'max-w-[74rem] 2xl:max-w-[83rem]' : 'max-w-[69rem]'
+            }`}
+          >
             {activeArea === 'today' ? (
-              <section className="flex min-h-0 flex-1 flex-col gap-8" aria-labelledby="today-page-title">
-                <div className="border-b border-base-300/60 pb-6">
-                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-primary/70">Today</p>
-                  <h1 id="today-page-title" className="mt-3 text-4xl font-semibold tracking-[-0.05em] md:text-5xl">
-                    Start today's writing practice
-                  </h1>
-                  <p className="mt-3 max-w-2xl text-sm leading-6 text-base-content/60 md:text-base">
-                    Pick a scenario, continue your current draft, or handle one follow-up rewrite before writing.
-                  </p>
+              <section className="flex min-h-0 flex-1 flex-col gap-4" aria-labelledby="today-page-title">
+                <div className="flex min-h-[9rem] items-start justify-between gap-8 pb-3">
+                  <div>
+                    <h1 id="today-page-title" className="editorial-heading mt-4 text-5xl leading-none text-base-content md:text-[4rem]">
+                      Good evening, Chumeng.
+                    </h1>
+                    <p className="mt-5 max-w-2xl text-xl leading-8 text-base-content/60">
+                      Ready to write a little in English today?
+                    </p>
+                  </div>
+                  <div className="illustration-placeholder hidden lg:block" aria-hidden="true" />
                 </div>
 
-                <div className="grid gap-6 lg:grid-cols-[minmax(0,1.35fr)_minmax(18rem,0.65fr)]">
-                  <PracticeTemplatePicker
-                    templates={WRITING_TEMPLATES}
-                    selectedTemplateId={selectedTemplateId}
-                    onSelectTemplate={(templateId) => {
-                      void selectTemplate(templateId).then(() => setActiveArea('write'));
-                    }}
-                  />
+                <section className="border-y border-base-300/60 py-8">
+                  <p className="text-xs font-bold uppercase tracking-[0.2em] text-primary/85">Today's practice</p>
+                  <h2 className="editorial-heading mt-7 max-w-3xl text-[3.45rem] leading-[1.05] text-base-content">
+                    {practicePromptTitle}
+                  </h2>
+                  <p className="mt-5 max-w-2xl text-base leading-7 text-base-content/58">{writing.template.description}</p>
+                  <p className="mt-5 text-sm text-base-content/52">{writing.template.title}</p>
+                  <button
+                    type="button"
+                    className="btn btn-primary mt-8 rounded-[0.7rem] px-8 text-base shadow-[0_12px_24px_rgba(22,71,101,0.18)]"
+                    onClick={() => setActiveArea('write')}
+                  >
+                    <span className="inline-icon" aria-hidden="true">
+                      <svg viewBox="0 0 24 24">
+                        <path d="M12 20h9" />
+                        <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z" />
+                      </svg>
+                    </span>
+                    {hasWritten ? 'Continue Writing' : 'Start Writing'}
+                  </button>
+                </section>
 
-                  <aside className="rounded-xl border border-base-300/70 bg-base-100 p-5">
-                    <p className="text-xs font-semibold uppercase tracking-[0.16em] text-base-content/45">
-                      Current work
-                    </p>
-                    <h2 className="mt-2 text-2xl font-semibold tracking-[-0.03em]">{writing.template.title}</h2>
-                    <p className="mt-2 text-sm leading-6 text-base-content/60">{writing.template.description}</p>
-                    <dl className="mt-5 grid gap-3 text-sm">
-                      <div>
-                        <dt className="text-xs font-semibold uppercase tracking-[0.14em] text-base-content/40">
-                          Draft
-                        </dt>
-                        <dd className="mt-1 text-base-content/75">
-                          {hasWritten ? 'Draft in progress' : 'Blank and ready'}
-                        </dd>
-                      </div>
-                      <div>
-                        <dt className="text-xs font-semibold uppercase tracking-[0.14em] text-base-content/40">
-                          Coach
-                        </dt>
-                        <dd className="mt-1 text-base-content/75">
-                          {writing.pendingRewritePractice ? 'Follow-up rewrite available' : appStatus.detail}
-                        </dd>
-                      </div>
-                    </dl>
-                    <div className="mt-6 flex flex-col gap-2">
-                      <button
-                        type="button"
-                        className="btn btn-neutral rounded-xl"
-                        onClick={() => setActiveArea('write')}
-                      >
-                        {hasWritten ? 'Continue writing' : 'Start writing'}
+                {hasWritten ? (
+                  <section className="grid gap-5 border-b border-base-300/60 py-6 md:grid-cols-[minmax(0,1fr)_auto] md:items-center">
+                    <div>
+                      <h2 className="editorial-copy text-xl text-base-content">Continue last draft</h2>
+                      <p className="writing-practice-surface mt-3 line-clamp-2 text-base italic text-base-content/72">
+                        “{content}”
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <button type="button" className="btn btn-outline rounded-[0.65rem]" onClick={() => setActiveArea('write')}>
+                        Resume
+                        <span aria-hidden="true">›</span>
                       </button>
-                      <button
-                        type="button"
-                        className="btn btn-ghost rounded-xl"
-                        onClick={() => setActiveArea('settings')}
-                      >
-                        Configure AI provider
+                      <p className="mt-2 text-xs text-base-content/42">
+                        {writing.lastAutosaveAt ? 'Saved recently' : 'Draft in progress'}
+                      </p>
+                    </div>
+                  </section>
+                ) : null}
+
+                <div className="grid gap-8 border-b border-base-300/60 py-7 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.08fr)]">
+                  <section>
+                    <h2 className="editorial-copy flex items-center gap-3 text-2xl text-base-content">
+                      <span className="inline-icon text-secondary" aria-hidden="true">
+                        <svg viewBox="0 0 24 24">
+                          <path d="M5 20c8-1 13-6 14-14" />
+                          <path d="M5 20c1-8 6-13 14-14" />
+                        </svg>
+                      </span>
+                      Recent progress
+                    </h2>
+                    <ul className="mt-5 divide-y divide-base-300/55 text-sm leading-6 text-base-content/68">
+                      <li className="py-3">{hasWritten ? 'Current draft in progress' : 'Ready for today’s first draft'}</li>
+                      <li className="py-3">{writing.pendingRewritePractice ? 'Rewrite waiting' : 'Rewrite practice starts after feedback'}</li>
+                      <li className="py-3">Review will focus on one transferable pattern.</li>
+                    </ul>
+                  </section>
+                  <section className="border-t border-base-300/60 pt-7 lg:border-l lg:border-t-0 lg:pl-8 lg:pt-0">
+                    <div className="flex items-start justify-between gap-4">
+                      <h2 className="editorial-copy text-2xl text-base-content">Notebook</h2>
+                      <button type="button" className="text-sm text-primary" onClick={() => setActiveArea('notebook')}>
+                        View all
                       </button>
                     </div>
-                  </aside>
+                    <p className="mt-5 max-w-md text-sm leading-6 text-base-content/60">
+                      Expressions saved from future feedback will appear here. For this MVP, Notebook stays lightweight.
+                    </p>
+                  </section>
                 </div>
+
+                <PracticeTemplatePicker
+                  templates={WRITING_TEMPLATES}
+                  selectedTemplateId={selectedTemplateId}
+                  onSelectTemplate={(templateId) => {
+                    void selectTemplate(templateId).then(() => setActiveArea('write'));
+                  }}
+                />
               </section>
             ) : null}
 
             {activeArea === 'write' ? (
-              <section className="flex min-h-0 flex-1 flex-col gap-5">
-                <PracticeHeader selectedTemplateTitle={writing.template.title} startup={startup} status={appStatus} />
-                <div className="flex flex-wrap items-center gap-3 text-sm text-base-content/60">
-                  <span className="text-xs font-semibold uppercase tracking-[0.16em] text-base-content/45">Status</span>
-                  <span>Draft</span>
-                  <span aria-hidden="true">/</span>
-                  <span>Coach feedback</span>
-                  <span aria-hidden="true">/</span>
-                  <span>Try again</span>
-                  <span aria-hidden="true">/</span>
-                  <span>Follow-up rewrite</span>
-                </div>
-                <div className="flex flex-wrap items-center gap-2 text-sm text-base-content/60">
-                  <span className="font-medium text-base-content/75">Current template:</span>
+              <section className="flex min-h-0 flex-1 flex-col gap-6">
+                <PracticeHeader
+                  practicePromptTitle={practicePromptTitle}
+                  selectedTemplateTitle={writing.template.title}
+                  instruction={practiceInstruction}
+                  startup={startup}
+                  status={appStatus}
+                />
+                <div className="flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-base-300/60 pb-3 text-sm text-base-content/55">
+                  <span className="font-medium text-base-content/70">Scenario</span>
                   {WRITING_TEMPLATES.map((template) => (
                     <button
                       key={template.id}
                       type="button"
-                      className={`rounded-full px-3 py-1 transition ${
-                        template.id === selectedTemplateId
-                          ? 'bg-primary/10 text-primary'
-                          : 'hover:bg-base-100 hover:text-base-content'
-                      }`}
+                      className={`transition ${template.id === selectedTemplateId ? 'font-semibold text-primary' : 'hover:text-base-content'}`}
                       onClick={() => {
                         void selectTemplate(template.id);
                       }}
@@ -682,7 +770,7 @@ function PracticePage({ initialWriting, settings, startup }: PracticePageProps):
                   ))}
                 </div>
 
-                <div className="grid min-h-0 flex-1 gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(20rem,24rem)]">
+                <div className="grid min-h-0 flex-1 gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(17rem,18.5rem)] xl:grid-cols-[minmax(0,1fr)_19rem]">
                   <WritingEditorCard
                     template={writing.template}
                     generatedPrompt={writing.generatedPrompt}
@@ -739,31 +827,102 @@ function PracticePage({ initialWriting, settings, startup }: PracticePageProps):
               </section>
             ) : null}
 
-            {activeArea === 'library' ? (
-              <section className="flex min-h-0 flex-1 flex-col" aria-labelledby="library-page-title">
-                <div className="border-b border-base-300/60 pb-6">
-                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-primary/70">Library</p>
-                  <h1 id="library-page-title" className="mt-3 text-4xl font-semibold tracking-[-0.05em]">
-                    Practice history
+            {activeArea === 'feedback' ? (
+              <FeedbackRewritePage
+                preview={reviewPreview}
+                reviewState={reviewState}
+                selfRepairAttempt={selfRepairAttempt}
+                modelAnswerRevealed={modelAnswerRevealed}
+                rewritePracticeInput={rewritePracticeInput}
+                saveState={saveState}
+                onSelfRepairAttemptChange={setSelfRepairAttempt}
+                onRevealModelAnswer={requestRevealModelAnswer}
+                onSaveReview={() => {
+                  void saveReview();
+                }}
+                onBackToDraft={() => setActiveArea('write')}
+                onReviewCurrentVersion={() => {
+                  void reviewCurrentContent();
+                }}
+                onRewritePracticeInputChange={(value) => {
+                  setRewritePracticeInput(value);
+                  setCompletedRewritePractice(null);
+                }}
+              />
+            ) : null}
+
+            {activeArea === 'notebook' ? (
+              <section className="flex min-h-0 flex-1 flex-col gap-8" aria-labelledby="notebook-page-title">
+                <div className="border-b border-base-300/60 pb-8">
+                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-primary/70">Notebook</p>
+                  <h1 id="notebook-page-title" className="editorial-heading mt-4 text-5xl text-base-content">
+                    Useful expressions
                   </h1>
-                  <p className="mt-3 max-w-2xl text-sm leading-6 text-base-content/60">
-                    A calm entry point for saved sessions. This first version keeps the focus on current practice.
+                  <p className="mt-4 max-w-2xl text-base leading-7 text-base-content/60">
+                    A light expression bank for phrases worth reusing. Option A keeps this as a quiet placeholder while
+                    the core loop is redesigned.
                   </p>
                 </div>
-                <div className="mt-8 max-w-2xl rounded-xl border border-base-300/70 bg-base-100 p-5">
-                  <h2 className="text-xl font-semibold tracking-[-0.03em]">Recent current session</h2>
-                  <p className="mt-2 text-sm leading-6 text-base-content/60">
-                    {writing.lastReviewRunId
-                      ? 'Your latest saved feedback is available from the Write area for the current template.'
-                      : 'No saved review is exposed here yet. Write and save Coach feedback to build history.'}
+                <section className="max-w-2xl border-t border-base-300/60 pt-7">
+                  <p className="text-xs font-semibold uppercase tracking-[0.16em] text-base-content/45">
+                    Coming after feedback
+                  </p>
+                  <h2 className="mt-3 text-2xl font-semibold tracking-[-0.03em]">Save expressions from review</h2>
+                  <p className="mt-4 text-sm leading-6 text-base-content/60">
+                    Once expression saving is implemented, better alternatives, useful phrases, and source practice
+                    context will appear here.
                   </p>
                   <button
                     type="button"
-                    className="btn btn-neutral mt-5 rounded-xl"
+                    className="btn btn-primary mt-6 rounded-[0.7rem]"
                     onClick={() => setActiveArea('write')}
                   >
-                    Open current practice
+                    Open Practice
                   </button>
+                </section>
+              </section>
+            ) : null}
+
+            {activeArea === 'progress' ? (
+              <section className="flex min-h-0 flex-1 flex-col gap-8" aria-labelledby="progress-page-title">
+                <div className="border-b border-base-300/60 pb-8">
+                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-primary/70">Progress</p>
+                  <h1 id="progress-page-title" className="editorial-heading mt-4 text-5xl text-base-content">
+                    A gentle growth record
+                  </h1>
+                  <p className="mt-4 max-w-2xl text-base leading-7 text-base-content/60">
+                    This page will stay calm: practice continuity, rewrites, and expression accumulation without
+                    pressure-heavy analytics.
+                  </p>
+                </div>
+                <div className="grid gap-6 divide-y divide-base-300/60 md:grid-cols-3 md:divide-x md:divide-y-0">
+                  <section className="pt-5 md:pt-0">
+                    <p className="text-xs font-semibold uppercase tracking-[0.16em] text-base-content/45">Draft</p>
+                    <p className="mt-3 text-2xl font-semibold tracking-[-0.03em]">
+                      {hasWritten ? 'In progress' : 'Ready'}
+                    </p>
+                    <p className="mt-3 text-sm leading-6 text-base-content/60">
+                      Current writing stays focused on one draft per template.
+                    </p>
+                  </section>
+                  <section className="pt-5 md:pl-6 md:pt-0">
+                    <p className="text-xs font-semibold uppercase tracking-[0.16em] text-base-content/45">Rewrite</p>
+                    <p className="mt-3 text-2xl font-semibold tracking-[-0.03em]">
+                      {writing.pendingRewritePractice ? 'Waiting' : 'After review'}
+                    </p>
+                    <p className="mt-3 text-sm leading-6 text-base-content/60">
+                      D+1 practice appears after saved feedback.
+                    </p>
+                  </section>
+                  <section className="pt-5 md:pl-6 md:pt-0">
+                    <p className="text-xs font-semibold uppercase tracking-[0.16em] text-base-content/45">
+                      Expressions
+                    </p>
+                    <p className="mt-3 text-2xl font-semibold tracking-[-0.03em]">Later</p>
+                    <p className="mt-3 text-sm leading-6 text-base-content/60">
+                      Notebook persistence is intentionally out of scope for Option A.
+                    </p>
+                  </section>
                 </div>
               </section>
             ) : null}
@@ -837,6 +996,329 @@ function PracticePage({ initialWriting, settings, startup }: PracticePageProps):
   );
 }
 
+function getPracticePromptTitle(writing: WritingAttemptSnapshot): string {
+  const prompt = writing.generatedPrompt?.text.trim();
+  if (prompt) {
+    return prompt;
+  }
+
+  const goal = writing.userGoal?.trim();
+  if (goal) {
+    return goal;
+  }
+
+  if (writing.templateId === 'journal') {
+    return 'Describe one small decision you made today.';
+  }
+
+  if (writing.templateId === 'cet4') {
+    return 'Write about a choice that made daily life better.';
+  }
+
+  if (writing.templateId === 'cet6') {
+    return 'Explain how small decisions can shape long-term growth.';
+  }
+
+  return 'Write about one idea you want to express clearly.';
+}
+
+function getPracticeInstruction(writing: WritingAttemptSnapshot): string {
+  if (writing.templateId === 'journal') {
+    return 'Write 80–150 words. Try to explain what you chose and why.';
+  }
+
+  if (writing.templateId === 'cet4') {
+    return 'Write a short, clear paragraph. Keep the focus on your reason and example.';
+  }
+
+  if (writing.templateId === 'cet6') {
+    return 'Write one focused response with a clear point, support, and reflective ending.';
+  }
+
+  return 'Write freely in English. Keep it personal, specific, and easy to follow.';
+}
+
+function NavIcon({ name }: { name: NavIconName }): React.JSX.Element {
+  switch (name) {
+    case 'home':
+      return (
+        <svg viewBox="0 0 24 24">
+          <path d="m3 11 9-8 9 8" />
+          <path d="M5 10v10h14V10" />
+          <path d="M10 20v-6h4v6" />
+        </svg>
+      );
+    case 'pen':
+      return (
+        <svg viewBox="0 0 24 24">
+          <path d="M12 20h9" />
+          <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z" />
+        </svg>
+      );
+    case 'book':
+      return (
+        <svg viewBox="0 0 24 24">
+          <path d="M5 4h10a4 4 0 0 1 4 4v12H9a4 4 0 0 0-4-4Z" />
+          <path d="M5 4v12" />
+        </svg>
+      );
+    case 'bars':
+      return (
+        <svg viewBox="0 0 24 24">
+          <path d="M5 20V10" />
+          <path d="M12 20V4" />
+          <path d="M19 20v-7" />
+        </svg>
+      );
+    case 'settings':
+      return (
+        <svg viewBox="0 0 24 24">
+          <circle cx="12" cy="12" r="3" />
+          <path d="M12 2v3" />
+          <path d="M12 19v3" />
+          <path d="m4.93 4.93 2.12 2.12" />
+          <path d="m16.95 16.95 2.12 2.12" />
+          <path d="M2 12h3" />
+          <path d="M19 12h3" />
+          <path d="m4.93 19.07 2.12-2.12" />
+          <path d="m16.95 7.05 2.12-2.12" />
+        </svg>
+      );
+  }
+}
+
+function FeedbackRewritePage({
+  preview,
+  reviewState,
+  selfRepairAttempt,
+  modelAnswerRevealed,
+  rewritePracticeInput,
+  saveState,
+  onSelfRepairAttemptChange,
+  onRevealModelAnswer,
+  onSaveReview,
+  onBackToDraft,
+  onReviewCurrentVersion,
+  onRewritePracticeInputChange,
+}: {
+  preview: ReviewPreviewSnapshot | null;
+  reviewState: ReviewState;
+  selfRepairAttempt: string;
+  modelAnswerRevealed: boolean;
+  rewritePracticeInput: string;
+  saveState: SaveState;
+  onSelfRepairAttemptChange: (value: string) => void;
+  onRevealModelAnswer: () => void;
+  onSaveReview: () => void;
+  onBackToDraft: () => void;
+  onReviewCurrentVersion: () => void;
+  onRewritePracticeInputChange: (value: string) => void;
+}): React.JSX.Element {
+  if (!preview) {
+    return (
+      <section className="flex min-h-0 flex-1 flex-col gap-8" aria-labelledby="feedback-page-title">
+        <div className="flex min-h-[8rem] items-start justify-between gap-8 border-b border-base-300/60 pb-7">
+          <div>
+            <p className="text-sm text-base-content/55">Practice › Feedback & Rewrite</p>
+            <h1 id="feedback-page-title" className="editorial-heading mt-4 text-5xl text-base-content">
+              Feedback & Rewrite
+            </h1>
+            <p className="mt-4 max-w-2xl text-base leading-7 text-base-content/60">
+              Get feedback from the Practice page after you finish a draft.
+            </p>
+          </div>
+          <div className="illustration-placeholder hidden lg:block" aria-hidden="true" />
+        </div>
+        <div className="max-w-xl border-t border-base-300/60 pt-7">
+          <h2 className="text-xl font-semibold">No feedback preview yet</h2>
+          <p className="mt-3 text-sm leading-6 text-base-content/60">Write first, then ask the coach for one focused note.</p>
+          <button type="button" className="btn btn-primary mt-6 rounded-[0.7rem]" onClick={onBackToDraft}>
+            Back to draft
+          </button>
+        </div>
+      </section>
+    );
+  }
+
+  const focusCorrection = getFocusCorrection(preview);
+  const focusPatternTitle = focusCorrection
+    ? (patternRule(focusCorrection) ?? focusCorrection.category)
+    : 'One focus pattern';
+  const referenceRewrite = preview.operations.referenceRewrites[0];
+  const rewriteText = rewritePracticeInput || selfRepairAttempt;
+
+  return (
+    <section className="flex min-h-0 flex-1 flex-col gap-5" aria-labelledby="feedback-page-title">
+      <div className="flex min-h-[8.5rem] items-start justify-between gap-8 pb-3">
+        <div>
+          <p className="text-sm text-base-content/55">Practice › Feedback & Rewrite</p>
+          <h1 id="feedback-page-title" className="editorial-heading mt-4 text-5xl leading-none text-base-content">
+            Feedback & Rewrite
+          </h1>
+          <p className="mt-4 max-w-3xl text-base leading-7 text-base-content/60">
+            You expressed the idea clearly. Now let’s make it sound more natural and connected.
+          </p>
+        </div>
+        <div className="illustration-placeholder hidden lg:block" aria-hidden="true" />
+      </div>
+
+      {preview.isStaleForCurrentWriting ? (
+        <div className="border-l border-warning/50 pl-4 text-sm leading-6 text-base-content/70">
+          This review is based on an earlier version of your writing.
+          <button type="button" className="btn btn-warning btn-sm ml-4 rounded-[0.6rem]" onClick={onReviewCurrentVersion}>
+            Review current version
+          </button>
+        </div>
+      ) : null}
+
+      <div className="grid min-h-0 gap-5 xl:grid-cols-[minmax(0,0.92fr)_minmax(0,1.25fr)]">
+        <div className="grid gap-6 divide-y divide-base-300/60">
+          <section className="pb-1">
+            <h2 className="editorial-copy flex items-center gap-3 text-xl text-base-content">
+              <span className="inline-icon text-secondary" aria-hidden="true">
+                <svg viewBox="0 0 24 24">
+                  <path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4Z" />
+                </svg>
+              </span>
+              Overall feedback
+            </h2>
+            <p className="mt-3 text-sm leading-6 text-base-content/70">
+              {preview.parsedOutput.summary.focusPattern.reason}
+            </p>
+          </section>
+
+          <section className="pt-6">
+            <h2 className="editorial-copy text-xl text-base-content">One focus pattern</h2>
+            <p className="mt-3 text-sm font-semibold text-primary">{focusPatternTitle}</p>
+            <ul className="mt-4 list-disc space-y-2 pl-5 text-sm leading-6 text-base-content/70">
+              {preview.parsedOutput.summary.whatWentWell.slice(0, 2).map((item) => (
+                <li key={item}>{item}</li>
+              ))}
+            </ul>
+          </section>
+
+          <section className="pt-6">
+            <h2 className="editorial-copy mb-3 text-xl text-base-content">Original draft</h2>
+            <HighlightedWriting content={preview.reviewedContent} corrections={preview.operations.corrections} />
+          </section>
+
+          {referenceRewrite ? (
+            <section className="pt-6">
+              <h2 className="editorial-copy flex items-center gap-3 text-xl text-base-content">
+                <span className="inline-icon text-secondary" aria-hidden="true">
+                  <svg viewBox="0 0 24 24">
+                    <path d="m12 3 1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8Z" />
+                  </svg>
+                </span>
+                Suggested rewrite
+              </h2>
+              <p className="writing-practice-surface mt-3 whitespace-pre-wrap border-l border-base-300/70 pl-4 text-base leading-7 text-base-content/78">
+                {referenceRewrite.text}
+              </p>
+              <p className="mt-3 border-l border-base-300/70 pl-4 text-sm leading-6 text-base-content/60">
+                {referenceRewrite.noticeTheGap}
+              </p>
+            </section>
+          ) : null}
+        </div>
+
+        <div className="grid gap-4 xl:grid-rows-[minmax(31rem,1fr)_auto]">
+          <section className="flex min-h-0 flex-col">
+            <div className="mb-4 flex items-start justify-between gap-4 border-b border-base-300/60 pb-4">
+              <div>
+                <h2 className="editorial-copy flex items-center gap-3 text-2xl text-base-content">
+                  <span className="inline-icon text-primary" aria-hidden="true">
+                    <svg viewBox="0 0 24 24">
+                      <path d="M12 20h9" />
+                      <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z" />
+                    </svg>
+                  </span>
+                  Try rewriting
+                </h2>
+                <p className="mt-2 text-sm text-base-content/60">Your rewrite</p>
+              </div>
+            </div>
+            {focusCorrection ? (
+              <p className="mb-4 border-l border-base-300/70 pl-4 text-sm leading-6 text-base-content/70">
+                Hint: {preview.operations.selfRepair?.hint ?? focusCorrection.explanation}
+              </p>
+            ) : null}
+            <textarea
+              className="writing-practice-surface paper-sheet min-h-[23rem] flex-1 resize-none p-7 text-base-content outline-none placeholder:text-base-content/35"
+              value={rewriteText}
+              onChange={(event) => {
+                onSelfRepairAttemptChange(event.target.value);
+                onRewritePracticeInputChange(event.target.value);
+              }}
+              placeholder="Rewrite the focus sentence in your own words."
+              aria-label="Your rewrite"
+              spellCheck={false}
+            />
+            <div className="mt-4 flex items-center justify-between gap-3 text-sm text-base-content/55">
+              <span>{rewriteText.trim().split(/\s+/).filter(Boolean).length} words</span>
+              <span>✓ Saved just now</span>
+            </div>
+            {focusCorrection && modelAnswerRevealed ? (
+              <p className="mt-4 border-l border-primary/35 pl-4 text-sm leading-6 text-base-content/70">
+                <strong>Model answer:</strong> {focusCorrection.correctedText}
+              </p>
+            ) : null}
+            {focusCorrection && !modelAnswerRevealed ? (
+              <button type="button" className="btn btn-outline btn-sm mt-4 self-start rounded-[0.65rem]" onClick={onRevealModelAnswer}>
+                Reveal model answer
+              </button>
+            ) : null}
+          </section>
+
+          <div className="grid gap-4 border-t border-base-300/60 pt-5 md:grid-cols-2">
+            <section>
+              <h2 className="editorial-copy flex items-center gap-3 text-xl text-base-content">
+                <span className="inline-icon text-secondary" aria-hidden="true">
+                  <svg viewBox="0 0 24 24">
+                    <path d="M12 22c6-4 8-9 7-16-7-1-12 1-16 7 3 0 6 1 9 4" />
+                  </svg>
+                </span>
+                What to keep
+              </h2>
+              <ul className="mt-4 list-disc space-y-2 pl-5 text-sm leading-6 text-base-content/68">
+                {preview.parsedOutput.summary.whatWentWell.map((item) => (
+                  <li key={item}>{item}</li>
+                ))}
+              </ul>
+            </section>
+            <section className="border-t border-base-300/60 pt-5 md:border-l md:border-t-0 md:pl-5 md:pt-0">
+              <h2 className="editorial-copy text-xl text-base-content">Notebook</h2>
+              <p className="mt-4 text-sm leading-6 text-base-content/60">
+                Expression saving stays out of scope for this visual pass and will be added when Notebook persistence is designed.
+              </p>
+            </section>
+          </div>
+        </div>
+      </div>
+
+      <div className="flex justify-end gap-4 pt-1">
+        <button type="button" className="btn btn-outline rounded-[0.7rem] px-8" onClick={onBackToDraft}>
+          Back to draft
+        </button>
+        <button
+          type="button"
+          className="btn btn-primary rounded-[0.7rem] px-8 shadow-[0_12px_24px_rgba(22,71,101,0.18)]"
+          disabled={reviewState === 'saving' || reviewState === 'saved'}
+          onClick={onSaveReview}
+        >
+          {reviewState === 'saving'
+            ? 'Saving review...'
+            : reviewState === 'saved'
+              ? 'Review saved'
+              : 'Save review and update learning history'}
+          <span aria-hidden="true">→</span>
+        </button>
+      </div>
+      {saveState === 'error' ? <p className="text-right text-sm text-error">Could not save draft before feedback.</p> : null}
+    </section>
+  );
+}
+
 function getAppStatus(startup: StartupStatus, settings: SettingsSnapshot): AppStatusModel {
   const defaultKeyStatus =
     settings.providerCredentialStatuses?.[settings.providerId ?? 'openai-compatible'].status ??
@@ -846,7 +1328,6 @@ function getAppStatus(startup: StartupStatus, settings: SettingsSnapshot): AppSt
     return {
       readiness: 'error',
       label: 'Error',
-      toneClassName: 'badge-error badge-soft',
       detail: !startup.databaseReady ? 'Database unavailable' : 'Keychain unavailable',
     };
   }
@@ -855,7 +1336,6 @@ function getAppStatus(startup: StartupStatus, settings: SettingsSnapshot): AppSt
     return {
       readiness: 'setup-needed',
       label: 'Setup needed',
-      toneClassName: 'badge-warning badge-soft',
       detail: 'Add an API key before review',
     };
   }
@@ -863,7 +1343,6 @@ function getAppStatus(startup: StartupStatus, settings: SettingsSnapshot): AppSt
   return {
     readiness: 'ready',
     label: 'Ready',
-    toneClassName: 'badge-success badge-soft',
     detail: 'AI is configured',
   };
 }

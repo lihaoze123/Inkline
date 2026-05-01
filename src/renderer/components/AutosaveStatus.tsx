@@ -4,20 +4,20 @@ import { formatTime } from './format';
 export function AutosaveStatus({ state, lastAutosaveAt, error }: AutosaveStatusProps): React.JSX.Element {
   if (state === 'saving') {
     return (
-      <span className="badge badge-info badge-soft gap-2">
+      <span className="inline-flex items-center gap-2 text-sm text-info">
         <span className="loading loading-spinner loading-xs" />
-        Autosaving
+        Saving...
       </span>
     );
   }
 
   if (state === 'error') {
-    return <span className="badge badge-error badge-soft">{error ?? 'Autosave failed'}</span>;
+    return <span className="text-sm text-error">{error ?? 'Could not save'}</span>;
   }
 
   if (lastAutosaveAt) {
-    return <span className="badge badge-success badge-soft">Saved {formatTime(lastAutosaveAt)}</span>;
+    return <span className="text-sm text-success">Saved {formatTime(lastAutosaveAt)}</span>;
   }
 
-  return <span className="badge badge-ghost">Not saved yet</span>;
+  return <span className="text-sm text-base-content/45">Draft not saved yet</span>;
 }

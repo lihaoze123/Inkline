@@ -209,6 +209,69 @@ Use **BEM naming convention** to prevent class name conflicts:
 
 ---
 
+## English Coach Visual Contract
+
+### Convention: Minimal Editorial Writing Workspace
+
+**What**: English Coach UI must use a minimal, elegant, warm editorial writing-workspace style. The default composition is flat: whitespace, typography, and thin dividers carry structure. Card-like surfaces are reserved for true writing paper/editor surfaces or blocking system states.
+
+**Why**: The product should feel like a serious writing-practice desk, not a generic dashboard or bubbly AI app. Extra cards, badges, metrics, and mismatched sidebar panels make the interface noisy and weaken the less-is-more writing focus.
+
+### Visual Contracts
+
+| Area | Required contract |
+| ---- | ----------------- |
+| App background | Use one coordinated warm paper background across shell and sidebar. |
+| Sidebar | Do not make the sidebar look like an independent color block; use the same warm paper token plus a very subtle divider. |
+| Active navigation | Prefer text weight/color only; do not use left rails, colored bars, or large active pills. |
+| Page sections | Prefer `border-t`, `border-b`, `divide-y`, spacing, and headings over rounded card wrappers. |
+| Writing editor | The paper textarea/editor may use a sheet surface because it represents the writing medium. |
+| Reference art | Keep botanical/landscape art as a placeholder only until final assets are supplied. |
+| Concept-image metadata | Do not add unplanned badges, fake timers, difficulty labels, focus chips, or honor/status labels from reference images. |
+
+### Examples
+
+```tsx
+// Correct: flat section hierarchy with dividers and warm coordinated sidebar
+<main className="app-chrome min-h-screen text-base-content">
+  <div className="grid h-screen grid-cols-[19.5rem_minmax(0,1fr)]">
+    <nav className="quiet-sidebar border-r border-base-300/45 px-9 py-10">
+      <button className={isActive ? 'font-semibold text-primary' : 'text-base-content/62'}>
+        Practice
+      </button>
+    </nav>
+    <section className="border-y border-base-300/60 py-8">
+      <h1 className="editorial-heading">Describe one small decision you made today.</h1>
+    </section>
+  </div>
+</main>
+```
+
+```tsx
+// Wrong: noisy dashboard/card visual language for core writing flow
+<section className="rounded-xl border bg-base-100 p-6 shadow-xl">
+  <span className="badge">10 min</span>
+  <span className="badge">Beginner+</span>
+  <span className="badge">Focus</span>
+  <h1>Describe one small decision you made today.</h1>
+</section>
+```
+
+```tsx
+// Correct: the editor itself can remain paper-like because it is the writing medium
+<textarea className="writing-practice-surface paper-sheet min-h-[34rem] resize-none p-10" />
+```
+
+### Validation Checks
+
+- Search for `quiet-card`, heavy `shadow-*`, and repeated `rounded-xl border bg-*` before finishing a writing-flow UI pass.
+- Confirm sidebar background visually coordinates with the main page background; it should not read as pink/gray/blue side panel against warm paper.
+- Confirm reference images are used for mood only, not as a source of new product metadata.
+- Run `pnpm typecheck && pnpm lint` after UI refactors.
+- For frontend UI changes, smoke-test the golden path in the Electron app before calling the work complete when runtime access is available.
+
+---
+
 ## Portal Components
 
 Components using `createPortal` to render to `document.body` need special handling:

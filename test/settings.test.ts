@@ -6,6 +6,7 @@ import {
   setProviderApiKeyInputSchema,
 } from '../src/shared/types/credentials';
 import { IPC_CHANNELS } from '../src/shared/constants/channels';
+import { normalizeOpenAiCompatibleBaseUrl } from '../src/main/services/ai/openai-compatible';
 import {
   aiModelSettingsSchema,
   providerConfigSchema,
@@ -130,6 +131,16 @@ describe('settings defaults contract', () => {
     expect(deleteProviderApiKeyInputSchema.parse(undefined)).toEqual({ providerId: 'openai-compatible' });
     expect(deleteProviderApiKeyInputSchema.parse('anthropic')).toBe('anthropic');
     expect(deleteProviderApiKeyInputSchema.parse({ providerId: 'anthropic' })).toEqual({ providerId: 'anthropic' });
+  });
+
+  it('normalizes OpenAI-compatible provider endpoint URLs to the base URL', () => {
+    expect(normalizeOpenAiCompatibleBaseUrl(' https://api.deepseek.com/v1/chat/completions ')).toBe(
+      'https://api.deepseek.com/v1',
+    );
+    expect(normalizeOpenAiCompatibleBaseUrl('https://api.deepseek.com/v1/chat/completions/')).toBe(
+      'https://api.deepseek.com/v1',
+    );
+    expect(normalizeOpenAiCompatibleBaseUrl('https://api.deepseek.com/v1')).toBe('https://api.deepseek.com/v1');
   });
 
   it('validates provider config and default provider IPC inputs for both first providers', () => {

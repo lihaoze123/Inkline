@@ -1,0 +1,28 @@
+{
+  "id": "quiet-writing-desk-ui-redesign",
+  "name": "quiet-writing-desk-ui-redesign",
+  "title": "brainstorm: quiet writing desk UI redesign",
+  "description": "",
+  "status": "in_progress",
+  "dev_type": null,
+  "scope": null,
+  "package": null,
+  "priority": "P2",
+  "creator": "chumeng",
+  "assignee": "chumeng",
+  "createdAt": "2026-04-30",
+  "completedAt": null,
+  "branch": null,
+  "base_branch": "main",
+  "worktree_path": null,
+  "commit": null,
+  "pr_url": null,
+  "subtasks": [],
+  "children": [
+    "05-01-ui-minimal-refinement-pass"
+  ],
+  "parent": null,
+  "relatedFiles": [],
+  "notes": "",
+  "meta": {}
+}

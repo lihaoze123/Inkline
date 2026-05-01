@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { z } from 'zod';
+import type * as AiModule from 'ai';
 
 const mocks = vi.hoisted(() => {
   const generateText = vi.fn();
@@ -17,12 +18,19 @@ const mocks = vi.hoisted(() => {
   };
 });
 
-vi.mock('ai', () => ({
-  generateText: mocks.generateText,
-  Output: {
-    object: vi.fn(() => ({ name: 'object' })),
-  },
-}));
+vi.mock('ai', async (importOriginal) => {
+  const actual = await importOriginal<typeof AiModule>();
+
+  return {
+    ...actual,
+    generateText: mocks.generateText,
+    Output: {
+      ...actual.Output,
+      json: vi.fn(() => ({ name: 'json' })),
+      object: vi.fn(() => ({ name: 'object' })),
+    },
+  };
+});
 
 vi.mock('@ai-sdk/openai', () => ({
   createOpenAI: mocks.createOpenAI,
@@ -78,9 +86,9 @@ describe('AI generation service', () => {
     expect(mocks.generateText).toHaveBeenCalledWith(
       expect.objectContaining({
         model: { provider: 'openai-compatible', model: 'review-model' },
-        system: 'Return one prompt.',
+        system: expect.stringContaining('Return one prompt.\n\nReturn only a JSON object'),
         prompt: 'Create a prompt.',
-        output: expect.objectContaining({ name: 'object' }),
+        output: expect.objectContaining({ name: 'json' }),
         temperature: 0.7,
         maxOutputTokens: 500,
         maxRetries: 0,
@@ -119,6 +127,8 @@ describe('AI generation service', () => {
     expect(mocks.generateText).toHaveBeenCalledWith(
       expect.objectContaining({
         model: { provider: 'anthropic', model: 'claude-sonnet-4-6' },
+        system: 'Return one prompt.',
+        output: expect.objectContaining({ name: 'object' }),
         maxRetries: 1,
       }),
     );

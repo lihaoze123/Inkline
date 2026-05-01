@@ -1,5 +1,6 @@
 import Store from 'electron-store';
 import { getDatabasePath } from '../../db/client';
+import { normalizeOpenAiCompatibleBaseUrl } from '../ai/openai-compatible';
 import { getProviderCredentialStatuses } from '../credentials/service';
 import {
   setDefaultProviderInputSchema,
@@ -124,7 +125,7 @@ export function setProviderConfig(
     };
   }
 
-  store.set('openAiCompatibleBaseUrl', parsedInput.baseUrl.trim());
+  store.set('openAiCompatibleBaseUrl', normalizeOpenAiCompatibleBaseUrl(parsedInput.baseUrl));
   store.set('openAiCompatibleModel', parsedInput.model.trim());
 
   return {

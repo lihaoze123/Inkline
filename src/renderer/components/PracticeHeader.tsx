@@ -1,26 +1,33 @@
 import type { PracticeHeaderProps } from './types';
 
-export function PracticeHeader({ selectedTemplateTitle, startup, status }: PracticeHeaderProps): React.JSX.Element {
+export function PracticeHeader({
+  practicePromptTitle,
+  selectedTemplateTitle,
+  instruction,
+  startup,
+  status,
+}: PracticeHeaderProps): React.JSX.Element {
   return (
-    <header className="flex flex-col gap-4 border-b border-base-300/60 pb-5 md:flex-row md:items-end md:justify-between">
-      <div>
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="text-xs font-semibold uppercase tracking-[0.18em] text-primary/70">Write</span>
-          <span className="badge badge-ghost badge-sm">{selectedTemplateTitle}</span>
-          <span className={`badge badge-sm ${status.toneClassName}`}>{status.label}</span>
+    <header className="relative overflow-hidden border-b border-base-300/60 pb-7" aria-label="Writing workspace context">
+      <div className="flex items-start justify-between gap-8">
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-2 text-sm text-base-content/55">
+            <span>Practice</span>
+            <span aria-hidden="true">›</span>
+            <span className="text-base-content/70">Writing Workspace</span>
+          </div>
+          <h1 className="editorial-heading mt-5 max-w-5xl text-5xl leading-[1.05] text-base-content">
+            {practicePromptTitle}
+          </h1>
+          <p className="mt-5 text-sm text-base-content/52">
+            {selectedTemplateTitle} · {status.label}
+          </p>
+          <p className="mt-4 max-w-3xl text-base leading-7 text-base-content/58">{instruction}</p>
+          <p className="mt-2 text-xs text-base-content/42">
+            {startup.databaseReady ? 'Local database ready' : 'Local database unavailable'} · {status.detail}
+          </p>
         </div>
-        <h1 className="mt-3 text-3xl font-semibold tracking-[-0.04em] text-base-content md:text-4xl">
-          Writing Practice
-        </h1>
-        <p className="mt-2 max-w-2xl text-sm leading-6 text-base-content/60">
-          Draft independently, then work with Coach feedback and follow-up rewrite practice.
-        </p>
-      </div>
-      <div className="max-w-xs text-sm text-base-content/60 md:text-right">
-        <p className="font-medium text-base-content/75">{status.detail}</p>
-        <p className="mt-1 text-xs text-base-content/45">
-          {startup.databaseReady ? 'Local database ready' : 'Local database unavailable'}
-        </p>
+        <div className="illustration-placeholder hidden shrink-0 lg:block" aria-hidden="true" />
       </div>
     </header>
   );

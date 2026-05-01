@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { writingAttempts, writingRevisions, reviewRuns, rewriteTasks } from '../src/main/db/schema';
+import type * as AiModule from 'ai';
 import type {
   writingAttempts as writingAttemptsTable,
   writingRevisions as writingRevisionsTable,
@@ -56,12 +57,19 @@ vi.mock('electron-store', () => ({
   }),
 }));
 
-vi.mock('ai', () => ({
-  generateText: mocks.generateText,
-  Output: {
-    object: vi.fn(() => ({ name: 'starter_prompt' })),
-  },
-}));
+vi.mock('ai', async (importOriginal) => {
+  const actual = await importOriginal<typeof AiModule>();
+
+  return {
+    ...actual,
+    generateText: mocks.generateText,
+    Output: {
+      ...actual.Output,
+      json: vi.fn(() => ({ name: 'starter_prompt_json' })),
+      object: vi.fn(() => ({ name: 'starter_prompt' })),
+    },
+  };
+});
 
 vi.mock('@ai-sdk/openai', () => ({
   createOpenAI: mocks.createOpenAI,

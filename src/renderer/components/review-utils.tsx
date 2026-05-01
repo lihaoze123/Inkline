@@ -55,7 +55,7 @@ export function HighlightedWriting({
 
   return (
     <div
-      className="max-h-36 overflow-y-auto whitespace-pre-wrap rounded-2xl border border-warning/30 bg-warning/10 p-4 text-sm leading-7 text-base-content/80 scrollable"
+      className="writing-practice-surface max-h-40 overflow-y-auto whitespace-pre-wrap rounded-2xl border border-warning/25 bg-warning/10 p-4 text-base text-base-content/75 scrollable"
       aria-label="Reviewed text with anchored highlights"
     >
       {parts}
@@ -66,11 +66,11 @@ export function HighlightedWriting({
 export function CorrectionCard({ correction, showAnswer, reason }: CorrectionCardProps): React.JSX.Element {
   return (
     <article
-      className={`rounded-2xl border p-4 ${correction.status === 'low_confidence' ? 'border-base-300 border-dashed bg-base-200/70' : 'border-base-300 bg-base-100'}`}
+      className={`rounded-2xl border p-4 ${correction.status === 'low_confidence' ? 'border-base-300 border-dashed bg-base-200/70' : 'border-base-300/70 bg-base-100'}`}
     >
       <div className="mb-3 flex items-center justify-between gap-3">
         <span className="badge badge-soft badge-primary">
-          {correction.status === 'low_confidence' ? 'Suggestion' : 'Fix'}
+          {correction.status === 'low_confidence' ? 'Suggestion' : 'Focus note'}
         </span>
         <span className="text-xs font-medium uppercase tracking-[0.16em] text-base-content/40">
           {correction.category}

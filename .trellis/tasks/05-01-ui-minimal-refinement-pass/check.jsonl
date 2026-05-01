@@ -1,0 +1,4 @@
+{"file":".trellis/tasks/05-01-ui-minimal-refinement-pass/prd.md","reason":"Check implementation against acceptance criteria."}
+{"file":".trellis/spec/frontend/css-design.md","reason":"Verify minimal visual contract and no card/sidebar contrast regression."}
+{"file":".trellis/spec/product/learning-flow.md","reason":"Verify review flow contracts remain intact."}
+{"file":".trellis/spec/product/privacy-security.md","reason":"Verify Settings still shows required provider/privacy/status information."}

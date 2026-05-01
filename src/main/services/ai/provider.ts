@@ -4,6 +4,7 @@ import type { AnthropicProviderSettings } from '@ai-sdk/anthropic';
 import { createOpenAI } from '@ai-sdk/openai';
 import type { OpenAIProviderSettings } from '@ai-sdk/openai';
 import type { LanguageModel } from 'ai';
+import { normalizeOpenAiCompatibleBaseUrl } from './openai-compatible';
 import type { AiProviderRuntimeConfig } from './types';
 
 type ProviderModel = {
@@ -18,10 +19,6 @@ type AiSdkFetchInit = Parameters<NonNullable<OpenAIProviderSettings['fetch']>>[1
 
 const electronFetch: AiSdkFetch = async (input: AiSdkFetchInput, init: AiSdkFetchInit) =>
   net.fetch(input instanceof URL ? input.toString() : input, init);
-
-function normalizeOpenAiCompatibleBaseUrl(baseUrl: string): string {
-  return baseUrl.trim().replace(/\/+$/, '');
-}
 
 export function createAiProviderModel(config: AiProviderRuntimeConfig): ProviderModel {
   if (config.provider === 'openai-compatible') {
