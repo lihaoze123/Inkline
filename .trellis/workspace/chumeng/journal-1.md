@@ -615,3 +615,37 @@ Committed the quiet editorial writing workspace refinements and OpenAI-compatibl
 ### Next Steps
 
 - None - task complete
+
+
+## Session 19: First-launch onboarding intro
+
+**Date**: 2026-05-01
+**Task**: First-launch onboarding intro
+**Branch**: `main`
+
+### Summary
+
+Planned, implemented, verified, and documented a skippable first-launch onboarding intro with placeholder slides, persisted version dismissal, reduced-motion behavior, and a Settings replay action.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `5e77c12` | (see git log) |
+| `9a7d868` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
