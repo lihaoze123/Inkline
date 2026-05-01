@@ -9,6 +9,7 @@
 3. **Persist everything** — research, decisions, and lessons all go to files; conversations get compacted, files don't
 4. **Incremental development** — one task at a time
 5. **Capture learnings** — after each task, review and write new knowledge back to spec
+6. **Grill before execution** — stress-test ambiguous or risky plans before implementation
 
 ---
 
@@ -99,7 +100,7 @@ python3 ./.trellis/scripts/get_context.py --mode phase --step <X.Y>  # detailed 
 ## Phase Index
 
 ```
-Phase 1: Plan    → figure out what to do (brainstorm + research → prd.md)
+Phase 1: Plan    → figure out what to do (brainstorm + grill + research → prd.md)
 Phase 2: Execute → write code and pass quality checks
 Phase 3: Finish  → distill lessons + wrap-up
 ```
@@ -139,6 +140,7 @@ When a user request matches one of these intents, load the corresponding skill (
 | User intent | Route |
 |---|---|
 | Wants a new feature / requirement unclear | `trellis-brainstorm` |
+| Wants to stress-test a plan/design, says "grill me", asks for ruthless review, or a draft PRD still has unresolved design decisions | `grill-me` |
 | About to write code / start implementing | Dispatch the `trellis-implement` sub-agent per Phase 2.1 |
 | Finished writing / want to verify | Dispatch the `trellis-check` sub-agent per Phase 2.2 |
 | Stuck / fixed same bug several times | `trellis-break-loop` |
@@ -153,6 +155,7 @@ When a user request matches one of these intents, load the corresponding skill (
 | User intent | Skill |
 |---|---|
 | Wants a new feature / requirement unclear | `trellis-brainstorm` |
+| Wants to stress-test a plan/design, says "grill me", asks for ruthless review, or a draft PRD still has unresolved design decisions | `grill-me` |
 | About to write code / start implementing | `trellis-before-dev` (then implement directly in the main session) |
 | Finished writing / want to verify | `trellis-check` |
 | Stuck / fixed same bug several times | `trellis-break-loop` |
@@ -223,7 +226,23 @@ The brainstorm skill will guide you to:
 - Prefer offering options over open-ended questions
 - Update `prd.md` immediately after each user answer
 
-Return to this step whenever requirements change and revise `prd.md`.
+After the first coherent draft of `prd.md` exists, decide whether a `grill-me` pass is required before leaving Phase 1.1.
+
+Load `grill-me` when any of these are true:
+- The user explicitly says "grill me", asks to be stress-tested, or wants ruthless review
+- The plan has architecture, API, data model, product-scope, migration, security, performance, or cross-platform decisions
+- The PRD contains alternatives, TODOs, assumptions, hidden dependencies, or vague acceptance criteria
+- Implementation would be expensive to unwind if the plan is wrong
+
+When `grill-me` is active:
+- Ask exactly one question at a time
+- For each question, include the recommended answer
+- Walk the decision tree branch-by-branch and resolve dependencies before moving on
+- If a question can be answered by reading the codebase, specs, docs, or research artifacts, explore those instead of asking the user
+- After each user answer, immediately update `prd.md` and, for technical design details, `info.md`
+- Stop only when the remaining plan is specific enough for Phase 1.3 context curation and Phase 2 implementation
+
+Return to this step whenever requirements change and revise `prd.md`. If the change reopens design decisions, run another focused `grill-me` pass.
 
 #### 1.2 Research `[optional · repeatable]`
 
@@ -311,6 +330,7 @@ Skip this step. Context is loaded directly by the `trellis-before-dev` skill in 
 |------|:---:|
 | `prd.md` exists | ✅ |
 | User confirms requirements | ✅ |
+| `grill-me` pass completed when the task is complex, risky, or explicitly requested | ✅ when applicable |
 | `research/` has artifacts (complex tasks) | recommended |
 | `info.md` technical design (complex tasks) | optional |
 
@@ -516,12 +536,12 @@ No active task.
 Trigger words in the user message that suggest creating a task: 重构 / 抽成 / 独立 / 分发 / 拆出来 / 搞一个 / 做成 / 接入 / 集成 / refactor / rewrite / extract / productize / publish / build X / design Y.
 Task is NOT required if ALL three hold: (a) zero file writes this turn, (b) answer fits in one reply with no multi-round plan, (c) no research beyond reading 1-2 repo files.
 When in doubt and none of the override phrases below apply: prefer creating a task — over-tasking is cheap; under-tasking leaks plans and research into main context.
-Flow: load `trellis-brainstorm` skill → it creates the task via `python3 ./.trellis/scripts/task.py create` and drives requirements Q&A. For research-heavy work (tool comparison, docs, cross-platform survey), spawn `trellis-research` sub-agents via Task tool — NEVER do 3+ inline WebFetch/WebSearch/`gh api` calls in the main conversation.
+Flow: load `trellis-brainstorm` skill → it creates the task via `python3 ./.trellis/scripts/task.py create` and drives requirements Q&A. Once a draft plan exists, load `grill-me` before implementation if the user asks to be grilled or the plan still has unresolved design decisions. For research-heavy work (tool comparison, docs, cross-platform survey), spawn `trellis-research` sub-agents via Task tool — NEVER do 3+ inline WebFetch/WebSearch/`gh api` calls in the main conversation.
 User override (per-turn escape hatch): if the user's CURRENT message contains an explicit opt-out phrase ("跳过 trellis" / "别走流程" / "小修一下" / "直接改" / "先别建任务" / "skip trellis" / "no task" / "just do it" / "don't create a task"), honor it for this turn — briefly acknowledge ("好，本轮跳过 trellis 流程"), then proceed without creating a task. The override is per-turn only and does not carry forward; do NOT invent an override the user did not say.
 [/workflow-state:no_task]
 
 [workflow-state:planning]
-Complete prd.md via trellis-brainstorm skill; then run task.py start.
+Complete `prd.md` via `trellis-brainstorm`. If the user asked to be grilled or the plan is complex/risky, run `grill-me` one question at a time until key decisions are resolved, updating `prd.md` / `info.md` after each answer. Then run `task.py start` if the task is not already active.
 Research belongs in `{task_dir}/research/*.md`, written by `trellis-research` sub-agents. Do NOT inline WebFetch/WebSearch in main session — PRD only links to research files.
 [/workflow-state:planning]
 
