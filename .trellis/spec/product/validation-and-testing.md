@@ -97,7 +97,7 @@ Wrong: validate schema in one place, locate anchors in another, then let UI gene
 
 Correct: `validateReviewResult` is the only boundary from raw agent JSON to preview operations, and save code consumes those validated operations.
 
-## Scenario: Writing Practice Feature Validation
+## Scenario: Inkline Feature Validation
 
 ### 1. Scope / Trigger
 

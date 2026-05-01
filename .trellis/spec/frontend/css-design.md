@@ -209,11 +209,11 @@ Use **BEM naming convention** to prevent class name conflicts:
 
 ---
 
-## English Coach Visual Contract
+## Inkline Visual Contract
 
 ### Convention: Minimal Editorial Writing Workspace
 
-**What**: English Coach UI must use a minimal, elegant, warm editorial writing-workspace style. The default composition is flat: whitespace, typography, and thin dividers carry structure. Card-like surfaces are reserved for true writing paper/editor surfaces or blocking system states.
+**What**: Inkline UI must use a minimal, elegant, warm editorial writing-workspace style. The default composition is flat: whitespace, typography, and thin dividers carry structure. Card-like surfaces are reserved for true writing paper/editor surfaces or blocking system states.
 
 **Why**: The product should feel like a serious writing-practice desk, not a generic dashboard or bubbly AI app. Extra cards, badges, metrics, and mismatched sidebar panels make the interface noisy and weaken the less-is-more writing focus.
 

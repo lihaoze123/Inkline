@@ -28,7 +28,7 @@ Read [`../product/index.md`](../product/index.md) for every UI task that touches
 | [hooks.md](./hooks.md)                                                         | Query and mutation hook patterns                | Reference     |
 | [type-safety.md](./type-safety.md)                                             | Types, import paths, module constants           | Reference     |
 | [directory-structure.md](./directory-structure.md)                             | Project structure conventions                   | Reference     |
-| [css-design.md](./css-design.md)                                               | CSS organization, design tokens, English Coach visual contract | Reference     |
+| [css-design.md](./css-design.md)                                               | CSS organization, design tokens, Inkline visual contract | Reference     |
 | [quality.md](./quality.md)                                                     | Code quality and performance standards          | Reference     |
 
 ---

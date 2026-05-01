@@ -4,7 +4,7 @@
 
 Build a local-first desktop AI writing practice app for Chinese native speakers who practice English through repeatable writing scenarios. The product loop is: choose a practice template, optionally generate a starter prompt/topic, write independently, review with focused AI feedback, self-repair, compare with a reference rewrite, save learning history, and complete a D+1 rewrite practice later.
 
-The app is not a generic English-learning platform, a mock-exam simulator, or an AI co-writer. Journal, CET-4 Writing, CET-6 Writing, and Free Writing are same-level practice templates inside the broader Writing Practice product.
+The app is not a generic English-learning platform, a mock-exam simulator, or an AI co-writer. Journal, CET-4 Writing, CET-6 Writing, and Free Writing are same-level practice templates inside the broader Inkline product.
 
 ## v0.1 Goal
 

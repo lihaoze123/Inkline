@@ -1,4 +1,4 @@
-# Writing Practice Product Spec
+# Inkline Product Spec
 
 This layer defines product contracts for the standalone Electron English writing-practice coach. Read this layer for every task that affects writing attempts, practice templates, starter prompt generation, review flow, learning history, agent calls, privacy, or UI behavior.
 

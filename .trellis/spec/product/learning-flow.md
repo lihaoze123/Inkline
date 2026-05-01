@@ -47,7 +47,7 @@ window.api.writing.generateStarterPrompt({ templateId, userGoal }): Promise<Gene
 
 ### 3. Contracts
 
-- The product identity is `Writing Practice`; Journal, CET, and Free Writing must remain equal practice scenarios.
+- The product identity is `Inkline`; Journal, CET, and Free Writing must remain equal practice scenarios.
 - A shell-level `Today` page may be the default launch surface when it routes users into writing practice instead of replacing Practice as the product identity.
 - The picker shows Journal, CET-4 Writing, CET-6 Writing, and Free Writing as same-level cards.
 - Template selection may primarily live on Today/Home, but the Write/Practice workbench must still show the current template and provide lightweight switching.

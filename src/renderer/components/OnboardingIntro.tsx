@@ -129,7 +129,7 @@ export function OnboardingIntro({ isDismissPending, error, onDismiss }: Onboardi
       tabIndex={-1}
     >
       <div className="flex items-center justify-between px-6 py-5 md:px-9">
-        <span className="text-sm font-medium text-base-content/48">English Coach</span>
+        <span className="text-sm font-medium text-base-content/48">Inkline</span>
         <button
           ref={skipButtonRef}
           type="button"
@@ -150,10 +150,10 @@ export function OnboardingIntro({ isDismissPending, error, onDismiss }: Onboardi
             id="welcome-intro-brand-title"
             className="editorial-heading mt-7 text-5xl leading-none text-base-content md:text-6xl"
           >
-            English Coach
+            Inkline
           </h1>
           <p id="welcome-intro-brand-description" className="mt-4 max-w-md text-base leading-7 text-base-content/58">
-            A quiet desk for steady English writing practice.
+            A quiet desk for focused English writing practice.
           </p>
           {prefersReducedMotion ? (
             <button
@@ -216,7 +216,7 @@ export function OnboardingIntro({ isDismissPending, error, onDismiss }: Onboardi
                     disabled={isDismissPending}
                     onClick={dismissIntro}
                   >
-                    {isDismissPending ? 'Entering...' : 'Enter English Coach'}
+                    {isDismissPending ? 'Entering...' : 'Enter Inkline'}
                   </button>
                 ) : (
                   <button
@@ -265,7 +265,7 @@ function EntryPanel(): React.JSX.Element {
   return (
     <div className="grid min-h-[26rem] gap-6 p-5 md:grid-cols-[11rem_minmax(0,1fr)] md:p-7">
       <div className="hidden border-r border-base-300/50 pr-5 md:block">
-        <p className="editorial-copy text-2xl text-base-content/72">English Coach</p>
+        <p className="editorial-copy text-2xl text-base-content/72">Inkline</p>
         <div className="mt-8 grid gap-4 text-sm text-base-content/40">
           <span className="font-semibold text-primary">Today</span>
           <span>Practice</span>

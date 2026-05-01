@@ -659,7 +659,7 @@ function PracticePage({ initialWriting, settings, startup }: PracticePageProps):
           aria-label="App areas"
         >
           <div>
-            <p className="editorial-heading text-[2rem] leading-none text-base-content">English Coach</p>
+            <p className="editorial-heading text-[2rem] leading-none text-base-content">Inkline</p>
           </div>
           <div className="mt-10 flex flex-1 flex-col gap-2">
             {APP_NAV_ITEMS.filter((item) => !item.isHidden).map((item) => {

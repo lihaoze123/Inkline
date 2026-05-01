@@ -22,7 +22,7 @@ function createWindow(): void {
     height: 760,
     minWidth: 860,
     minHeight: 620,
-    title: 'English Coach',
+    title: 'Inkline',
     ...(iconPath ? { icon: iconPath } : {}),
     webPreferences: {
       preload: path.join(__dirname, 'preload.cjs'),

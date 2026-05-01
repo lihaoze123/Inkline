@@ -1,6 +1,6 @@
-# Writing Practice
+# Inkline
 
-Writing Practice is a local-first desktop app for practicing English through repeatable writing scenarios. It helps a learner choose a practice template, optionally generate a starter prompt/topic, write independently, review the current writing with focused AI feedback, try one self-repair, compare with a reference rewrite, and keep one follow-up D+1 rewrite practice for later.
+Inkline is a local-first desktop app for practicing English through repeatable writing scenarios. It helps a learner choose a practice template, optionally generate a starter prompt/topic, write independently, review the current writing with focused AI feedback, try one self-repair, compare with a reference rewrite, and keep one follow-up D+1 rewrite practice for later.
 
 The current app generalizes the original habit-writing flow into a Practice entry surface with Journal, CET-4 Writing, CET-6 Writing, and Free Writing as same-level templates.
 
@@ -30,7 +30,7 @@ Review execution is wired through the app-side review boundary and validation fl
 
 ## Privacy and local data
 
-Writing Practice is local-first by default:
+Inkline is local-first by default:
 
 - App data is stored in a local SQLite database at Electron's user data path as `english-coach.sqlite`.
 - Raw model responses are disabled by default.
