@@ -528,6 +528,148 @@ Keep the renderer source root for Vite's HTML entry resolution, but make the out
 
 ---
 
+## Scenario: Electron Forge App Icon Resources
+
+### 1. Scope / Trigger
+
+- Trigger: Any task that replaces the Electron placeholder app icon, adds app branding assets, or changes packaged runtime resources used by `BrowserWindow`.
+- This is an infra integration because Electron icon behavior crosses Forge packager config, maker config, packaged resource copying, and main-process runtime paths.
+
+### 2. Signatures
+
+Repository icon assets:
+
+```text
+resources/icon.png
+resources/icon.ico
+resources/icon.icns  # macOS only, when local tooling can generate it
+```
+
+Forge config:
+
+```typescript
+const iconBasePath = path.resolve(projectRoot, 'resources', 'icon');
+const pngIconPath = `${iconBasePath}.png`;
+const icoIconPath = `${iconBasePath}.ico`;
+
+const config: ForgeConfig = {
+  packagerConfig: {
+    icon: iconBasePath,
+    extraResource: ['drizzle', 'resources'],
+  },
+  makers: [
+    new MakerSquirrel({ setupIcon: icoIconPath }),
+    new MakerRpm({ options: { icon: pngIconPath } }),
+    new MakerDeb({ options: { icon: pngIconPath } }),
+  ],
+};
+```
+
+Main process runtime path:
+
+```typescript
+const iconPath = app.isPackaged
+  ? path.join(process.resourcesPath, 'resources', 'icon.png')
+  : path.join(app.getAppPath(), 'resources', 'icon.png');
+```
+
+### 3. Contracts
+
+| Field | Type | Constraint |
+| --- | --- | --- |
+| `resources/icon.png` | PNG image | Canonical source used for Linux package metadata and non-macOS `BrowserWindow` icon. Must have an alpha channel with transparent outer background/corners unless the design intentionally uses a full-bleed square. |
+| `resources/icon.ico` | ICO image | Required for Windows packager/Squirrel installer icon paths. Include common sizes such as 16, 32, 48, 64, 128, and 256 px. |
+| `resources/icon.icns` | ICNS image | Required for macOS packaged app icons when local tooling can generate it. Do not fake this with a renamed PNG. |
+| `packagerConfig.icon` | extensionless file path | Point to the icon base path so Electron Packager can select the platform-specific extension. |
+| `packagerConfig.extraResource` | string array | Include `resources` whenever main-process runtime code reads from `process.resourcesPath/resources/...`. |
+| Squirrel `setupIcon` | ICO file path | Point to the real `.ico` file, not the PNG source. |
+| Deb/RPM `options.icon` | PNG or SVG file path | Point to `resources/icon.png` unless a Linux-specific scalable icon exists. |
+| `BrowserWindow.icon` | string or omitted | Set only on non-macOS platforms; use the packaged `process.resourcesPath` path after packaging and the repo path during dev. |
+
+### 4. Validation & Error Matrix
+
+| Condition | Behavior |
+| --- | --- |
+| `packagerConfig.icon` is omitted | Packaged apps can fall back to the default Electron placeholder icon. |
+| `resources/icon.png` has no alpha channel and a near-white outer background | The app icon can render as an opaque white square instead of a shaped app icon. |
+| `resources` is omitted from `extraResource` but `BrowserWindow` reads `process.resourcesPath/resources/icon.png` | Packaged non-macOS runtime icon path is missing. |
+| Squirrel `setupIcon` points to PNG | Windows installer icon generation can fail or use the default installer icon. |
+| Deb/RPM maker `options.icon` is omitted | Linux desktop entries can use a default/generated icon instead of the app icon. |
+| `BrowserWindow.icon` is set on macOS | It does not replace the dock/app bundle icon; use the packager `.icns` path for macOS. |
+| `.icns` cannot be generated locally | Leave it absent and document the tooling gap; do not commit an invalid renamed file. |
+
+### 5. Good/Base/Bad Cases
+
+- Good: The repo has transparent-background `resources/icon.png` and synced `resources/icon.ico`, Forge points `packagerConfig.icon` at the extensionless base path, makers point to platform-specific icon files, and non-macOS `BrowserWindow` uses the PNG runtime path.
+- Base: Linux/dev runtime icon works via `BrowserWindow.icon`, while macOS keeps using the default until a real `resources/icon.icns` can be generated.
+- Bad: A generated icon remains only under a local agent directory such as `$CODEX_HOME/generated_images`; packaged builds cannot consume it.
+- Bad: Copying `resources/icon.png` into the repo but not wiring Forge config, so packaged apps still use the placeholder.
+
+### 6. Tests Required
+
+- Static asset checks:
+  - Run `file resources/icon.png resources/icon.ico`.
+  - Run a pixel check such as `magick resources/icon.png -format '%[channels] %[pixel:p{0,0}]' info:` and assert the PNG uses alpha channels with transparent outer corners.
+  - Run `identify resources/icon.ico` and assert expected sizes are present.
+- Quality checks:
+  - Run `pnpm lint`.
+  - Run `pnpm typecheck`.
+- Package smoke when packaging is in scope:
+  - Run `pnpm package`.
+  - Assert packaged resources include `resources/icon.png`.
+  - Launch the packaged binary on Linux/Windows and verify the window/installer icon is not the Electron placeholder.
+- macOS-specific check:
+  - If `resources/icon.icns` exists, package on macOS and verify the `.app` bundle icon.
+
+### 7. Wrong vs Correct
+
+#### Wrong
+
+```typescript
+const config: ForgeConfig = {
+  packagerConfig: {
+    extraResource: ['drizzle'],
+  },
+  makers: [new MakerSquirrel({}), new MakerRpm({}), new MakerDeb({})],
+};
+```
+
+This leaves packaged app and installer icons at their defaults.
+
+#### Correct
+
+```typescript
+const iconBasePath = path.resolve(projectRoot, 'resources', 'icon');
+const pngIconPath = `${iconBasePath}.png`;
+const icoIconPath = `${iconBasePath}.ico`;
+
+const config: ForgeConfig = {
+  packagerConfig: {
+    icon: iconBasePath,
+    extraResource: ['drizzle', 'resources'],
+  },
+  makers: [
+    new MakerSquirrel({ setupIcon: icoIconPath }),
+    new MakerRpm({ options: { icon: pngIconPath } }),
+    new MakerDeb({ options: { icon: pngIconPath } }),
+  ],
+};
+```
+
+Pair packaged resource copying with a main-process runtime path when `BrowserWindow` needs an icon:
+
+```typescript
+function getWindowIconPath(): string {
+  if (app.isPackaged) {
+    return path.join(process.resourcesPath, 'resources', 'icon.png');
+  }
+
+  return path.join(app.getAppPath(), 'resources', 'icon.png');
+}
+```
+
+---
+
 ## 常见问题排查
 
 ### 问题 1：`Cannot find module 'better-sqlite3'`
