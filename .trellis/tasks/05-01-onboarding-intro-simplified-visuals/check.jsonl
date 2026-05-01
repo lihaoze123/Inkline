@@ -1,0 +1,6 @@
+{"file": ".trellis/spec/frontend/index.md", "reason": "Frontend task entry point and required React/Electron UI guidelines."}
+{"file": ".trellis/spec/frontend/components.md", "reason": "Check component semantics, accessibility, and UI structure."}
+{"file": ".trellis/spec/frontend/css-design.md", "reason": "Check visual contract and CSS organization for the simplified onboarding visuals."}
+{"file": ".trellis/spec/frontend/react-pitfalls.md", "reason": "Check that existing effects/state behavior was preserved safely."}
+{"file": ".trellis/spec/frontend/quality.md", "reason": "Check lint/type-safety and frontend quality rules."}
+{"file": ".trellis/spec/product/index.md", "reason": "Check product scope was not broadened beyond onboarding presentation."}

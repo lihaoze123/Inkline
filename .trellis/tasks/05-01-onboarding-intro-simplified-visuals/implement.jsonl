@@ -1,0 +1,6 @@
+{"file": ".trellis/spec/frontend/index.md", "reason": "Frontend task entry point and required React/Electron UI guidelines."}
+{"file": ".trellis/spec/frontend/components.md", "reason": "Component semantics, accessibility, and UI structure guidance for the onboarding intro component."}
+{"file": ".trellis/spec/frontend/css-design.md", "reason": "Visual contract and CSS organization guidance for the simplified onboarding visuals."}
+{"file": ".trellis/spec/frontend/react-pitfalls.md", "reason": "React effects/state pitfalls relevant to preserving onboarding intro timing and controls."}
+{"file": ".trellis/spec/frontend/quality.md", "reason": "Frontend quality rules to apply during implementation."}
+{"file": ".trellis/spec/product/index.md", "reason": "Product boundary context to avoid changing onboarding persistence or broader writing-practice behavior."}

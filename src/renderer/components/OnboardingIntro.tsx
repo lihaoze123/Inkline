@@ -9,7 +9,7 @@ type OnboardingSlide = {
   id: string;
   title: string;
   body: string;
-  placeholderLabel: string;
+  visualLabel: string;
   panel: 'entry' | 'draft' | 'review';
 };
 
@@ -18,21 +18,21 @@ const ONBOARDING_SLIDES: OnboardingSlide[] = [
     id: 'entry',
     title: 'Start with one quiet prompt',
     body: 'Today gives you a calm entry into writing practice without a busy dashboard.',
-    placeholderLabel: 'Today page screenshot placeholder',
+    visualLabel: 'Entry concept illustration',
     panel: 'entry',
   },
   {
     id: 'draft',
     title: 'Write first, no interruptions',
     body: 'Draft independently before the coach adds any correction or suggestion.',
-    placeholderLabel: 'Writing editor screenshot placeholder',
+    visualLabel: 'Draft concept illustration',
     panel: 'draft',
   },
   {
     id: 'review',
     title: 'Review one pattern, then rewrite',
     body: 'Feedback narrows to one transferable pattern and brings you back to a small rewrite.',
-    placeholderLabel: 'Feedback and rewrite screenshot placeholder',
+    visualLabel: 'Review concept illustration',
     panel: 'review',
   },
 ];
@@ -172,7 +172,7 @@ export function OnboardingIntro({ isDismissPending, error, onDismiss }: Onboardi
       ) : (
         <div className="welcome-intro__slide flex min-h-0 flex-1 flex-col px-6 pb-7 md:px-9">
           <div className="mx-auto grid min-h-0 w-full max-w-6xl flex-1 items-center gap-10 lg:grid-cols-[minmax(0,1.08fr)_minmax(19rem,0.72fr)]">
-            <ScreenshotPlaceholder slide={slide} />
+            <IntroVisual slide={slide} />
             <div className="max-w-md">
               <p className="text-xs font-semibold uppercase tracking-[0.16em] text-primary/70">
                 {String(slideIndex + 1).padStart(2, '0')} / {String(ONBOARDING_SLIDES.length).padStart(2, '0')}
@@ -242,19 +242,16 @@ export function OnboardingIntro({ isDismissPending, error, onDismiss }: Onboardi
   );
 }
 
-function ScreenshotPlaceholder({ slide }: { slide: OnboardingSlide }): React.JSX.Element {
+function IntroVisual({ slide }: { slide: OnboardingSlide }): React.JSX.Element {
   return (
     <figure
-      className="welcome-intro__screenshot paper-sheet mx-auto grid w-full max-w-3xl overflow-hidden p-4 md:p-5"
-      aria-label={slide.placeholderLabel}
+      className="welcome-intro__visual paper-sheet mx-auto grid w-full max-w-3xl overflow-hidden p-4 md:p-5"
+      aria-label={slide.visualLabel}
     >
-      <div className="border-b border-base-300/60 px-3 py-2">
-        <div className="flex items-center gap-2">
-          <span className="size-2 rounded-full bg-base-content/16" />
-          <span className="size-2 rounded-full bg-base-content/16" />
-          <span className="size-2 rounded-full bg-base-content/16" />
-          <span className="ml-3 text-xs font-medium text-base-content/35">Screenshot placeholder</span>
-        </div>
+      <div className="welcome-intro__visual-accent" aria-hidden="true">
+        <span />
+        <span />
+        <span />
       </div>
       {slide.panel === 'entry' ? <EntryPanel /> : null}
       {slide.panel === 'draft' ? <DraftPanel /> : null}
