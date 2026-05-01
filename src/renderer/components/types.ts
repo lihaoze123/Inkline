@@ -21,7 +21,6 @@ export type ReviewProgressModel = {
 
 export type PracticeHeaderProps = {
   practicePromptTitle: string;
-  selectedTemplateTitle: string;
 };
 
 export type AutosaveStatusProps = {
@@ -59,14 +58,18 @@ export type PracticeTemplatePickerProps = {
 
 export type WritingEditorCardProps = {
   template: WritingTemplate;
+  templates: WritingTemplate[];
+  selectedTemplateId: WritingTemplateId;
   generatedPrompt: WritingAttemptSnapshot['generatedPrompt'];
   userGoal: string;
+  isStarterPromptVisible: boolean;
   starterPromptState: 'idle' | 'generating' | 'error';
   starterPromptError: string | null;
   content: string;
   lastAutosaveAt: number | null;
   saveState: SaveState;
   saveError: string | null;
+  onSelectTemplate: (templateId: WritingTemplateId) => void;
   onContentChange: (value: string) => void;
   onUserGoalChange: (value: string) => void;
   onGenerateStarterPrompt: () => void;

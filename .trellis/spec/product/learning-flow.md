@@ -63,6 +63,12 @@ window.api.writing.generateStarterPrompt({ templateId, userGoal }): Promise<Gene
 - CET editor surfaces must not show timers, word-count targets, precise scores, or mock-exam UI in v0.1.
 - Review input is template-aware and includes generated prompt/topic and user goal/topic when present.
 - The writing editor stays independent: no in-editor co-writing or live suggestions.
+- The Write/Practice workbench must show the selected template only once near the editor chrome, not both above the prompt title and again near the editor. Preferred label order: `<template.title> Change | Draft`.
+- The selected-template switcher belongs beside the editor `Draft` label as weak secondary UI. Do not place a separate `Journal Change`/template row between the prompt title and editor.
+- While `reviewState === 'reviewing'`, review progress must be an always-visible inline LearningPanel section, not nested `details`, a card stack, or an alert.
+- Reviewing progress shows one `Reviewing` label, the current phase, a short description, and the five compact step labels: `Read`, `Open coach`, `Find pattern`, `Check`, `Prepare`.
+- Reviewing progress duration is displayed only on the active step row, updated about once per second from the latest `started` event for that phase. Do not also show total elapsed time in the section heading or current-phase title.
+- Slow-provider reassurance may appear after 15 seconds, but only as muted helper text. Do not use alert styling for normal waiting.
 
 ### 4. Validation & Error Matrix
 
@@ -77,6 +83,9 @@ window.api.writing.generateStarterPrompt({ templateId, userGoal }): Promise<Gene
 | User edits content after review | Mark old review stale and offer review-current-version action. |
 | Review preview is ready while user is in Practice | Keep the Practice workspace editor-first; show a short ready state plus an explicit action to open the focused Feedback & Rewrite page. Do not auto-route or render a heavy inline review preview. |
 | User reviews non-Journal template | Review, preview, save, and post-action refresh remain on that template. |
+| Write workbench renders selected template context | Render template context once as weak editor chrome before `Draft`; do not duplicate it above the prompt title. |
+| Review is in progress | Show inline progress immediately; active step duration updates once per second and appears only in the active step row. |
+| Review provider takes longer than 15 seconds | Show muted helper text such as `Taking longer than usual — you can keep writing.`; do not show an alert. |
 
 ### 5. Good/Base/Bad Cases
 
@@ -84,10 +93,14 @@ window.api.writing.generateStarterPrompt({ templateId, userGoal }): Promise<Gene
 - Base: User picks Free Writing, skips generation, enters a goal, writes, and reviews with goal context.
 - Base: User edits only the optional goal/topic and sees it preserved after switching away and back.
 - Base: User switches from Journal to CET-4 and back; each draft is preserved.
+- Good: In the Write workbench, the prompt title is followed by editor chrome reading `Journal Change | Draft`, with no second `Journal` label above or below the title.
+- Good: During review, the coach panel shows compact inline progress and only the active step row displays a live duration.
 - Bad: Template picker visually or structurally makes Journal or CET dominate the product identity.
 - Bad: Editor says `journal entry` while the selected template is CET or Free Writing.
 - Bad: Starter generation is mandatory before writing.
 - Bad: The app calls starter generation using stale attempt state after the user changed the draft or goal/topic.
+- Bad: The workbench shows `Journal` above the prompt title and `Journal Change` again above `Draft`.
+- Bad: Review progress is hidden behind nested disclosures or shows total elapsed time plus per-step time in multiple places.
 
 ### 6. Tests Required
 
@@ -96,8 +109,10 @@ window.api.writing.generateStarterPrompt({ templateId, userGoal }): Promise<Gene
 - Starter prompt freshness test: unsaved content/goal is saved before `generateStarterPrompt({ templateId, userGoal })` runs.
 - Starter prompt state test: disclosure, generate, regenerate, retry, and skip states behave correctly.
 - Review context test: non-Journal template review includes template context and stays on selected template after preview/save.
+- Review progress UI test: when review starts, progress is visible without expanding disclosures; only the active step row shows a duration; after one second the active duration changes.
 - Regression/manual test: Journal write -> review -> save -> D+1 rewrite remains available through the Journal template.
 - Manual UI smoke: Today -> template picker -> Write, starter disclosure, generate/regenerate, skip, optional goal, editor autosave, review, save review, due D+1 rewrite practice.
+- Manual UI smoke: Write workbench title area has no duplicated template label and reads `<template.title> Change | Draft` before the textarea.
 
 ### 7. Wrong vs Correct
 
@@ -114,13 +129,16 @@ This makes Journal the product identity and leaks old assumptions into CET/Free 
 #### Correct
 
 ```tsx
-<PracticeHeader selectedTemplateTitle={writing.template.title} />
-<PracticeTemplatePicker templates={WRITING_TEMPLATES} />
-<WritingEditorCard template={writing.template} />
+<PracticeHeader practicePromptTitle={practicePromptTitle} />
+<WritingEditorCard
+  template={writing.template}
+  templates={WRITING_TEMPLATES}
+  selectedTemplateId={selectedTemplateId}
+/>
 <button>Review current writing</button>
 ```
 
-Practice is the product entry, and the selected template supplies scenario-specific framing.
+Practice is the product entry, the selected template supplies scenario-specific framing, and the template switcher stays in weak editor chrome beside `Draft` instead of duplicating labels around the prompt title.
 
 ## Review Preview Flow
 

@@ -125,6 +125,7 @@ function PracticePage({ initialWriting, settings, startup }: PracticePageProps):
   const [userGoal, setUserGoal] = useState(initialWriting.userGoal ?? '');
   const [starterPromptState, setStarterPromptState] = useState<'idle' | 'generating' | 'error'>('idle');
   const [starterPromptError, setStarterPromptError] = useState<string | null>(null);
+  const [isStarterPromptVisible, setIsStarterPromptVisible] = useState(true);
   const [showStarterDisclosure, setShowStarterDisclosure] = useState(false);
   const [saveState, setSaveState] = useState<SaveState>('idle');
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -215,6 +216,7 @@ function PracticePage({ initialWriting, settings, startup }: PracticePageProps):
       setRewritePracticeInput('');
       setStarterPromptError(null);
       setStarterPromptState('idle');
+      setIsStarterPromptVisible(true);
     },
     [content, queryClient, saveWritingAttempt, selectedTemplateId, updateWritingCache, userGoal],
   );
@@ -366,6 +368,7 @@ function PracticePage({ initialWriting, settings, startup }: PracticePageProps):
         updateWritingCache(result.writing);
         setUserGoal(result.writing.userGoal ?? userGoal);
         setStarterPromptState('idle');
+        setIsStarterPromptVisible(true);
         return;
       }
 
@@ -393,6 +396,7 @@ function PracticePage({ initialWriting, settings, startup }: PracticePageProps):
   const skipStarterPrompt = useCallback((): void => {
     setStarterPromptError(null);
     setStarterPromptState('idle');
+    setIsStarterPromptVisible(false);
   }, []);
 
   const saveReview = useCallback(async (): Promise<void> => {
@@ -690,40 +694,25 @@ function PracticePage({ initialWriting, settings, startup }: PracticePageProps):
 
             {activeArea === 'write' ? (
               <section className="flex min-h-0 flex-1 flex-col gap-6">
-                <PracticeHeader practicePromptTitle={practicePromptTitle} selectedTemplateTitle={writing.template.title} />
-                <details className="group text-sm text-base-content/50">
-                  <summary className="flex cursor-pointer list-none items-center gap-2 transition hover:text-base-content [&::-webkit-details-marker]:hidden">
-                    <span>{writing.template.title}</span>
-                    <span className="text-xs text-primary/70 group-open:hidden">Change</span>
-                    <span className="hidden text-xs text-primary/70 group-open:inline">Close</span>
-                  </summary>
-                  <div className="mt-3 flex flex-col items-start gap-2 sm:flex-row sm:flex-wrap sm:gap-x-4">
-                    {WRITING_TEMPLATES.map((template) => (
-                      <button
-                        key={template.id}
-                        type="button"
-                        className={`text-left transition ${template.id === selectedTemplateId ? 'font-semibold text-primary' : 'hover:text-base-content'}`}
-                        onClick={() => {
-                          void selectTemplate(template.id);
-                        }}
-                      >
-                        {template.title}
-                      </button>
-                    ))}
-                  </div>
-                </details>
+                <PracticeHeader practicePromptTitle={practicePromptTitle} />
 
                 <div className="grid min-h-0 flex-1 gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(14.5rem,16rem)] xl:grid-cols-[minmax(0,1fr)_16.5rem]">
                   <WritingEditorCard
                     template={writing.template}
+                    templates={WRITING_TEMPLATES}
+                    selectedTemplateId={selectedTemplateId}
                     generatedPrompt={writing.generatedPrompt}
                     userGoal={userGoal}
+                    isStarterPromptVisible={isStarterPromptVisible}
                     starterPromptState={starterPromptState}
                     starterPromptError={starterPromptError}
                     content={content}
                     lastAutosaveAt={writing.lastAutosaveAt}
                     saveState={saveState}
                     saveError={saveError}
+                    onSelectTemplate={(templateId) => {
+                      void selectTemplate(templateId);
+                    }}
                     onContentChange={setContent}
                     onUserGoalChange={setUserGoal}
                     onGenerateStarterPrompt={() => {

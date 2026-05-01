@@ -27,22 +27,25 @@ export function LearningPanel({
   onSkipRewritePractice,
   onReviewCurrentVersion,
 }: LearningPanelProps): React.JSX.Element {
-  const statusSentence = preview
-    ? 'Your focused review is ready when you want to inspect it.'
-    : reviewState === 'reviewing'
-      ? 'Reading your draft for one useful pattern.'
-      : hasWritten
-        ? 'When the draft feels complete enough, ask for one focused note.'
-        : 'Write first. The coach will wait quietly.';
+  const statusSentence =
+    reviewState === 'reviewing'
+      ? null
+      : preview
+        ? 'Your focused review is ready when you want to inspect it.'
+        : hasWritten
+          ? 'When the draft feels complete enough, ask for one focused note.'
+          : 'Write first. The coach will wait quietly.';
 
   return (
     <aside
       className="scrollable flex min-h-0 flex-col gap-5 overflow-y-auto text-sm text-base-content/62 lg:pl-3"
       aria-label="Writing coach"
     >
-      <p id="learning-panel-title" className="leading-6 text-base-content/58">
-        {statusSentence}
-      </p>
+      {statusSentence ? (
+        <p id="learning-panel-title" className="leading-6 text-base-content/58">
+          {statusSentence}
+        </p>
+      ) : null}
 
       {writing.staleReview ? <StaleReviewCard onReviewCurrentVersion={onReviewCurrentVersion} /> : null}
 
@@ -59,12 +62,7 @@ export function LearningPanel({
           />
         </details>
       ) : null}
-      {hasWritten && reviewState === 'reviewing' ? (
-        <details className="text-sm text-base-content/62">
-          <summary className="cursor-pointer font-medium text-base-content/70">Review progress</summary>
-          <ReviewProgressCard progress={reviewProgress} />
-        </details>
-      ) : null}
+      {hasWritten && reviewState === 'reviewing' ? <ReviewProgressCard progress={reviewProgress} /> : null}
       {hasWritten && preview ? (
         <div className="space-y-3">
           <p className="text-sm leading-6 text-base-content/60">Focused review is ready.</p>
@@ -98,16 +96,24 @@ const phaseLabels: Record<ReviewProgressPhase, string> = {
   preparing: 'Reading your draft',
   requesting: 'Opening the coach notebook',
   waiting: 'Finding one useful pattern',
-  checking: 'Checking the feedback carefully',
+  checking: 'Checking the feedback',
   building_preview: 'Preparing your rewrite practice',
 };
 
+const phaseStepLabels: Record<ReviewProgressPhase, string> = {
+  preparing: 'Read',
+  requesting: 'Open coach',
+  waiting: 'Find pattern',
+  checking: 'Check',
+  building_preview: 'Prepare',
+};
+
 const phaseDescriptions: Record<ReviewProgressPhase, string> = {
-  preparing: 'Looking at your current draft and practice context.',
-  requesting: 'Sending only the review context after disclosure.',
+  preparing: 'Reading the draft and practice context.',
+  requesting: 'Opening the review request after disclosure.',
   waiting: 'The provider is preparing focused feedback.',
-  checking: 'Making sure anchors, confidence, and learning actions are reliable.',
-  building_preview: 'Turning the review into a small rewrite step you can inspect before saving.',
+  checking: 'Checking anchors, confidence, and learning actions.',
+  building_preview: 'Preparing the rewrite step for review.',
 };
 
 function PanelCard({
@@ -219,7 +225,7 @@ function RewritePracticeCard({
 }
 
 function ReviewProgressCard({ progress }: { progress: ReviewProgressModel }): React.JSX.Element {
-  const [now, setNow] = useState<number | null>(null);
+  const [now, setNow] = useState(() => Date.now());
 
   useEffect(() => {
     const intervalId = window.setInterval(() => setNow(Date.now()), 1000);
@@ -227,35 +233,32 @@ function ReviewProgressCard({ progress }: { progress: ReviewProgressModel }): Re
   }, []);
 
   const currentPhase = progress.currentEvent?.phase ?? 'preparing';
-  const currentTimestamp = now ?? progress.currentEvent?.at ?? progress.startedAt ?? 0;
-  const waitingStartedEvent = latestProgressEvent(progress, 'waiting');
-  const waitingElapsedMs =
-    currentPhase === 'waiting' && waitingStartedEvent?.event === 'started'
-      ? currentTimestamp - waitingStartedEvent.at
-      : 0;
-  const showSlowHint = waitingElapsedMs > 15_000;
+  const startedAt = progress.startedAt ?? progress.currentEvent?.at ?? now;
+  const totalElapsedMs = now - startedAt;
+  const phaseStartedEvent = latestStartedProgressEvent(progress, currentPhase);
+  const currentPhaseElapsedMs = phaseStartedEvent ? now - phaseStartedEvent.at : totalElapsedMs;
+  const showSlowHint = totalElapsedMs > 15_000;
 
   return (
-    <PanelCard tone="primary">
+    <section className="space-y-3 text-sm text-base-content/62" aria-label="Review progress">
       <div>
-        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-primary/70">Review in progress</p>
-        <h3 className="mt-1 font-semibold">{phaseLabels[currentPhase]}</h3>
+        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-primary/70">Reviewing</p>
+        <h3 className="mt-1 font-semibold text-base-content/80">{phaseLabels[currentPhase]}</h3>
+        <p className="mt-1 text-sm leading-6 text-base-content/58">{phaseDescriptions[currentPhase]}</p>
       </div>
-      <p className="mt-2 text-sm leading-6 text-base-content/65">{phaseDescriptions[currentPhase]}</p>
-      {showSlowHint ? (
-        <div className="alert alert-info mt-4 py-2 text-sm">
-          <span>The AI provider is still working. You can keep writing while this runs.</span>
-        </div>
-      ) : null}
-      <details className="mt-4 text-sm text-base-content/62">
-        <summary className="cursor-pointer font-medium text-base-content/70">Review progress steps</summary>
-        <ol className="mt-3 grid gap-2">
-          {reviewPhases.map((phase) => (
-            <ReviewPhaseRow key={phase} phase={phase} progress={progress} currentPhase={currentPhase} />
-          ))}
-        </ol>
-      </details>
-    </PanelCard>
+      <ol className="grid gap-1.5">
+        {reviewPhases.map((phase) => (
+          <ReviewPhaseRow
+            key={phase}
+            phase={phase}
+            progress={progress}
+            currentPhase={currentPhase}
+            currentPhaseElapsedMs={currentPhaseElapsedMs}
+          />
+        ))}
+      </ol>
+      {showSlowHint ? <p className="text-xs leading-5 text-base-content/42">Taking longer than usual — you can keep writing.</p> : null}
+    </section>
   );
 }
 
@@ -263,10 +266,12 @@ function ReviewPhaseRow({
   phase,
   progress,
   currentPhase,
+  currentPhaseElapsedMs,
 }: {
   phase: ReviewProgressPhase;
   progress: ReviewProgressModel;
   currentPhase: ReviewProgressPhase;
+  currentPhaseElapsedMs: number;
 }): React.JSX.Element {
   const event = latestProgressEvent(progress, phase);
   const isFailed = event?.event === 'failed';
@@ -275,21 +280,21 @@ function ReviewPhaseRow({
   const markerClassName = isFailed
     ? 'bg-error text-error-content'
     : isCompleted
-      ? 'bg-success text-success-content'
+      ? 'bg-success/90 text-success-content'
       : isActive
         ? 'bg-primary text-primary-content'
-        : 'bg-base-300 text-base-content/50';
-  const labelClassName = isActive ? 'text-base-content' : 'text-base-content/60';
+        : 'bg-base-300 text-base-content/45';
+  const labelClassName = isActive ? 'text-base-content/82' : 'text-base-content/52';
 
   return (
-    <li className="flex items-center gap-3">
+    <li className="flex items-center gap-2">
       <span
-        className={`grid h-6 w-6 shrink-0 place-items-center rounded-full text-xs font-semibold ${markerClassName}`}
+        className={`grid h-5 w-5 shrink-0 place-items-center rounded-full text-[0.7rem] font-semibold ${markerClassName}`}
       >
         {isFailed ? '!' : isCompleted ? '✓' : reviewPhases.indexOf(phase) + 1}
       </span>
-      <span className={`flex-1 ${labelClassName}`}>{phaseLabels[phase]}</span>
-      {event ? <span className="text-xs text-base-content/45">{formatDuration(event.elapsedMs)}</span> : null}
+      <span className={`flex-1 leading-5 ${labelClassName}`}>{phaseStepLabels[phase]}</span>
+      {isActive ? <span className="text-xs text-base-content/42">{formatDuration(currentPhaseElapsedMs)}</span> : null}
     </li>
   );
 }
@@ -322,24 +327,19 @@ function AfterWritingState({
           Retry reviews the current editor content and creates a new review run.
         </p>
       ) : null}
-      <button
-        type="button"
-        className={`btn w-full rounded-xl ${failedCategory ? 'btn-error mt-4' : 'btn-primary'}`}
-        disabled={reviewDisabled}
-        aria-disabled={reviewDisabled}
-        onClick={onReviewCurrentVersion}
-      >
-        {reviewState === 'reviewing' ? (
-          <>
-            <span className="loading loading-spinner loading-xs" />
-            Reviewing...
-          </>
-        ) : failedCategory ? (
-          'Retry current version'
-        ) : (
-          'Get Feedback'
-        )}
-      </button>
+      {reviewState === 'reviewing' ? (
+        <p className="text-xs leading-5 text-base-content/42">Reviewing current draft...</p>
+      ) : (
+        <button
+          type="button"
+          className={`btn w-full rounded-xl ${failedCategory ? 'btn-error mt-4' : 'btn-primary'}`}
+          disabled={reviewDisabled}
+          aria-disabled={reviewDisabled}
+          onClick={onReviewCurrentVersion}
+        >
+          {failedCategory ? 'Retry current version' : 'Get Feedback'}
+        </button>
+      )}
       <p className="mt-3 text-xs text-base-content/38">
         {lastAutosaveAt ? `Autosaved ${formatTime(lastAutosaveAt)}` : 'Autosave will appear after writing.'}
       </p>
@@ -444,6 +444,20 @@ function PhaseTimingList({ summary }: { summary: ReviewRunSummary }): React.JSX.
       </dl>
     </div>
   );
+}
+
+function latestStartedProgressEvent(
+  progress: ReviewProgressModel,
+  phase: ReviewProgressPhase,
+): ReviewProgressModel['currentEvent'] {
+  for (let index = progress.events.length - 1; index >= 0; index -= 1) {
+    const event = progress.events[index];
+    if (event.phase === phase && event.event === 'started') {
+      return event;
+    }
+  }
+
+  return null;
 }
 
 function latestProgressEvent(

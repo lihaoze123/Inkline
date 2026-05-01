@@ -228,6 +228,8 @@ Use **BEM naming convention** to prevent class name conflicts:
 | Page entry surfaces | Keep Today/Home launch surfaces to one focused hero; move secondary context behind subtle text links or the destination page. |
 | Settings forms | Use quiet editorial form rows: short label column, constrained control column, helper text under the control, and stacked rows on small screens. |
 | Practice workspace | Keep the prompt bar minimal and the editor dominant; scenario switching, starter/goal controls, autosave, word count, and coach status should read as weak secondary UI before review. |
+| Practice template chrome | Show the selected template once in weak editor chrome before `Draft`, e.g. `Journal Change | Draft`; do not duplicate the template label above the prompt title and again above the editor. |
+| Reviewing progress | Render review progress as an inline side-panel state, not nested disclosures, cards, or alerts. Display duration only on the active step row. |
 | Writing editor | The paper textarea/editor may use a sheet surface because it represents the writing medium. |
 | Primary actions | Use at most one deep sea-blue primary CTA per page; secondary navigation, settings, and configuration actions should be outline or text actions. |
 | Reference art | Keep botanical/landscape art as a placeholder only until final assets are supplied. |
