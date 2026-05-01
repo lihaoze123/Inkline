@@ -51,9 +51,12 @@ window.api.writing.generateStarterPrompt({ templateId, userGoal }): Promise<Gene
 - A shell-level `Today` page may be the default launch surface when it routes users into writing practice instead of replacing Practice as the product identity.
 - The picker shows Journal, CET-4 Writing, CET-6 Writing, and Free Writing as same-level cards.
 - Template selection may primarily live on Today/Home, but the Write/Practice workbench must still show the current template and provide lightweight switching.
+- Lightweight switching may be collapsed or subtle by default, but must still call `getWritingAttempt({ templateId })` when the user changes scenario.
+- Before switching templates, persist the current template's unsaved content and optional goal/topic so the current draft is not lost.
 - Selecting a template loads that template's current attempt and resets review preview/progress state for the previous template.
 - Each template preserves one current draft.
 - Every template supports starter prompt/topic generation, regenerate, retry after failure, and skip.
+- Starter prompt/topic and optional goal/topic controls may be collapsed by default to protect independent writing, but generation, regenerate, retry, skip, and goal editing must remain reachable in the Practice workbench.
 - Users may provide an optional goal/topic whether or not they generate a starter prompt.
 - Autosave freshness includes both writing content and optional goal/topic; changing only the goal/topic must still persist the writing attempt.
 - Before generating a starter prompt/topic, persist any unsaved content or goal/topic so the attempt state and provider context are fresh.
@@ -72,6 +75,7 @@ window.api.writing.generateStarterPrompt({ templateId, userGoal }): Promise<Gene
 | Starter prompt generation fails | Show error with Retry; do not use local fallback topics. |
 | Starter prompt disclosure not accepted | Show disclosure; do not call provider. |
 | User edits content after review | Mark old review stale and offer review-current-version action. |
+| Review preview is ready while user is in Practice | Keep the Practice workspace editor-first; show a short ready state plus an explicit action to open the focused Feedback & Rewrite page. Do not auto-route or render a heavy inline review preview. |
 | User reviews non-Journal template | Review, preview, save, and post-action refresh remain on that template. |
 
 ### 5. Good/Base/Bad Cases
@@ -120,17 +124,18 @@ Practice is the product entry, and the selected template supplies scenario-speci
 
 ## Review Preview Flow
 
-Review preview order:
+Default review surfaces should stay focused on:
 
 ```text
-1. What you did well
-2. Focus Pattern
+1. Overall coach note with positive evidence
+2. Exactly one focus pattern
 3. Focus correction hint
 4. User self-repair attempt / reveal model
-5. Other corrections
-6. Reference rewrite + Notice the gap
-7. Rewrite practice
+5. Reference rewrite + Notice the gap when available
+6. Save-review boundary
 ```
+
+Secondary review details, additional corrections, technical review metadata, and scheduled rewrite-practice details should be behind a low-priority disclosure unless a task explicitly asks for a denser diagnostic view. D+1 rewrite practice remains part of the product contract, but it must not compete with independent writing in the default workspace.
 
 The primary save button must communicate the consequence:
 

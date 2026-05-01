@@ -42,11 +42,18 @@ The Today page should become a focused launch surface:
 The writing page should privilege the editor:
 
 * The writing editor remains the visual center.
+* Practice header should be an extreme minimal prompt bar: show only the current prompt/title and current scenario as quiet text; remove breadcrumb, database/status detail, instruction paragraph, and illustration from the default writing workspace header.
+* Scenario switching should be low-priority but not over-hidden: show the current scenario with a subtle `Change` affordance by default; keep the full scenario list collapsed until requested.
+* Starter prompt should be weak-visible rather than fully hidden: show a quiet `Need a starting point?` tool row with `Generate starter` and `Skip` available by default, placed above the draft/saved status row so pre-writing setup reads before draft metadata.
+* Generated starter prompt and optional goal/topic controls may remain secondary/collapsed so they do not compete with the editor.
 * Coach/LearningPanel is collapsed or reduced by default.
 * Default visible coach content should be limited to:
   * A calm status sentence.
   * One `Get Feedback` action when a draft exists.
   * Minimal disclosure/error/review state as needed.
+* Keep the desktop two-column layout, but make the coach column narrower/lighter; on small screens it may sit below the editor.
+* Word count and autosave should both be weak status elements, not prominent UI modules.
+* When review is ready in the writing workspace, show only a short ready status plus a quiet `Open focused review` action; do not inline the review preview or save-review action in Practice.
 * Helpful hints, rewrite practice details, review previews, and technical details should not compete with the writing surface.
 * Preserve all existing review and autosave behavior.
 * Do not introduce live suggestions, realtime corrections, or AI co-writing.
@@ -77,8 +84,13 @@ Settings should remain a clear preference/configuration page:
 
 * Keep one single-column flow: default provider → providers/credentials → privacy/debug → status.
 * Do not convert Settings into a dashboard.
-* Keep provider/key status as quiet text, not badges.
+* Keep provider/key status as quiet text, not badges; place provider status near the provider title instead of floating at the far right.
 * Keep save actions visually secondary unless the page has exactly one primary action.
+* Use editorial form rows inside Settings sections: a short label column and a right-side control column on desktop, falling back to stacked rows on small screens.
+* Across Today, Writing Workspace, Feedback & Rewrite, LearningPanel, and Settings, avoid using many horizontal separator lines to cut the page into blocks; prefer natural whitespace, typography, and aligned rhythm to separate elements. Use borders sparingly only for major page boundaries or meaningful warning/error/state accents.
+* Merge provider model/base URL fields and credentials into one quiet provider section rather than a separate credentials sub-card.
+* Place provider actions in one bottom actions row aligned with the control column; use short outline/text labels such as `Save settings`, `Save API key`, and `Delete key`.
+* Put helper text under the relevant control and keep it constrained to the control width.
 * Preserve required visibility for:
   * Default provider.
   * Provider model settings.

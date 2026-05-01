@@ -224,8 +224,12 @@ Use **BEM naming convention** to prevent class name conflicts:
 | App background | Use one coordinated warm paper background across shell and sidebar. |
 | Sidebar | Do not make the sidebar look like an independent color block; use the same warm paper token plus a very subtle divider. |
 | Active navigation | Prefer text weight/color only; do not use left rails, colored bars, or large active pills. |
-| Page sections | Prefer `border-t`, `border-b`, `divide-y`, spacing, and headings over rounded card wrappers. |
+| Page sections | Prefer natural whitespace, typography, and aligned rhythm over repeated horizontal rules; use borders sparingly only for major boundaries or meaningful warning/error/state accents. |
+| Page entry surfaces | Keep Today/Home launch surfaces to one focused hero; move secondary context behind subtle text links or the destination page. |
+| Settings forms | Use quiet editorial form rows: short label column, constrained control column, helper text under the control, and stacked rows on small screens. |
+| Practice workspace | Keep the prompt bar minimal and the editor dominant; scenario switching, starter/goal controls, autosave, word count, and coach status should read as weak secondary UI before review. |
 | Writing editor | The paper textarea/editor may use a sheet surface because it represents the writing medium. |
+| Primary actions | Use at most one deep sea-blue primary CTA per page; secondary navigation, settings, and configuration actions should be outline or text actions. |
 | Reference art | Keep botanical/landscape art as a placeholder only until final assets are supplied. |
 | Concept-image metadata | Do not add unplanned badges, fake timers, difficulty labels, focus chips, or honor/status labels from reference images. |
 
