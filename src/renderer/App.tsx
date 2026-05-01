@@ -5,12 +5,13 @@ import type { WritingAttemptSnapshot, WritingTemplateId } from '@shared/types/wr
 import { WRITING_TEMPLATES } from '@shared/writing/templates';
 import type { ReviewPreviewSnapshot, ReviewProgressEvent, ReviewRunSnapshot } from '@shared/types/review';
 import type { AiProviderId } from '@shared/types/credentials';
-import type { SettingsSnapshot } from '@shared/types/settings';
+import { CURRENT_ONBOARDING_INTRO_VERSION, type SettingsSnapshot } from '@shared/types/settings';
 import { WritingEditorCard } from './components/WritingEditorCard';
 import { LearningPanel } from './components/LearningPanel';
 import { RevealAnswerDialog } from './components/RevealAnswerDialog';
 import { ReviewDisclosureDialog } from './components/ReviewDisclosureDialog';
 import { SettingsPage } from './components/SettingsPage';
+import { OnboardingIntro } from './components/OnboardingIntro';
 import { PracticeHeader } from './components/PracticeHeader';
 import { getFocusCorrection, HighlightedWriting, patternRule } from './components/review-utils';
 import type { ReviewProgressModel, ReviewState, SaveState } from './components/types';
@@ -20,6 +21,7 @@ import { setReviewPreviewCache, useSaveReview, useStartReview } from './query/re
 import {
   useDeleteProviderApiKey,
   useSetDefaultProvider,
+  useSetOnboardingIntroVersionSeen,
   useSetProviderApiKey,
   useSetProviderConfig,
   useSetRawResponseStorage,
@@ -118,6 +120,8 @@ function PracticePage({ initialWriting, settings, startup }: PracticePageProps):
   const { mutateAsync: completeRewritePracticeMutation } = useCompleteRewritePractice();
   const { mutateAsync: skipRewritePracticeMutation } = useSkipRewritePractice();
   const { mutateAsync: setDefaultProviderMutation } = useSetDefaultProvider();
+  const { mutateAsync: setOnboardingIntroVersionSeenMutation, isPending: isOnboardingIntroDismissPending } =
+    useSetOnboardingIntroVersionSeen();
   const { mutateAsync: setProviderConfigMutation } = useSetProviderConfig();
   const { mutateAsync: setProviderApiKeyMutation } = useSetProviderApiKey();
   const { mutateAsync: deleteProviderApiKeyMutation } = useDeleteProviderApiKey();
@@ -161,6 +165,9 @@ function PracticePage({ initialWriting, settings, startup }: PracticePageProps):
   });
   const [settingsMessage, setSettingsMessage] = useState<string | null>(null);
   const [settingsError, setSettingsError] = useState<string | null>(null);
+  const [isWelcomeIntroReplayOpen, setIsWelcomeIntroReplayOpen] = useState(false);
+  const [isWelcomeIntroLocallyDismissed, setIsWelcomeIntroLocallyDismissed] = useState(false);
+  const [welcomeIntroError, setWelcomeIntroError] = useState<string | null>(null);
   const lastSavedContentRef = useRef(initialWriting.activeRevision?.content ?? '');
   const lastSavedUserGoalRef = useRef(initialWriting.userGoal ?? '');
   const activeReviewRef = useRef(false);
@@ -175,6 +182,9 @@ function PracticePage({ initialWriting, settings, startup }: PracticePageProps):
   const hasWritten = content.trim().length > 0;
   const practicePromptTitle = getPracticePromptTitle(writing);
   const todayGreeting = getTodayGreeting(getHourWithOffset(currentTimeMs, startup.timeZoneOffsetMinutes));
+  const shouldShowFirstLaunchIntro =
+    appSettings.onboardingIntroVersionSeen < CURRENT_ONBOARDING_INTRO_VERSION && !isWelcomeIntroLocallyDismissed;
+  const isWelcomeIntroOpen = shouldShowFirstLaunchIntro || isWelcomeIntroReplayOpen;
 
   useEffect(() => {
     const intervalId = window.setInterval(() => {
@@ -606,6 +616,27 @@ function PracticePage({ initialWriting, settings, startup }: PracticePageProps):
     [setRawResponseStorageMutation],
   );
 
+  const dismissWelcomeIntro = useCallback(async (): Promise<void> => {
+    setWelcomeIntroError(null);
+
+    try {
+      if (shouldShowFirstLaunchIntro) {
+        await setOnboardingIntroVersionSeenMutation({ version: CURRENT_ONBOARDING_INTRO_VERSION });
+        setIsWelcomeIntroLocallyDismissed(true);
+      }
+
+      setIsWelcomeIntroReplayOpen(false);
+      setActiveArea('today');
+    } catch (error) {
+      setWelcomeIntroError(getErrorMessage(error, 'Unable to save welcome preference.'));
+    }
+  }, [setOnboardingIntroVersionSeenMutation, shouldShowFirstLaunchIntro]);
+
+  const viewWelcomeIntro = useCallback((): void => {
+    setWelcomeIntroError(null);
+    setIsWelcomeIntroReplayOpen(true);
+  }, []);
+
   const requestRevealModelAnswer = useCallback((): void => {
     if (modelAnswerRevealed || selfRepairAttempt.trim().length > 0) {
       setModelAnswerRevealed(true);
@@ -873,11 +904,20 @@ function PracticePage({ initialWriting, settings, startup }: PracticePageProps):
                 onRawResponseStorageChange={(enabled) => {
                   void toggleRawResponseStorage(enabled);
                 }}
+                onViewWelcomeIntro={viewWelcomeIntro}
               />
             ) : null}
           </div>
         </div>
       </div>
+
+      {isWelcomeIntroOpen ? (
+        <OnboardingIntro
+          isDismissPending={isOnboardingIntroDismissPending}
+          error={welcomeIntroError}
+          onDismiss={dismissWelcomeIntro}
+        />
+      ) : null}
 
       <RevealAnswerDialog
         isOpen={showRevealConfirmation}

@@ -48,6 +48,7 @@ export type SettingsPageProps = {
   onSaveApiKey: (providerId: AiProviderId) => void;
   onDeleteApiKey: (providerId: AiProviderId) => void;
   onRawResponseStorageChange: (enabled: boolean) => void;
+  onViewWelcomeIntro: () => void;
 };
 
 export type PracticeTemplatePickerProps = {

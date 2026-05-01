@@ -32,6 +32,7 @@ import type {
 import type {
   SettingsSnapshot,
   SetDefaultProviderInput,
+  SetOnboardingIntroVersionSeenInput,
   SetProviderConfigInput,
   SetRawResponseStorageInput,
 } from '../shared/types/settings';
@@ -64,6 +65,8 @@ const api = {
       ipcRenderer.invoke(IPC_CHANNELS.SETTINGS.SET_PROVIDER_CONFIG, input),
     setDefaultProvider: (input: SetDefaultProviderInput): Promise<SettingsSnapshot> =>
       ipcRenderer.invoke(IPC_CHANNELS.SETTINGS.SET_DEFAULT_PROVIDER, input),
+    setOnboardingIntroVersionSeen: (input: SetOnboardingIntroVersionSeenInput): Promise<SettingsSnapshot> =>
+      ipcRenderer.invoke(IPC_CHANNELS.SETTINGS.SET_ONBOARDING_INTRO_VERSION_SEEN, input),
   },
   credentials: {
     getProviderKeyStatus: (): Promise<ProviderKeyStatus> =>

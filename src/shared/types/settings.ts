@@ -1,6 +1,8 @@
 import { z } from 'zod';
 import { aiProviderIdSchema, providerKeyStatusSchema, providerKeyStatusValueSchema } from './credentials';
 
+export const CURRENT_ONBOARDING_INTRO_VERSION = 1;
+
 export const providerLabelSchema = z.enum(['OpenAI-compatible', 'Anthropic Claude']);
 
 export const openAiCompatibleProviderConfigSchema = z.object({
@@ -63,6 +65,7 @@ export const settingsSnapshotSchema = z.object({
   isLocalModel: z.boolean(),
   reviewContextDescription: z.string().min(1),
   rawResponseStorageEnabled: z.boolean(),
+  onboardingIntroVersionSeen: z.number().int().nonnegative(),
   databaseLocation: z.string().min(1),
   piMonoAuthStatus: z.enum(['not-configured', 'configured']),
   providerApiKeyStatus: providerKeyStatusValueSchema,
@@ -96,6 +99,10 @@ export const setDefaultProviderInputSchema = z.object({
   providerId: aiProviderIdSchema,
 });
 
+export const setOnboardingIntroVersionSeenInputSchema = z.object({
+  version: z.number().int().min(1),
+});
+
 export type ProviderLabel = z.infer<typeof providerLabelSchema>;
 export type OpenAiCompatibleProviderConfig = z.infer<typeof openAiCompatibleProviderConfigSchema>;
 export type AnthropicProviderConfig = z.infer<typeof anthropicProviderConfigSchema>;
@@ -112,3 +119,4 @@ export type SetRawResponseStorageInput = z.infer<typeof setRawResponseStorageInp
 export type SetProviderConfigInput = z.input<typeof setProviderConfigInputSchema>;
 export type ParsedSetProviderConfigInput = z.infer<typeof setProviderConfigInputSchema>;
 export type SetDefaultProviderInput = z.infer<typeof setDefaultProviderInputSchema>;
+export type SetOnboardingIntroVersionSeenInput = z.infer<typeof setOnboardingIntroVersionSeenInputSchema>;

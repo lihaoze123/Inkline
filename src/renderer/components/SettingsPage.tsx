@@ -32,6 +32,7 @@ export function SettingsPage({
   onSaveApiKey,
   onDeleteApiKey,
   onRawResponseStorageChange,
+  onViewWelcomeIntro,
 }: SettingsPageProps): React.JSX.Element {
   const aiModelSettings = settings.aiModelSettings;
   const defaultProviderId = aiModelSettings?.defaultProviderId ?? settings.providerId ?? 'openai-compatible';
@@ -169,6 +170,19 @@ export function SettingsPage({
                 </label>
               </FormRow>
             </div>
+          </section>
+
+          <section className="border-t border-base-300/60 pt-6" aria-labelledby="settings-welcome-title">
+            <h2 id="settings-welcome-title" className="sr-only">
+              Welcome intro
+            </h2>
+            <button
+              type="button"
+              className="text-sm font-medium text-primary underline-offset-4 hover:underline"
+              onClick={onViewWelcomeIntro}
+            >
+              View welcome intro
+            </button>
           </section>
 
           <section>

@@ -10,6 +10,7 @@ import type { AiProviderId, ProviderCredentialMutationResult } from '@shared/typ
 import type {
   SettingsSnapshot,
   SetDefaultProviderInput,
+  SetOnboardingIntroVersionSeenInput,
   SetProviderConfigInput,
   SetRawResponseStorageInput,
 } from '@shared/types/settings';
@@ -36,6 +37,19 @@ export function useSetDefaultProvider(): UseMutationResult<SettingsSnapshot, Err
 
   return useMutation({
     mutationFn: (input: SetDefaultProviderInput) => window.api.settings.setDefaultProvider(input),
+    onSuccess: (settings) => updateSettingsCache(queryClient, settings),
+  });
+}
+
+export function useSetOnboardingIntroVersionSeen(): UseMutationResult<
+  SettingsSnapshot,
+  Error,
+  SetOnboardingIntroVersionSeenInput
+> {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (input: SetOnboardingIntroVersionSeenInput) => window.api.settings.setOnboardingIntroVersionSeen(input),
     onSuccess: (settings) => updateSettingsCache(queryClient, settings),
   });
 }

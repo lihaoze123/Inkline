@@ -127,6 +127,27 @@ textarea:hover::-webkit-scrollbar-thumb {
   background: var(--coach-paper);
 }
 
+.welcome-intro {
+  background: var(--coach-paper);
+}
+
+.welcome-intro__brand-mark {
+  border-radius: 0.8rem;
+  background: color-mix(in oklch, var(--color-primary) 5%, var(--coach-sheet));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.8);
+  animation: welcome-intro-brand 900ms ease-out both;
+}
+
+.welcome-intro__slide {
+  animation: welcome-intro-fade 420ms ease-out both;
+}
+
+.welcome-intro__screenshot {
+  aspect-ratio: 16 / 10;
+  min-height: 26rem;
+  box-shadow: 0 18px 44px rgba(72, 60, 42, 0.055);
+}
+
 .paper-sheet {
   border: 1px solid rgba(36, 41, 54, 0.08);
   border-radius: 0.65rem;
@@ -164,4 +185,33 @@ mark.review-highlight {
   padding: 0.03rem 0.18rem;
   color: #6f5817;
   background: #fbefc7;
+}
+
+@keyframes welcome-intro-brand {
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes welcome-intro-fade {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .welcome-intro__brand-mark,
+  .welcome-intro__slide {
+    animation: none;
+  }
 }

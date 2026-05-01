@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import {
   deleteProviderApiKeyInputSchema,
   providerCredentialMutationResultSchema,
@@ -8,9 +8,11 @@ import {
 import { IPC_CHANNELS } from '../src/shared/constants/channels';
 import { normalizeOpenAiCompatibleBaseUrl } from '../src/main/services/ai/openai-compatible';
 import {
+  CURRENT_ONBOARDING_INTRO_VERSION,
   aiModelSettingsSchema,
   providerConfigSchema,
   setDefaultProviderInputSchema,
+  setOnboardingIntroVersionSeenInputSchema,
   setProviderConfigInputSchema,
   settingsSnapshotSchema,
 } from '../src/shared/types/settings';
@@ -25,6 +27,7 @@ describe('settings defaults contract', () => {
       isLocalModel: false,
       reviewContextDescription: 'Current entry and selected learning history will be sent when Review is clicked.',
       rawResponseStorageEnabled: false,
+      onboardingIntroVersionSeen: 0,
       databaseLocation: '/tmp/english-coach.sqlite',
       piMonoAuthStatus: 'not-configured',
       providerApiKeyStatus: 'not-configured',
@@ -57,6 +60,7 @@ describe('settings defaults contract', () => {
     });
 
     expect(parsed.rawResponseStorageEnabled).toBe(false);
+    expect(parsed.onboardingIntroVersionSeen).toBe(0);
   });
 
   it('accepts OpenAI-compatible provider configuration without exposing credentials', () => {
@@ -161,6 +165,57 @@ describe('settings defaults contract', () => {
     expect(setDefaultProviderInputSchema.parse({ providerId: 'anthropic' })).toEqual({ providerId: 'anthropic' });
     expect(IPC_CHANNELS.SETTINGS.SET_DEFAULT_PROVIDER).toBe('settings:setDefaultProvider');
     expect(() => setDefaultProviderInputSchema.parse({ providerId: 'other-provider' })).toThrow();
+  });
+
+  it('validates onboarding intro IPC as a versioned dismissal marker', () => {
+    expect(setOnboardingIntroVersionSeenInputSchema.parse({ version: CURRENT_ONBOARDING_INTRO_VERSION })).toEqual({
+      version: CURRENT_ONBOARDING_INTRO_VERSION,
+    });
+    expect(IPC_CHANNELS.SETTINGS.SET_ONBOARDING_INTRO_VERSION_SEEN).toBe('settings:setOnboardingIntroVersionSeen');
+    expect(() => setOnboardingIntroVersionSeenInputSchema.parse({ version: 0 })).toThrow();
+  });
+
+  it('does not downgrade the stored onboarding intro version', async () => {
+    vi.resetModules();
+    vi.doMock('electron-store', () => {
+      class MockStore {
+        private values: Record<string, unknown>;
+
+        constructor(config: { defaults: Record<string, unknown> }) {
+          this.values = { ...config.defaults };
+        }
+
+        get(key: string): unknown {
+          return this.values[key];
+        }
+
+        set(key: string, value: unknown): void {
+          this.values[key] = value;
+        }
+      }
+
+      return { default: MockStore };
+    });
+    vi.doMock('../src/main/db/client', () => ({
+      getDatabasePath: () => '/tmp/english-coach.sqlite',
+    }));
+    vi.doMock('../src/main/services/credentials/service', () => ({
+      getProviderCredentialStatuses: async () => ({
+        'openai-compatible': { providerId: 'openai-compatible', status: 'not-configured', storage: 'os-keychain' },
+        anthropic: { providerId: 'anthropic', status: 'not-configured', storage: 'os-keychain' },
+      }),
+    }));
+
+    const { getSettingsSnapshot, setOnboardingIntroVersionSeen } =
+      await import('../src/main/services/settings/service');
+
+    expect(setOnboardingIntroVersionSeen({ version: 3 })).toBe(3);
+    expect(setOnboardingIntroVersionSeen({ version: 2 })).toBe(3);
+    await expect(getSettingsSnapshot()).resolves.toMatchObject({ onboardingIntroVersionSeen: 3 });
+
+    vi.doUnmock('electron-store');
+    vi.doUnmock('../src/main/db/client');
+    vi.doUnmock('../src/main/services/credentials/service');
   });
 
   it('validates provider key mutations as write-only renderer inputs', () => {

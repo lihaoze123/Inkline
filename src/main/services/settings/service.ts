@@ -3,6 +3,7 @@ import { getDatabasePath } from '../../db/client';
 import { normalizeOpenAiCompatibleBaseUrl } from '../ai/openai-compatible';
 import { getProviderCredentialStatuses } from '../credentials/service';
 import {
+  setOnboardingIntroVersionSeenInputSchema,
   setDefaultProviderInputSchema,
   setProviderConfigInputSchema,
   type AiModelSettings,
@@ -10,6 +11,7 @@ import {
   type OpenAiCompatibleProviderSettings,
   type SettingsSnapshot,
   type SetDefaultProviderInput,
+  type SetOnboardingIntroVersionSeenInput,
   type SetProviderConfigInput,
   type SetRawResponseStorageInput,
 } from '../../../shared/types/settings';
@@ -34,6 +36,7 @@ type SettingsStore = {
   openAiCompatibleModel: string;
   anthropicModel: string;
   defaultProviderId: AiProviderId;
+  onboardingIntroVersionSeen: number;
 };
 
 const store = new Store<SettingsStore>({
@@ -44,6 +47,7 @@ const store = new Store<SettingsStore>({
     openAiCompatibleModel: DEFAULT_OPENAI_COMPATIBLE_MODEL,
     anthropicModel: DEFAULT_ANTHROPIC_MODEL,
     defaultProviderId: 'openai-compatible',
+    onboardingIntroVersionSeen: 0,
   },
 });
 
@@ -96,6 +100,7 @@ export async function getSettingsSnapshot(): Promise<SettingsSnapshot> {
     isLocalModel: defaultProvider.isLocalModel,
     reviewContextDescription: REVIEW_CONTEXT_DESCRIPTION,
     rawResponseStorageEnabled: store.get('rawResponseStorageEnabled'),
+    onboardingIntroVersionSeen: store.get('onboardingIntroVersionSeen'),
     databaseLocation: getDatabasePath(),
     piMonoAuthStatus: 'not-configured',
     providerApiKeyStatus: defaultProvider.apiKeyStatus.status,
@@ -140,4 +145,11 @@ export function setDefaultProvider(input: SetDefaultProviderInput): AiProviderId
   const parsedInput = setDefaultProviderInputSchema.parse(input);
   store.set('defaultProviderId', parsedInput.providerId);
   return store.get('defaultProviderId');
+}
+
+export function setOnboardingIntroVersionSeen(input: SetOnboardingIntroVersionSeenInput): number {
+  const parsedInput = setOnboardingIntroVersionSeenInputSchema.parse(input);
+  const nextVersionSeen = Math.max(store.get('onboardingIntroVersionSeen'), parsedInput.version);
+  store.set('onboardingIntroVersionSeen', nextVersionSeen);
+  return store.get('onboardingIntroVersionSeen');
 }

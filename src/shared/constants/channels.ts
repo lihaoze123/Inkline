@@ -16,6 +16,7 @@ export const IPC_CHANNELS = {
     SET_RAW_RESPONSE_STORAGE: 'settings:setRawResponseStorage',
     SET_PROVIDER_CONFIG: 'settings:setProviderConfig',
     SET_DEFAULT_PROVIDER: 'settings:setDefaultProvider',
+    SET_ONBOARDING_INTRO_VERSION_SEEN: 'settings:setOnboardingIntroVersionSeen',
   },
   CREDENTIALS: {
     GET_PROVIDER_KEY_STATUS: 'credentials:getProviderKeyStatus',

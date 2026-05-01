@@ -8,6 +8,7 @@ import {
 } from '../../shared/types/credentials';
 import {
   setDefaultProviderInputSchema,
+  setOnboardingIntroVersionSeenInputSchema,
   setProviderConfigInputSchema,
   setRawResponseStorageInputSchema,
   settingsSnapshotSchema,
@@ -59,6 +60,7 @@ import { startReview } from '../services/review/procedures/start';
 import {
   getSettingsSnapshot,
   setDefaultProvider,
+  setOnboardingIntroVersionSeen,
   setProviderConfig,
   setRawResponseStorage,
 } from '../services/settings/service';
@@ -131,6 +133,15 @@ export function registerIpcHandlers(migrationResult: MigrationResult): void {
     setDefaultProvider(parsedInput);
     return settingsSnapshotSchema.parse(await getSettingsSnapshot());
   });
+
+  ipcMain.handle(
+    IPC_CHANNELS.SETTINGS.SET_ONBOARDING_INTRO_VERSION_SEEN,
+    async (_event, input: unknown): Promise<unknown> => {
+      const parsedInput = setOnboardingIntroVersionSeenInputSchema.parse(input);
+      setOnboardingIntroVersionSeen(parsedInput);
+      return settingsSnapshotSchema.parse(await getSettingsSnapshot());
+    },
+  );
 
   ipcMain.handle(IPC_CHANNELS.CREDENTIALS.GET_PROVIDER_KEY_STATUS, async (): Promise<unknown> => {
     return providerKeyStatusSchema.parse(await getProviderKeyStatus());
