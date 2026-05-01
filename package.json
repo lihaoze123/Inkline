@@ -6,7 +6,7 @@
   "type": "module",
   "main": ".vite/build/index.cjs",
   "scripts": {
-    "dev": "electron-forge start",
+    "dev": "electron-forge start -- --remote-debugging-port=9222",
     "format": "prettier . --write",
     "format:check": "prettier . --check",
     "lint": "eslint .",

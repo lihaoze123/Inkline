@@ -1,0 +1,2 @@
+{"file": ".trellis/spec/shared/index.md", "reason": "General project quality rules for config-only changes."}
+{"file": ".trellis/spec/shared/pnpm-electron-setup.md", "reason": "Electron Forge and pnpm setup guidance relevant to the dev script."}
