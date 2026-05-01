@@ -14,6 +14,7 @@ import { SettingsPage } from './components/SettingsPage';
 import { OnboardingIntro } from './components/OnboardingIntro';
 import { PracticeHeader } from './components/PracticeHeader';
 import { getFocusCorrection, HighlightedWriting, patternRule } from './components/review-utils';
+import feedbackInkLandscapeUrl from './assets/feedback-ink-landscape.png';
 import type { ReviewProgressModel, ReviewState, SaveState } from './components/types';
 import { useFoundationState } from './query/foundation';
 import { queryKeys } from './query/keys';
@@ -655,13 +656,13 @@ function PracticePage({ initialWriting, settings, startup }: PracticePageProps):
     <main className="app-chrome min-h-screen overflow-hidden text-base-content">
       <div className="relative grid h-screen grid-cols-[19.5rem_minmax(0,1fr)]">
         <nav
-          className="quiet-sidebar relative z-10 flex flex-col border-r border-base-300/45 px-9 py-10"
+          className="quiet-sidebar relative z-10 flex flex-col overflow-hidden border-r border-base-300/45 px-9 py-10"
           aria-label="App areas"
         >
-          <div>
+          <div className="relative z-10">
             <p className="editorial-heading text-[2rem] leading-none text-base-content">Inkline</p>
           </div>
-          <div className="mt-10 flex flex-1 flex-col gap-2">
+          <div className="relative z-10 mt-10 flex flex-1 flex-col gap-2">
             {APP_NAV_ITEMS.filter((item) => !item.isHidden).map((item) => {
               const isActive = activeArea === item.id || (item.id === 'write' && activeArea === 'feedback');
               return (
@@ -684,9 +685,13 @@ function PracticePage({ initialWriting, settings, startup }: PracticePageProps):
           </div>
         </nav>
 
-        <div className="scrollable relative z-10 min-h-0 overflow-y-auto" style={{ scrollbarGutter: 'stable' }}>
+        <div
+          className="scrollable relative z-10 min-h-0 overflow-x-hidden overflow-y-auto"
+          style={{ scrollbarGutter: 'stable' }}
+        >
+          <AppInkDecoration activeArea={activeArea} />
           <div
-            className={`mx-auto flex min-h-screen flex-col px-10 py-9 ${
+            className={`relative z-10 mx-auto flex min-h-screen flex-col px-10 py-9 ${
               activeArea === 'write' || activeArea === 'feedback' ? 'max-w-[74rem] 2xl:max-w-[83rem]' : 'max-w-[69rem]'
             }`}
           >
@@ -714,7 +719,7 @@ function PracticePage({ initialWriting, settings, startup }: PracticePageProps):
             ) : null}
 
             {activeArea === 'write' ? (
-              <section className="flex min-h-0 flex-1 flex-col gap-6">
+              <section className="practice-page flex min-h-0 flex-1 flex-col gap-6">
                 <PracticeHeader practicePromptTitle={practicePromptTitle} />
 
                 <div className="grid min-h-0 flex-1 gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(14.5rem,16rem)] xl:grid-cols-[minmax(0,1fr)_16.5rem]">
@@ -741,33 +746,35 @@ function PracticePage({ initialWriting, settings, startup }: PracticePageProps):
                     }}
                     onSkipStarterPrompt={skipStarterPrompt}
                   />
-                  <LearningPanel
-                    writing={writing}
-                    hasWritten={hasWritten}
-                    saveState={saveState}
-                    reviewState={reviewState}
-                    reviewError={reviewError}
-                    reviewProgress={reviewProgress}
-                    latestReviewRun={latestReviewRun}
-                    preview={reviewPreview}
-                    onOpenFeedback={() => setActiveArea('feedback')}
-                    rewritePracticeInput={rewritePracticeInput}
-                    completedRewritePractice={completedRewritePractice}
-                    rewritePracticeError={rewritePracticeError}
-                    onRewritePracticeInputChange={(value) => {
-                      setRewritePracticeInput(value);
-                      setCompletedRewritePractice(null);
-                    }}
-                    onCompleteRewritePractice={() => {
-                      void completePendingRewritePractice();
-                    }}
-                    onSkipRewritePractice={() => {
-                      void skipPendingRewritePractice();
-                    }}
-                    onReviewCurrentVersion={() => {
-                      void reviewCurrentContent();
-                    }}
-                  />
+                  <div className="practice-page__coach-column min-h-0">
+                    <LearningPanel
+                      writing={writing}
+                      hasWritten={hasWritten}
+                      saveState={saveState}
+                      reviewState={reviewState}
+                      reviewError={reviewError}
+                      reviewProgress={reviewProgress}
+                      latestReviewRun={latestReviewRun}
+                      preview={reviewPreview}
+                      onOpenFeedback={() => setActiveArea('feedback')}
+                      rewritePracticeInput={rewritePracticeInput}
+                      completedRewritePractice={completedRewritePractice}
+                      rewritePracticeError={rewritePracticeError}
+                      onRewritePracticeInputChange={(value) => {
+                        setRewritePracticeInput(value);
+                        setCompletedRewritePractice(null);
+                      }}
+                      onCompleteRewritePractice={() => {
+                        void completePendingRewritePractice();
+                      }}
+                      onSkipRewritePractice={() => {
+                        void skipPendingRewritePractice();
+                      }}
+                      onReviewCurrentVersion={() => {
+                        void reviewCurrentContent();
+                      }}
+                    />
+                  </div>
                 </div>
               </section>
             ) : null}
@@ -1078,7 +1085,7 @@ function FeedbackRewritePage({
   if (!preview) {
     return (
       <section className="flex min-h-0 flex-1 flex-col gap-8" aria-labelledby="feedback-page-title">
-        <div className="flex min-h-[8rem] items-start justify-between gap-8 pb-3">
+        <div className="feedback-page__header flex min-h-[8rem] items-start justify-between gap-8 pb-3">
           <div>
             <p className="text-sm text-base-content/55">Practice › Feedback & Rewrite</p>
             <h1 id="feedback-page-title" className="editorial-heading mt-4 text-5xl text-base-content">
@@ -1088,16 +1095,17 @@ function FeedbackRewritePage({
               Get feedback from the Practice page after you finish a draft.
             </p>
           </div>
-          <div className="illustration-placeholder hidden lg:block" aria-hidden="true" />
         </div>
-        <div className="max-w-xl pt-4">
-          <h2 className="text-xl font-semibold">No feedback preview yet</h2>
-          <p className="mt-3 text-sm leading-6 text-base-content/60">
-            Write first, then ask the coach for one focused note.
-          </p>
-          <button type="button" className="btn btn-outline mt-6 rounded-[0.7rem]" onClick={onBackToDraft}>
-            Back to draft
-          </button>
+        <div className="feedback-empty-state relative pt-4">
+          <div className="feedback-empty-state__content max-w-xl">
+            <h2 className="text-xl font-semibold">No feedback preview yet</h2>
+            <p className="mt-3 text-sm leading-6 text-base-content/60">
+              Write first, then ask the coach for one focused note.
+            </p>
+            <button type="button" className="btn btn-outline mt-6 rounded-[0.7rem]" onClick={onBackToDraft}>
+              Back to draft
+            </button>
+          </div>
         </div>
       </section>
     );
@@ -1112,7 +1120,7 @@ function FeedbackRewritePage({
 
   return (
     <section className="flex min-h-0 flex-1 flex-col gap-5" aria-labelledby="feedback-page-title">
-      <div className="flex min-h-[8.5rem] items-start justify-between gap-8 pb-3">
+      <div className="feedback-page__header flex min-h-[8.5rem] items-start justify-between gap-8 pb-3">
         <div>
           <p className="text-sm text-base-content/55">Practice › Feedback & Rewrite</p>
           <h1 id="feedback-page-title" className="editorial-heading mt-4 text-5xl leading-none text-base-content">
@@ -1122,7 +1130,6 @@ function FeedbackRewritePage({
             Try one small rewrite from your review, then save it when you are ready.
           </p>
         </div>
-        <div className="illustration-placeholder hidden lg:block" aria-hidden="true" />
       </div>
 
       {preview.isStaleForCurrentWriting ? (
@@ -1254,5 +1261,13 @@ function FeedbackRewritePage({
         <p className="text-right text-sm text-error">Could not save draft before feedback.</p>
       ) : null}
     </section>
+  );
+}
+
+function AppInkDecoration({ activeArea }: { activeArea: AppArea }): React.JSX.Element {
+  return (
+    <div className={`app-ink app-ink--page app-ink--${activeArea}`} aria-hidden="true">
+      <img src={feedbackInkLandscapeUrl} alt="" draggable={false} />
+    </div>
   );
 }

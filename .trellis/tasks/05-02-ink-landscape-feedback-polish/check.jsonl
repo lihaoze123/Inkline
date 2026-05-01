@@ -1,0 +1,9 @@
+{"file": ".trellis/tasks/05-02-ink-landscape-feedback-polish/prd.md", "reason": "Review implementation against task requirements and acceptance criteria."}
+{"file": ".trellis/spec/frontend/index.md", "reason": "Frontend task entry point and required guideline map."}
+{"file": ".trellis/spec/frontend/css-design.md", "reason": "Check CSS and visual contract compliance."}
+{"file": ".trellis/spec/frontend/components.md", "reason": "Check semantic markup and accessibility of decorative elements."}
+{"file": ".trellis/spec/frontend/quality.md", "reason": "Check frontend quality expectations."}
+{"file": ".trellis/spec/product/index.md", "reason": "Verify visual work does not alter review/rewrite product behavior."}
+{"file": ".trellis/spec/product/learning-flow.md", "reason": "Verify review flow remains unchanged."}
+{"file": ".trellis/spec/shared/code-quality.md", "reason": "Check shared code quality rules."}
+{"file": ".trellis/spec/shared/typescript.md", "reason": "Check TypeScript conventions."}

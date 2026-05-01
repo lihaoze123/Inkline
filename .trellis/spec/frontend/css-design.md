@@ -233,6 +233,7 @@ Use **BEM naming convention** to prevent class name conflicts:
 | Writing editor | The paper textarea/editor may use a sheet surface because it represents the writing medium. |
 | Primary actions | Use at most one deep sea-blue primary CTA per page; secondary navigation, settings, and configuration actions should be outline or text actions. |
 | Reference art | Keep botanical/landscape art as a placeholder only until final assets are supplied. |
+| Global ink art | Keep the right-top ink landscape treatment visually consistent across app pages; avoid page-specific artwork size or position variants. Dense pages should move content away from the shared art instead of shrinking or hiding the art. |
 | Concept-image metadata | Do not add unplanned badges, fake timers, difficulty labels, focus chips, or honor/status labels from reference images. |
 
 ### Examples

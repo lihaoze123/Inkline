@@ -1,0 +1,9 @@
+{"file": ".trellis/tasks/05-02-ink-landscape-feedback-polish/prd.md", "reason": "Task requirements and acceptance criteria for the visual polish change."}
+{"file": ".trellis/spec/frontend/index.md", "reason": "Frontend task entry point and required guideline map."}
+{"file": ".trellis/spec/frontend/css-design.md", "reason": "CSS organization and English Coach visual contract for decorative UI work."}
+{"file": ".trellis/spec/frontend/components.md", "reason": "Semantic component and accessibility guidance for renderer UI."}
+{"file": ".trellis/spec/frontend/quality.md", "reason": "Frontend quality and performance expectations."}
+{"file": ".trellis/spec/product/index.md", "reason": "Product contracts for review and rewrite UI behavior."}
+{"file": ".trellis/spec/product/learning-flow.md", "reason": "Practice and review flow constraints to preserve while changing visuals."}
+{"file": ".trellis/spec/shared/code-quality.md", "reason": "Shared mandatory code quality rules."}
+{"file": ".trellis/spec/shared/typescript.md", "reason": "TypeScript conventions for any component changes."}
