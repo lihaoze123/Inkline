@@ -717,3 +717,37 @@ Generated and wired a project-owned English Coach app icon for Electron packagin
 ### Next Steps
 
 - None - task complete
+
+
+## Session 22: Global ink landscape decoration
+
+**Date**: 2026-05-02
+**Task**: Global ink landscape decoration
+**Branch**: `main`
+
+### Summary
+
+Set Electron dev remote debugging to port 9222 and added a consistent right-top ink landscape decoration across primary Inkline pages, with Practice and Feedback content spacing adjusted to avoid overlap.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `3296d9c` | (see git log) |
+| `8a94441` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete

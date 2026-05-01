@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-1.md`
-- **Total Sessions**: 21
+- **Total Sessions**: 22
 - **Last Active**: 2026-05-02
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-1.md` | ~719 | Active |
+| `journal-1.md` | ~753 | Active |
 <!-- @@@/auto:active-documents -->
 
 ---
@@ -29,6 +29,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 22 | 2026-05-02 | Global ink landscape decoration | `3296d9c`, `8a94441` | `main` |
 | 21 | 2026-05-02 | Replace app icon and welcome intro brand mark | `ebe92c1`, `54c2bfb`, `1dfa7eb` | `main` |
 | 20 | 2026-05-01 | Simplify onboarding intro visuals | `95eadba` | `main` |
 | 19 | 2026-05-01 | First-launch onboarding intro | `5e77c12`, `9a7d868` | `main` |
