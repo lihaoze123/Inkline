@@ -682,3 +682,38 @@ Replaced the onboarding intro screenshot placeholder with simplified visual elem
 ### Next Steps
 
 - None - task complete
+
+
+## Session 21: Replace app icon and welcome intro brand mark
+
+**Date**: 2026-05-02
+**Task**: Replace app icon and welcome intro brand mark
+**Branch**: `main`
+
+### Summary
+
+Generated and wired a project-owned English Coach app icon for Electron packaging/runtime, documented icon resource conventions, and replaced the welcome intro EC placeholder with the bundled app icon while extending the intro brand hold.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `ebe92c1` | (see git log) |
+| `54c2bfb` | (see git log) |
+| `1dfa7eb` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
