@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-1.md`
-- **Total Sessions**: 19
+- **Total Sessions**: 20
 - **Last Active**: 2026-05-01
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-1.md` | ~651 | Active |
+| `journal-1.md` | ~684 | Active |
 <!-- @@@/auto:active-documents -->
 
 ---
@@ -29,6 +29,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 20 | 2026-05-01 | Simplify onboarding intro visuals | `95eadba` | `main` |
 | 19 | 2026-05-01 | First-launch onboarding intro | `5e77c12`, `9a7d868` | `main` |
 | 18 | 2026-05-01 | Quiet writing desk UI refinement | `30501a4` | `main` |
 | 17 | 2026-04-30 | Finish UI/UX shell overhaul | `021e7d3`, `3344b10`, `94666b9` | `main` |

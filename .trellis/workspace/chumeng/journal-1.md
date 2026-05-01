@@ -649,3 +649,36 @@ Planned, implemented, verified, and documented a skippable first-launch onboardi
 ### Next Steps
 
 - None - task complete
+
+
+## Session 20: Simplify onboarding intro visuals
+
+**Date**: 2026-05-01
+**Task**: Simplify onboarding intro visuals
+**Branch**: `main`
+
+### Summary
+
+Replaced the onboarding intro screenshot placeholder with simplified visual elements, preserved existing intro controls and persistence behavior, verified lint/typecheck/tests, and archived the task.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `95eadba` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
