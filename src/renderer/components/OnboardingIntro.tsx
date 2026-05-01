@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
+import appIconUrl from '../assets/app-icon.png';
 
-const BRAND_HOLD_MS = 1400;
+const BRAND_HOLD_MS = 2400;
 const SLIDE_AUTO_ADVANCE_MS = 5600;
 
 type IntroStage = 'brand' | 'slides';
@@ -142,8 +143,8 @@ export function OnboardingIntro({ isDismissPending, error, onDismiss }: Onboardi
 
       {stage === 'brand' ? (
         <div className="welcome-intro__brand flex flex-1 flex-col items-center justify-center px-6 pb-20 text-center">
-          <div className="welcome-intro__brand-mark grid size-20 place-items-center border border-primary/24 text-xl font-semibold text-primary">
-            EC
+          <div className="welcome-intro__brand-mark grid size-20 place-items-center">
+            <img className="welcome-intro__brand-icon" src={appIconUrl} alt="" aria-hidden="true" />
           </div>
           <h1
             id="welcome-intro-brand-title"
