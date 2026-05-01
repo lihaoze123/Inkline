@@ -1,0 +1,10 @@
+{"file": ".trellis/spec/product/index.md", "reason": "Verify onboarding does not distort product identity or local-first behavior."}
+{"file": ".trellis/spec/product/learning-flow.md", "reason": "Verify onboarding explains the actual writing/review/rewrite loop without adding forbidden behavior."}
+{"file": ".trellis/spec/frontend/css-design.md", "reason": "Verify visual design stays within the minimal editorial writing-workspace contract."}
+{"file": ".trellis/spec/frontend/components.md", "reason": "Verify semantic controls, accessibility, and layout behavior."}
+{"file": ".trellis/spec/frontend/react-pitfalls.md", "reason": "Verify timers/effects/state do not introduce React lifecycle bugs."}
+{"file": ".trellis/spec/frontend/ipc-electron.md", "reason": "Verify typed IPC/preload boundaries for onboarding persistence."}
+{"file": ".trellis/spec/frontend/quality.md", "reason": "Verify frontend code quality expectations."}
+{"file": ".trellis/spec/backend/api-patterns.md", "reason": "Verify main-process handler/service additions follow existing patterns."}
+{"file": ".trellis/spec/backend/quality.md", "reason": "Verify backend/main-process quality expectations."}
+{"file": ".trellis/spec/shared/typescript.md", "reason": "Verify shared schemas/types remain strict and consistent."}

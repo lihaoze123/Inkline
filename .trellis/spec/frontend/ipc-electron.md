@@ -92,6 +92,7 @@ type Api = {
     get: () => Promise<SettingsSnapshot>;
     setRawResponseStorage: (input: SetRawResponseStorageInput) => Promise<boolean>;
     setProviderConfig: (input: SetProviderConfigInput) => Promise<SettingsSnapshot>;
+    setOnboardingIntroVersionSeen: (input: SetOnboardingIntroVersionSeenInput) => Promise<SettingsSnapshot>;
   };
   credentials: {
     getProviderKeyStatus: () => Promise<ProviderKeyStatus>;
@@ -112,6 +113,7 @@ const IPC_CHANNELS = {
     GET: 'settings:get',
     SET_RAW_RESPONSE_STORAGE: 'settings:setRawResponseStorage',
     SET_PROVIDER_CONFIG: 'settings:setProviderConfig',
+    SET_ONBOARDING_INTRO_VERSION_SEEN: 'settings:setOnboardingIntroVersionSeen',
   },
   CREDENTIALS: {
     GET_PROVIDER_KEY_STATUS: 'credentials:getProviderKeyStatus',
@@ -141,6 +143,7 @@ const IPC_CHANNELS = {
 | `isLocalModel` | boolean | `false` for OpenAI-compatible cloud providers |
 | `reviewContextDescription` | string | Explains what review context will be sent |
 | `rawResponseStorageEnabled` | boolean | Production default is `false` |
+| `onboardingIntroVersionSeen` | number | Non-negative integer; renderer shows first-launch onboarding when this is lower than the current onboarding intro version |
 | `databaseLocation` | string | Non-empty app-data SQLite path |
 | `piMonoAuthStatus` | `'not-configured' | 'configured'` | Display-only foundation status |
 | `providerApiKeyStatus` | `'not-configured' | 'configured' | 'unavailable'` | Derived from main-process keychain service |
@@ -165,6 +168,12 @@ const IPC_CHANNELS = {
 | --- | --- | --- |
 | `apiKey` | string | Trimmed, non-empty; write-only input, never returned to renderer |
 
+`SetOnboardingIntroVersionSeenInput` request fields:
+
+| Field | Type | Constraint |
+| --- | --- | --- |
+| `version` | number | Integer >= 1; main process stores the max of current and requested versions so stale renderer calls cannot downgrade dismissal state |
+
 `ProviderCredentialMutationResult` response fields:
 
 | Field | Type | Constraint |
@@ -182,6 +191,9 @@ const IPC_CHANNELS = {
 | Renderer saves blank provider base URL/model | Main rejects via Zod parse error; do not mutate stored config |
 | Renderer saves provider API key | Main trims and writes it to OS keychain; response returns only status/storage |
 | Renderer deletes provider API key | Main deletes it from OS keychain; response returns only status/storage |
+| Renderer dismisses first-launch onboarding | Main validates `{ version }`, stores a monotonic `onboardingIntroVersionSeen`, and returns a fresh `SettingsSnapshot` |
+| Renderer sends an invalid onboarding version | Main rejects via Zod parse error; do not mutate stored settings |
+| Stale renderer sends a lower onboarding version than already stored | Main keeps the higher stored version and returns a fresh `SettingsSnapshot` |
 | Keychain read succeeds with stored password | Return `{ status: 'configured', storage: 'os-keychain' }` |
 | Keychain read succeeds with no password | Return `{ status: 'not-configured', storage: 'os-keychain' }` |
 | Keychain read throws | Return `{ status: 'unavailable', storage: 'os-keychain' }` |
@@ -191,9 +203,13 @@ const IPC_CHANNELS = {
 ### 5. Good/Base/Bad Cases
 
 - Good: Renderer calls `window.api.settings.get()` and renders provider/base URL/model/database/raw-response/keychain/pi-mono/Anki status from typed response data.
+- Good: Renderer compares `settings.onboardingIntroVersionSeen` to the shared current onboarding intro version and calls `window.api.settings.setOnboardingIntroVersionSeen({ version })` when the intro is skipped or completed.
 - Good: Renderer submits a write-only API key through `window.api.credentials.setProviderApiKey({ apiKey })`, clears its local input after success, and only displays key status.
 - Base: Keychain is unavailable, so Settings displays `unavailable` and review fails with a configuration error before sending journal content.
+- Base: Settings can replay the welcome intro without clearing or lowering `onboardingIntroVersionSeen`.
 - Bad: Renderer imports `electron-store`, `keytar`, `fs`, or database modules to compute Settings rows.
+- Bad: Renderer stores onboarding dismissal only in component state or localStorage while Settings uses main-process settings for the rest of the app.
+- Bad: A lower onboarding version from a stale renderer tab overwrites a higher stored version.
 - Bad: Renderer stores, logs, displays, or receives a provider API key after the set operation.
 - Bad: Raw response storage defaults to `true` in production or is hidden from Settings.
 
@@ -201,7 +217,12 @@ const IPC_CHANNELS = {
 
 - Settings default test:
   - Assert `rawResponseStorageEnabled` is `false` by default.
+  - Assert `onboardingIntroVersionSeen` is `0` by default and schema-valid.
   - Assert provider/base URL/model/database/status fields are present and schema-valid.
+- Onboarding intro persistence test:
+  - Assert `setOnboardingIntroVersionSeen({ version })` persists the requested version.
+  - Assert a later call with a lower version cannot downgrade the stored version.
+  - Assert the IPC channel returns a schema-valid `SettingsSnapshot`.
 - Credential mutation test:
   - Assert set-key input trims a non-empty key.
   - Assert mutation responses never contain `apiKey`.

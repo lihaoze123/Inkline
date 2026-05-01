@@ -1,0 +1,10 @@
+{"file": ".trellis/spec/product/index.md", "reason": "Product identity, local-first, and UI behavior constraints for English Coach."}
+{"file": ".trellis/spec/product/learning-flow.md", "reason": "Practice entry, writing-before-correction, review/rewrite product loop used by onboarding copy and slides."}
+{"file": ".trellis/spec/frontend/css-design.md", "reason": "Minimal editorial writing workspace visual contract for onboarding style."}
+{"file": ".trellis/spec/frontend/components.md", "reason": "Semantic HTML, accessibility, and scrollbar/layout behavior for UI components."}
+{"file": ".trellis/spec/frontend/react-pitfalls.md", "reason": "React state/effect pitfalls relevant to onboarding timers and stored callbacks."}
+{"file": ".trellis/spec/frontend/ipc-electron.md", "reason": "Typed preload/window.api IPC contract for settings persistence and replay action."}
+{"file": ".trellis/spec/frontend/type-safety.md", "reason": "Shared type and import-path guidance for renderer changes."}
+{"file": ".trellis/spec/backend/api-patterns.md", "reason": "Main-process handler/service patterns for adding onboarding settings persistence."}
+{"file": ".trellis/spec/backend/error-handling.md", "reason": "Error handling expectations for settings persistence and IPC boundaries."}
+{"file": ".trellis/spec/shared/typescript.md", "reason": "Shared TypeScript conventions for schema/type updates."}
