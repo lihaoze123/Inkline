@@ -51,6 +51,7 @@ import {
   saveWritingAttempt,
   skipRewritePractice,
 } from '../services/writing/service';
+import { getRuntimeTimeZone, getRuntimeTimeZoneOffsetMinutes } from '../env-setup';
 import { acknowledgeReviewDisclosure } from '../services/review/lib/disclosure';
 import { getReviewPreview } from '../services/review/procedures/preview';
 import { saveReviewRun } from '../services/review/procedures/save';
@@ -68,6 +69,8 @@ export function registerIpcHandlers(migrationResult: MigrationResult): void {
       databaseReady: migrationResult.success,
       databaseLocation: getDatabasePath(),
       migrationsApplied: migrationResult.success,
+      timeZone: getRuntimeTimeZone(),
+      timeZoneOffsetMinutes: getRuntimeTimeZoneOffsetMinutes(),
     });
   });
 

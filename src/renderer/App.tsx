@@ -35,6 +35,8 @@ import {
 } from './query/writing';
 
 const AUTOSAVE_DELAY_MS = 900;
+const MINUTES_PER_DAY = 24 * 60;
+const MS_PER_MINUTE = 60_000;
 
 type AppArea = 'today' | 'write' | 'feedback' | 'notebook' | 'progress' | 'settings';
 type NavIconName = 'home' | 'pen' | 'book' | 'bars' | 'settings';
@@ -142,7 +144,7 @@ function PracticePage({ initialWriting, settings, startup }: PracticePageProps):
   const [rewritePracticeError, setRewritePracticeError] = useState<string | null>(null);
   const [showDisclosure, setShowDisclosure] = useState(false);
   const [activeArea, setActiveArea] = useState<AppArea>('today');
-  const [currentHour, setCurrentHour] = useState(() => new Date().getHours());
+  const [currentTimeMs, setCurrentTimeMs] = useState(() => Date.now());
   const [showRevealConfirmation, setShowRevealConfirmation] = useState(false);
   const [openAiBaseUrlInput, setOpenAiBaseUrlInput] = useState(
     settings.aiModelSettings?.providers['openai-compatible'].baseUrl ?? settings.baseUrl,
@@ -172,11 +174,11 @@ function PracticePage({ initialWriting, settings, startup }: PracticePageProps):
 
   const hasWritten = content.trim().length > 0;
   const practicePromptTitle = getPracticePromptTitle(writing);
-  const todayGreeting = getTodayGreeting(currentHour);
+  const todayGreeting = getTodayGreeting(getHourWithOffset(currentTimeMs, startup.timeZoneOffsetMinutes));
 
   useEffect(() => {
     const intervalId = window.setInterval(() => {
-      setCurrentHour(new Date().getHours());
+      setCurrentTimeMs(Date.now());
     }, 60_000);
 
     return () => window.clearInterval(intervalId);
@@ -906,6 +908,13 @@ function PracticePage({ initialWriting, settings, startup }: PracticePageProps):
       ) : null}
     </main>
   );
+}
+
+function getHourWithOffset(timestampMs: number, timeZoneOffsetMinutes: number): number {
+  const utcMinutes = Math.floor(timestampMs / MS_PER_MINUTE);
+  const localMinuteOfDay =
+    (((utcMinutes + timeZoneOffsetMinutes) % MINUTES_PER_DAY) + MINUTES_PER_DAY) % MINUTES_PER_DAY;
+  return Math.floor(localMinuteOfDay / 60);
 }
 
 function getTodayGreeting(hour: number): string {
