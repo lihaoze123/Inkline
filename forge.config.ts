@@ -10,13 +10,17 @@ import { fileURLToPath } from 'node:url';
 
 const projectRoot = path.dirname(fileURLToPath(import.meta.url));
 const nativeModules = ['better-sqlite3', 'bindings', 'file-uri-to-path', 'keytar'];
+const iconBasePath = path.resolve(projectRoot, 'resources', 'icon');
+const pngIconPath = `${iconBasePath}.png`;
+const icoIconPath = `${iconBasePath}.ico`;
 
 const config: ForgeConfig = {
   packagerConfig: {
     asar: {
       unpack: '*.{node,dll}',
     },
-    extraResource: ['drizzle'],
+    icon: iconBasePath,
+    extraResource: ['drizzle', 'resources'],
   },
   rebuildConfig: {
     force: true,
@@ -37,7 +41,22 @@ const config: ForgeConfig = {
       );
     },
   },
-  makers: [new MakerSquirrel({}), new MakerZIP({}, ['darwin']), new MakerRpm({}), new MakerDeb({})],
+  makers: [
+    new MakerSquirrel({
+      setupIcon: icoIconPath,
+    }),
+    new MakerZIP({}, ['darwin']),
+    new MakerRpm({
+      options: {
+        icon: pngIconPath,
+      },
+    }),
+    new MakerDeb({
+      options: {
+        icon: pngIconPath,
+      },
+    }),
+  ],
   plugins: [
     new VitePlugin({
       build: [

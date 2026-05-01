@@ -6,13 +6,24 @@ import { registerIpcHandlers } from './ipc/handlers';
 
 let mainWindow: BrowserWindow | null = null;
 
+function getWindowIconPath(): string {
+  if (app.isPackaged) {
+    return path.join(process.resourcesPath, 'resources', 'icon.png');
+  }
+
+  return path.join(app.getAppPath(), 'resources', 'icon.png');
+}
+
 function createWindow(): void {
+  const iconPath = process.platform === 'darwin' ? undefined : getWindowIconPath();
+
   mainWindow = new BrowserWindow({
     width: 1100,
     height: 760,
     minWidth: 860,
     minHeight: 620,
     title: 'English Coach',
+    ...(iconPath ? { icon: iconPath } : {}),
     webPreferences: {
       preload: path.join(__dirname, 'preload.cjs'),
       contextIsolation: true,
