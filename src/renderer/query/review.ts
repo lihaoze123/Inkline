@@ -95,6 +95,11 @@ export function useSaveReview(): UseMutationResult<SaveReviewOutput, Error, Save
       if (result.writing) {
         updateWritingAttemptCache(queryClient, result.writing);
       }
+
+      if (result.success === true) {
+        void queryClient.invalidateQueries({ queryKey: queryKeys.learningAssets.errorPatterns });
+        void queryClient.invalidateQueries({ queryKey: queryKeys.learningAssets.notebookEntries });
+      }
     },
   });
 }

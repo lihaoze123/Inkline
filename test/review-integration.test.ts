@@ -1,11 +1,19 @@
 import { createHash } from 'node:crypto';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import type { generateStructuredObject } from '../src/main/services/ai';
 import type { createOpenAiCompatibleReviewAgent as createOpenAiCompatibleReviewAgentFunction } from '../src/main/services/review/lib/openai-compatible-agent';
 import { buildReviewUserPrompt, REVIEW_SYSTEM_PROMPT } from '../src/main/services/review/lib/prompt';
 import { buildBoundedReviewInput } from '../src/main/services/review/lib/review-input';
 import { V0_1_REVIEW_CAPS } from '../src/main/services/review/types';
+import { selectActiveReviewPatterns } from '../src/main/services/learning-assets/service';
 import type { ReviewInput } from '../src/shared/review-contract';
+import type { db as appDatabase } from '../src/main/db/client';
+
+vi.mock('../src/main/db/client', () => ({
+  db: {},
+  getDatabasePath: () => ':memory:',
+  sqlite: {},
+}));
 
 function contentHash(content: string): string {
   return createHash('sha256').update(content.replace(/\r\n/g, '\n').replace(/\r/g, '\n')).digest('hex');
@@ -164,5 +172,93 @@ describe('review agent integration contracts', () => {
         }),
       }),
     ).rejects.toThrow('OpenAI-compatible provider API key is not configured. Add it in Settings before reviewing.');
+  });
+
+  it('selects persisted active non-spelling patterns for future review input', () => {
+    const now = new Date('2026-04-29T12:00:00.000Z');
+    const rows = [
+      {
+        id: 'pattern_tense',
+        patternKey: 'tense:use_past_tense',
+        category: 'tense',
+        rule: 'Use past tense for completed actions.',
+        canonicalExample: 'I go home -> I went home',
+        count: 3,
+        firstSeenDateKey: '2026-04-18',
+        lastSeenDateKey: '2026-04-29',
+        recentExamplesJson: JSON.stringify(['I go home -> I went home']),
+        active: true,
+        createdAt: now,
+        updatedAt: now,
+      },
+      {
+        id: 'pattern_spelling',
+        patternKey: 'spelling:between',
+        category: 'spelling',
+        rule: 'Spell between correctly.',
+        canonicalExample: 'bewteen -> between',
+        count: 5,
+        firstSeenDateKey: '2026-04-18',
+        lastSeenDateKey: '2026-04-29',
+        recentExamplesJson: JSON.stringify(['bewteen -> between']),
+        active: true,
+        createdAt: now,
+        updatedAt: now,
+      },
+      {
+        id: 'pattern_inactive',
+        patternKey: 'article:inactive',
+        category: 'article',
+        rule: 'Inactive rule.',
+        canonicalExample: 'a inactive -> an inactive',
+        count: 1,
+        firstSeenDateKey: '2026-04-18',
+        lastSeenDateKey: '2026-04-19',
+        recentExamplesJson: JSON.stringify(['a inactive -> an inactive']),
+        active: false,
+        createdAt: now,
+        updatedAt: now,
+      },
+      {
+        id: 'pattern_article',
+        patternKey: 'article:drop_the',
+        category: 'article',
+        rule: 'Drop the for general activities.',
+        canonicalExample: 'for the class -> for class',
+        count: 2,
+        firstSeenDateKey: '2026-04-20',
+        lastSeenDateKey: '2026-04-28',
+        recentExamplesJson: JSON.stringify(['for the class -> for class']),
+        active: true,
+        createdAt: now,
+        updatedAt: now,
+      },
+    ];
+    const database = {
+      select: () => ({
+        from: () => ({
+          orderBy: () => ({
+            all: () => rows,
+          }),
+        }),
+      }),
+    } as unknown as typeof appDatabase;
+
+    const patterns = selectActiveReviewPatterns(database, 1);
+
+    expect(patterns).toEqual([
+      {
+        id: 'pattern_tense',
+        category: 'tense',
+        rule: 'Use past tense for completed actions.',
+        canonicalExample: 'I go home -> I went home',
+        patternKey: 'tense:use_past_tense',
+        count: 3,
+        firstSeenDateKey: '2026-04-18',
+        lastSeenDateKey: '2026-04-29',
+        recentExamples: ['I go home -> I went home'],
+        active: true,
+      },
+    ]);
   });
 });

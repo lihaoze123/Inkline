@@ -22,6 +22,10 @@ export const errorPatternSchema = z.object({
   rule: z.string().min(1),
   canonicalExample: z.string().min(1),
   patternKey: z.string().min(1).optional(),
+  count: z.number().int().nonnegative().optional(),
+  firstSeenDateKey: z.string().min(1).optional(),
+  lastSeenDateKey: z.string().min(1).optional(),
+  recentExamples: z.array(z.string().min(1)).optional(),
   active: z.boolean().optional(),
 });
 
@@ -135,7 +139,9 @@ export const rewriteTaskSchema = z.object({
 });
 
 export const upgradeOpportunitySchema = z.object({
-  description: z.string().min(1),
+  sourceText: z.string().min(1),
+  suggestedAlternatives: z.array(z.string().min(1)).min(1).max(3),
+  reason: z.string().min(1).optional(),
 });
 
 export const reviewOutputSchema = z.object({
@@ -154,5 +160,6 @@ export type ReviewInput = z.infer<typeof reviewInputSchema>;
 export type CorrectionAnchor = z.infer<typeof correctionAnchorSchema>;
 export type ReviewCorrection = z.infer<typeof reviewCorrectionSchema>;
 export type ReviewOutput = z.infer<typeof reviewOutputSchema>;
+export type UpgradeOpportunity = z.infer<typeof upgradeOpportunitySchema>;
 export type ValidationStatus = z.infer<typeof validationStatusSchema>;
 export type CorrectionStatus = z.infer<typeof correctionStatusSchema>;

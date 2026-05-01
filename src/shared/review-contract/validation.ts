@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto';
 import { locateAnchor, normalizeWritingContent, type AnchorLocation } from './anchoring';
+import { arePatternRulesSimilar, normalizePatternKey } from './patterns';
 import {
   reviewOutputSchema,
   type CorrectionStatus,
@@ -76,12 +77,21 @@ export type RewritePracticeOperation = {
   updatesLongTermStats: false;
 };
 
+export type UpgradeOpportunityOperation = {
+  opportunityIndex: number;
+  sourceText: string;
+  suggestedAlternatives: string[];
+  reason: string | null;
+  updatesLongTermStats: false;
+};
+
 export type PreviewOperations = {
   corrections: AnchoredCorrectionOperation[];
   patternOperations: PatternOperation[];
   referenceRewrites: ReferenceRewriteOperation[];
   selfRepair: SelfRepairOperation | null;
   rewritePractice: RewritePracticeOperation[];
+  upgradeOpportunities: UpgradeOpportunityOperation[];
   inputBridge: {
     correctionIndex: number;
     examples: string[];
@@ -183,7 +193,7 @@ export function validateReviewResult(
   validateRewriteTasks(output, correctionCount, issues);
   validateInputBridge(input, output, issues);
   validateWhatWentWell(input, output, issues);
-  validateUpgradeExclusion(output, issues);
+  validateUpgradeOpportunities(input, output, issues);
 
   const lowConfidenceCount = anchoredCorrections.filter((correction) => correction.status === 'low_confidence').length;
   const anchoringSuccessRate = correctionCount === 0 ? 1 : (correctionCount - lowConfidenceCount) / correctionCount;
@@ -234,6 +244,7 @@ function emptyOperations(): PreviewOperations {
     referenceRewrites: [],
     selfRepair: null,
     rewritePractice: [],
+    upgradeOpportunities: [],
     inputBridge: null,
   };
 }
@@ -427,14 +438,19 @@ function validateWhatWentWell(input: ReviewInput, output: ReviewOutput, issues: 
   });
 }
 
-function validateUpgradeExclusion(output: ReviewOutput, issues: ValidationIssue[]): void {
-  if (output.upgradeOpportunities.length > 0) {
-    issues.push({
-      severity: 'warning',
-      code: 'upgrade_opportunities_ignored',
-      message: 'upgradeOpportunities are empty or ignored in v0.1',
-    });
-  }
+function validateUpgradeOpportunities(input: ReviewInput, output: ReviewOutput, issues: ValidationIssue[]): void {
+  const normalizedWritingContent = normalizeWritingContent(input.writingContent);
+
+  output.upgradeOpportunities.forEach((opportunity, opportunityIndex) => {
+    if (!normalizedWritingContent.includes(normalizeWritingContent(opportunity.sourceText))) {
+      issues.push({
+        severity: 'error',
+        code: 'upgrade_source_not_found',
+        message: 'upgrade opportunity sourceText must be a verbatim substring of writing content',
+        path: `upgradeOpportunities.${opportunityIndex}.sourceText`,
+      });
+    }
+  });
 
   output.corrections.forEach((correction, correctionIndex) => {
     if (correction.category === 'wordiness' && /upgrade opportunity/i.test(correction.explanation)) {
@@ -484,6 +500,13 @@ function buildPreviewOperations(
         revealNativeModelAfterSubmit: task.revealNativeModelAfterSubmit ?? true,
         updatesLongTermStats: false,
       })),
+    upgradeOpportunities: output.upgradeOpportunities.map((opportunity, opportunityIndex) => ({
+      opportunityIndex,
+      sourceText: opportunity.sourceText,
+      suggestedAlternatives: opportunity.suggestedAlternatives,
+      reason: opportunity.reason ?? null,
+      updatesLongTermStats: false,
+    })),
     inputBridge: {
       correctionIndex: output.inputBridge.correctionIndex,
       examples: output.inputBridge.examples,
@@ -517,7 +540,10 @@ function patternOperation(
       correction.newPatternSuggestion.rule,
     );
     const duplicate = existingPatterns.find(
-      (pattern) => normalizePatternKey(pattern.category, pattern.rule) === patternKey,
+      (pattern) =>
+        pattern.category === correction.newPatternSuggestion?.category &&
+        ((pattern.patternKey ?? normalizePatternKey(pattern.category, pattern.rule)) === patternKey ||
+          arePatternRulesSimilar(pattern.rule, correction.newPatternSuggestion.rule)),
     );
     return [
       {
@@ -538,13 +564,6 @@ function patternOperation(
 
 function hashNormalizedContent(content: string): string {
   return createHash('sha256').update(normalizeWritingContent(content)).digest('hex');
-}
-
-function normalizePatternKey(category: string, rule: string): string {
-  return `${category}:${rule
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '_')
-    .replace(/^_+|_+$/g, '')}`;
 }
 
 function tokenize(text: string): Set<string> {

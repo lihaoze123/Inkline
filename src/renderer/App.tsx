@@ -6,6 +6,7 @@ import { WRITING_TEMPLATES } from '@shared/writing/templates';
 import type { ReviewPreviewSnapshot, ReviewProgressEvent, ReviewRunSnapshot } from '@shared/types/review';
 import type { AiProviderId } from '@shared/types/credentials';
 import { CURRENT_ONBOARDING_INTRO_VERSION, type SettingsSnapshot } from '@shared/types/settings';
+import type { ErrorPatternSnapshot, NotebookEntrySnapshot } from '@shared/types/learning-assets';
 import { WritingEditorCard } from './components/WritingEditorCard';
 import { LearningPanel } from './components/LearningPanel';
 import { RevealAnswerDialog } from './components/RevealAnswerDialog';
@@ -18,6 +19,7 @@ import feedbackInkLandscapeUrl from './assets/feedback-ink-landscape.png';
 import type { ReviewProgressModel, ReviewState, SaveState } from './components/types';
 import { useFoundationState } from './query/foundation';
 import { queryKeys } from './query/keys';
+import { useErrorPatterns, useNotebookEntries } from './query/learning-assets';
 import { setReviewPreviewCache, useSaveReview, useStartReview } from './query/review';
 import {
   useDeleteProviderApiKey,
@@ -149,6 +151,8 @@ function PracticePage({ initialWriting, settings, startup }: PracticePageProps):
   const [rewritePracticeError, setRewritePracticeError] = useState<string | null>(null);
   const [showDisclosure, setShowDisclosure] = useState(false);
   const [activeArea, setActiveArea] = useState<AppArea>('today');
+  const errorPatternsQuery = useErrorPatterns({ enabled: activeArea === 'progress' });
+  const notebookEntriesQuery = useNotebookEntries({ enabled: activeArea === 'notebook' });
   const [currentTimeMs, setCurrentTimeMs] = useState(() => Date.now());
   const [showRevealConfirmation, setShowRevealConfirmation] = useState(false);
   const [openAiBaseUrlInput, setOpenAiBaseUrlInput] = useState(
@@ -804,79 +808,23 @@ function PracticePage({ initialWriting, settings, startup }: PracticePageProps):
             ) : null}
 
             {activeArea === 'notebook' ? (
-              <section className="flex min-h-0 flex-1 flex-col gap-8" aria-labelledby="notebook-page-title">
-                <div className="border-b border-base-300/60 pb-8">
-                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-primary/70">Notebook</p>
-                  <h1 id="notebook-page-title" className="editorial-heading mt-4 text-5xl text-base-content">
-                    Useful expressions
-                  </h1>
-                  <p className="mt-4 max-w-2xl text-base leading-7 text-base-content/60">
-                    A light expression bank for phrases worth reusing. Option A keeps this as a quiet placeholder while
-                    the core loop is redesigned.
-                  </p>
-                </div>
-                <section className="max-w-2xl border-t border-base-300/60 pt-7">
-                  <p className="text-xs font-semibold uppercase tracking-[0.16em] text-base-content/45">
-                    Coming after feedback
-                  </p>
-                  <h2 className="mt-3 text-2xl font-semibold tracking-[-0.03em]">Save expressions from review</h2>
-                  <p className="mt-4 text-sm leading-6 text-base-content/60">
-                    Once expression saving is implemented, better alternatives, useful phrases, and source practice
-                    context will appear here.
-                  </p>
-                  <button
-                    type="button"
-                    className="btn btn-primary mt-6 rounded-[0.7rem]"
-                    onClick={() => setActiveArea('write')}
-                  >
-                    Open Practice
-                  </button>
-                </section>
-              </section>
+              <NotebookPage
+                entries={notebookEntriesQuery.data ?? []}
+                isLoading={notebookEntriesQuery.isLoading}
+                isError={notebookEntriesQuery.isError}
+                onOpenPractice={() => setActiveArea('write')}
+              />
             ) : null}
 
             {activeArea === 'progress' ? (
-              <section className="flex min-h-0 flex-1 flex-col gap-8" aria-labelledby="progress-page-title">
-                <div className="border-b border-base-300/60 pb-8">
-                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-primary/70">Progress</p>
-                  <h1 id="progress-page-title" className="editorial-heading mt-4 text-5xl text-base-content">
-                    A gentle growth record
-                  </h1>
-                  <p className="mt-4 max-w-2xl text-base leading-7 text-base-content/60">
-                    This page will stay calm: practice continuity, rewrites, and expression accumulation without
-                    pressure-heavy analytics.
-                  </p>
-                </div>
-                <div className="grid gap-6 divide-y divide-base-300/60 md:grid-cols-3 md:divide-x md:divide-y-0">
-                  <section className="pt-5 md:pt-0">
-                    <p className="text-xs font-semibold uppercase tracking-[0.16em] text-base-content/45">Draft</p>
-                    <p className="mt-3 text-2xl font-semibold tracking-[-0.03em]">
-                      {hasWritten ? 'In progress' : 'Ready'}
-                    </p>
-                    <p className="mt-3 text-sm leading-6 text-base-content/60">
-                      Current writing stays focused on one draft per template.
-                    </p>
-                  </section>
-                  <section className="pt-5 md:pl-6 md:pt-0">
-                    <p className="text-xs font-semibold uppercase tracking-[0.16em] text-base-content/45">Rewrite</p>
-                    <p className="mt-3 text-2xl font-semibold tracking-[-0.03em]">
-                      {writing.pendingRewritePractice ? 'Waiting' : 'After review'}
-                    </p>
-                    <p className="mt-3 text-sm leading-6 text-base-content/60">
-                      D+1 practice appears after saved feedback.
-                    </p>
-                  </section>
-                  <section className="pt-5 md:pl-6 md:pt-0">
-                    <p className="text-xs font-semibold uppercase tracking-[0.16em] text-base-content/45">
-                      Expressions
-                    </p>
-                    <p className="mt-3 text-2xl font-semibold tracking-[-0.03em]">Later</p>
-                    <p className="mt-3 text-sm leading-6 text-base-content/60">
-                      Notebook persistence is intentionally out of scope for Option A.
-                    </p>
-                  </section>
-                </div>
-              </section>
+              <ProgressPage
+                patterns={errorPatternsQuery.data ?? []}
+                isLoading={errorPatternsQuery.isLoading}
+                isError={errorPatternsQuery.isError}
+                hasWritten={hasWritten}
+                hasPendingRewrite={Boolean(writing.pendingRewritePractice)}
+                onOpenPractice={() => setActiveArea('write')}
+              />
             ) : null}
 
             {activeArea === 'settings' ? (
@@ -1053,6 +1001,210 @@ function NavIcon({ name }: { name: NavIconName }): React.JSX.Element {
         </svg>
       );
   }
+}
+
+function NotebookPage({
+  entries,
+  isLoading,
+  isError,
+  onOpenPractice,
+}: {
+  entries: NotebookEntrySnapshot[];
+  isLoading: boolean;
+  isError: boolean;
+  onOpenPractice: () => void;
+}): React.JSX.Element {
+  return (
+    <section className="flex min-h-0 flex-1 flex-col gap-8" aria-labelledby="notebook-page-title">
+      <div className="border-b border-base-300/60 pb-8">
+        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-primary/70">Notebook</p>
+        <h1 id="notebook-page-title" className="editorial-heading mt-4 text-5xl text-base-content">
+          Useful expressions
+        </h1>
+        <p className="mt-4 max-w-2xl text-base leading-7 text-base-content/60">
+          Upgrade opportunities saved from review, with the phrase you used and alternatives worth reusing.
+        </p>
+      </div>
+
+      <LearningPageState
+        isLoading={isLoading}
+        isError={isError}
+        isEmpty={entries.length === 0}
+        emptyTitle="No saved expressions yet"
+        emptyBody="Save a reviewed draft with upgrade opportunities, then the phrases will appear here."
+        onOpenPractice={onOpenPractice}
+      >
+        <div className="grid max-w-4xl gap-5">
+          {entries.map((entry) => (
+            <article key={entry.id} className="rounded-lg border border-base-300/65 bg-base-100/45 p-5">
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs font-semibold uppercase tracking-[0.14em] text-base-content/45">
+                <span>{formatDateKeyLabel(entry.dateKey)}</span>
+                <span>{templateTitleFor(entry.templateId)}</span>
+              </div>
+              <p className="mt-4 text-sm leading-6 text-base-content/60">Source phrase</p>
+              <p className="mt-1 text-base leading-7 text-base-content">{entry.sourceText}</p>
+              <div className="mt-4 grid gap-2">
+                {entry.suggestedAlternatives.map((alternative) => (
+                  <p key={alternative} className="border-l border-primary/35 pl-4 text-base leading-7 text-primary/90">
+                    {alternative}
+                  </p>
+                ))}
+              </div>
+              {entry.reason ? <p className="mt-4 text-sm leading-6 text-base-content/62">{entry.reason}</p> : null}
+            </article>
+          ))}
+        </div>
+      </LearningPageState>
+    </section>
+  );
+}
+
+function ProgressPage({
+  patterns,
+  isLoading,
+  isError,
+  hasWritten,
+  hasPendingRewrite,
+  onOpenPractice,
+}: {
+  patterns: ErrorPatternSnapshot[];
+  isLoading: boolean;
+  isError: boolean;
+  hasWritten: boolean;
+  hasPendingRewrite: boolean;
+  onOpenPractice: () => void;
+}): React.JSX.Element {
+  return (
+    <section className="flex min-h-0 flex-1 flex-col gap-8" aria-labelledby="progress-page-title">
+      <div className="border-b border-base-300/60 pb-8">
+        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-primary/70">Progress</p>
+        <h1 id="progress-page-title" className="editorial-heading mt-4 text-5xl text-base-content">
+          Recurring patterns
+        </h1>
+        <p className="mt-4 max-w-2xl text-base leading-7 text-base-content/60">
+          A quiet record of patterns the review coach has seen more than once, sorted by recurrence and recency.
+        </p>
+      </div>
+
+      <div className="grid gap-6 divide-y divide-base-300/60 md:grid-cols-3 md:divide-x md:divide-y-0">
+        <section className="pt-5 md:pt-0">
+          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-base-content/45">Draft</p>
+          <p className="mt-3 text-2xl font-semibold">{hasWritten ? 'In progress' : 'Ready'}</p>
+          <p className="mt-3 text-sm leading-6 text-base-content/60">Current writing stays focused by template.</p>
+        </section>
+        <section className="pt-5 md:pl-6 md:pt-0">
+          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-base-content/45">Rewrite</p>
+          <p className="mt-3 text-2xl font-semibold">{hasPendingRewrite ? 'Waiting' : 'After review'}</p>
+          <p className="mt-3 text-sm leading-6 text-base-content/60">D+1 practice appears after saved feedback.</p>
+        </section>
+        <section className="pt-5 md:pl-6 md:pt-0">
+          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-base-content/45">Patterns</p>
+          <p className="mt-3 text-2xl font-semibold">{patterns.length}</p>
+          <p className="mt-3 text-sm leading-6 text-base-content/60">
+            Active non-spelling patterns guide future review.
+          </p>
+        </section>
+      </div>
+
+      <LearningPageState
+        isLoading={isLoading}
+        isError={isError}
+        isEmpty={patterns.length === 0}
+        emptyTitle="No recurring patterns yet"
+        emptyBody="Save a valid review and recurring grammar or wording patterns will collect here."
+        onOpenPractice={onOpenPractice}
+      >
+        <div className="grid max-w-5xl gap-5 xl:grid-cols-2">
+          {patterns.map((pattern) => (
+            <article key={pattern.id} className="rounded-lg border border-base-300/65 bg-base-100/45 p-5">
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-[0.14em] text-base-content/45">
+                    {pattern.category.replace('_', ' ')}
+                  </p>
+                  <h2 className="mt-2 text-xl font-semibold leading-7 text-base-content">{pattern.rule}</h2>
+                </div>
+                <p className="shrink-0 text-right text-sm font-semibold text-primary">
+                  {pattern.count}
+                  <span className="block text-xs font-medium text-base-content/45">times</span>
+                </p>
+              </div>
+              <p className="mt-4 text-sm leading-6 text-base-content/62">{pattern.canonicalExample}</p>
+              <p className="mt-4 text-xs font-semibold uppercase tracking-[0.14em] text-base-content/45">
+                Last seen {formatDateKeyLabel(pattern.lastSeenDateKey)}
+              </p>
+              {pattern.recentExamples.length > 0 ? (
+                <div className="mt-3 grid gap-2">
+                  {pattern.recentExamples.slice(0, 2).map((example) => (
+                    <p key={example} className="text-sm leading-6 text-base-content/68">
+                      {example}
+                    </p>
+                  ))}
+                </div>
+              ) : null}
+            </article>
+          ))}
+        </div>
+      </LearningPageState>
+    </section>
+  );
+}
+
+function LearningPageState({
+  isLoading,
+  isError,
+  isEmpty,
+  emptyTitle,
+  emptyBody,
+  onOpenPractice,
+  children,
+}: {
+  isLoading: boolean;
+  isError: boolean;
+  isEmpty: boolean;
+  emptyTitle: string;
+  emptyBody: string;
+  onOpenPractice: () => void;
+  children: React.ReactNode;
+}): React.JSX.Element {
+  if (isLoading) {
+    return <p className="text-sm text-base-content/60">Loading learning history...</p>;
+  }
+
+  if (isError) {
+    return <p className="text-sm text-error">Learning history could not be loaded.</p>;
+  }
+
+  if (isEmpty) {
+    return (
+      <section className="max-w-2xl border-t border-base-300/60 pt-7">
+        <h2 className="text-2xl font-semibold">{emptyTitle}</h2>
+        <p className="mt-4 text-sm leading-6 text-base-content/60">{emptyBody}</p>
+        <button type="button" className="btn btn-primary mt-6 rounded-[0.7rem]" onClick={onOpenPractice}>
+          Open Practice
+        </button>
+      </section>
+    );
+  }
+
+  return <>{children}</>;
+}
+
+function formatDateKeyLabel(dateKey: string): string {
+  const [year, month, day] = dateKey.split('-').map((part) => Number.parseInt(part, 10));
+  if (!year || !month || !day) {
+    return dateKey;
+  }
+
+  return new Date(year, month - 1, day).toLocaleDateString([], {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  });
+}
+
+function templateTitleFor(templateId: WritingTemplateId): string {
+  return WRITING_TEMPLATES.find((template) => template.id === templateId)?.title ?? 'Writing Practice';
 }
 
 function FeedbackRewritePage({

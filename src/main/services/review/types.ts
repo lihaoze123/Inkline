@@ -11,7 +11,7 @@ export const V0_1_REVIEW_CAPS = {
   maxCorrections: 5,
   maxReferenceRewrites: 1,
   maxRewriteTasks: 1,
-  maxUpgradeOpportunities: 0,
+  maxUpgradeOpportunities: 3,
   maxWhatWentWell: 2,
   maxInputExamples: 2,
   existingPatternsLimit: 30,

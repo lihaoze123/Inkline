@@ -30,4 +30,8 @@ export const IPC_CHANNELS = {
     GET_PREVIEW: 'review:getPreview',
     SAVE: 'review:save',
   },
+  LEARNING_ASSETS: {
+    LIST_ERROR_PATTERNS: 'learningAssets:listErrorPatterns',
+    LIST_NOTEBOOK_ENTRIES: 'learningAssets:listNotebookEntries',
+  },
 } as const;

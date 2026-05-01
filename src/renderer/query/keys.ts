@@ -14,4 +14,8 @@ export const queryKeys = {
     run: (reviewRunId: string) => ['review', 'run', reviewRunId] as const,
     preview: (reviewRunId: string) => ['review', 'preview', reviewRunId] as const,
   },
+  learningAssets: {
+    errorPatterns: ['learning-assets', 'error-patterns'] as const,
+    notebookEntries: ['learning-assets', 'notebook-entries'] as const,
+  },
 } as const;

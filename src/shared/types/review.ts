@@ -5,6 +5,7 @@ import {
   correctionCategorySchema,
   confidenceSchema,
   correctionStatusSchema,
+  newPatternSuggestionSchema,
 } from '../review-contract/schemas';
 import { writingAttemptSnapshotSchema } from './writing';
 
@@ -95,13 +96,32 @@ export const anchoredCorrectionOperationSchema = z.object({
   endOffset: z.number().int().nonnegative().nullable(),
   contentHash: z.string().min(1),
   matchedPatternId: z.string().min(1).nullable(),
-  newPatternSuggestion: z.unknown().nullable(),
+  newPatternSuggestion: newPatternSuggestionSchema.nullable(),
   lowConfidenceReason: z.string().optional(),
 });
 
+export const patternOperationSchema = z.discriminatedUnion('kind', [
+  z.object({
+    kind: z.literal('reuse_pattern'),
+    correctionIndex: z.number().int().nonnegative(),
+    patternId: z.string().min(1),
+    updatesLongTermStats: z.literal(false),
+  }),
+  z.object({
+    kind: z.literal('suggest_new_pattern'),
+    correctionIndex: z.number().int().nonnegative(),
+    category: correctionCategorySchema,
+    rule: z.string().min(1),
+    canonicalExample: z.string().min(1),
+    patternKey: z.string().min(1),
+    duplicateOfPatternId: z.string().min(1).optional(),
+    updatesLongTermStats: z.literal(false),
+  }),
+]);
+
 export const previewOperationsSnapshotSchema = z.object({
   corrections: z.array(anchoredCorrectionOperationSchema),
-  patternOperations: z.array(z.unknown()),
+  patternOperations: z.array(patternOperationSchema),
   referenceRewrites: z.array(
     z.object({
       rewriteIndex: z.number().int().nonnegative(),
@@ -126,6 +146,15 @@ export const previewOperationsSnapshotSchema = z.object({
       focusCorrectionIndexes: z.array(z.number().int().nonnegative()),
       dueOffsetDays: z.number().int().positive(),
       revealNativeModelAfterSubmit: z.boolean(),
+      updatesLongTermStats: z.literal(false),
+    }),
+  ),
+  upgradeOpportunities: z.array(
+    z.object({
+      opportunityIndex: z.number().int().nonnegative(),
+      sourceText: z.string().min(1),
+      suggestedAlternatives: z.array(z.string().min(1)).min(1).max(3),
+      reason: z.string().nullable(),
       updatesLongTermStats: z.literal(false),
     }),
   ),
@@ -183,6 +212,7 @@ export type ReviewRunSummary = z.infer<typeof reviewRunSummarySchema>;
 export type ReviewProgressEvent = z.infer<typeof reviewProgressEventSchema>;
 export type ReviewRunSnapshot = z.infer<typeof reviewRunSnapshotSchema>;
 export type AnchoredCorrectionOperationSnapshot = z.infer<typeof anchoredCorrectionOperationSchema>;
+export type PatternOperationSnapshot = z.infer<typeof patternOperationSchema>;
 export type PreviewOperationsSnapshot = z.infer<typeof previewOperationsSnapshotSchema>;
 export type ReviewPreviewSnapshot = z.infer<typeof reviewPreviewSnapshotSchema>;
 export type GetReviewPreviewInput = z.infer<typeof getReviewPreviewInputSchema>;

@@ -16,6 +16,7 @@ import {
   type SaveReviewInput,
   type SaveReviewOutput,
 } from '../../../../shared/types/review';
+import { persistNotebookEntries, persistPatternOperations } from '../../learning-assets/service';
 import { getWritingAttempt } from '../../writing/service';
 import { reviewRunToSnapshot } from '../lib/snapshots';
 
@@ -82,11 +83,21 @@ export function saveReviewRun(input: SaveReviewInput, options: SaveReviewOptions
         .from(writingAttempts)
         .where(eq(writingAttempts.id, reviewRun.writingAttemptId))
         .get();
-      const activeRevision = activeEntry?.activeRevisionId
+      if (!activeEntry) {
+        throw new Error('Writing attempt for review run was not found.');
+      }
+
+      const activeRevision = activeEntry.activeRevisionId
         ? tx.select().from(writingRevisions).where(eq(writingRevisions.id, activeEntry.activeRevisionId)).get()
         : undefined;
       const saveAsStaleHistory = activeRevision?.contentHash !== reviewRun.contentHash;
       const correctionIdByIndex = new Map<number, string>();
+      const patternLinks = persistPatternOperations({
+        tx,
+        operations,
+        reviewRunId: reviewRun.id,
+        dateKey: activeEntry.dateKey,
+      });
 
       operations.corrections.forEach((operation) => {
         if (operation.status === 'low_confidence' || operation.startOffset === null || operation.endOffset === null) {
@@ -94,12 +105,14 @@ export function saveReviewRun(input: SaveReviewInput, options: SaveReviewOptions
         }
 
         const correctionId = createId('correction');
+        const patternLink = patternLinks.get(operation.correctionIndex);
         correctionIdByIndex.set(operation.correctionIndex, correctionId);
         tx.insert(corrections)
           .values({
             id: correctionId,
             reviewRunId: reviewRun.id,
-            pattern: patternLabelFor(operation),
+            patternId: patternLink?.patternId ?? null,
+            pattern: patternLink?.rule ?? patternLabelFor(operation),
             originalText: operation.originalText,
             correctedText: operation.correctedText,
             explanation: operation.explanation,
@@ -109,6 +122,14 @@ export function saveReviewRun(input: SaveReviewInput, options: SaveReviewOptions
             endOffset: operation.endOffset,
           })
           .run();
+      });
+
+      persistNotebookEntries({
+        tx,
+        operations,
+        reviewRunId: reviewRun.id,
+        dateKey: activeEntry.dateKey,
+        templateId: activeEntry.templateId,
       });
 
       if (operations.selfRepair) {

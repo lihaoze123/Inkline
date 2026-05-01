@@ -15,6 +15,7 @@ function validationResult(status: ReviewValidationResult['validationStatus']): R
       referenceRewrites: [],
       selfRepair: null,
       rewritePractice: [],
+      upgradeOpportunities: [],
       inputBridge: null,
     },
   };

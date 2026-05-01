@@ -54,6 +54,13 @@ function inputFor(writingContent: string): ReviewInput {
   };
 }
 
+function inputForWithUpgradeCap(writingContent: string, maxUpgradeOpportunities: number): ReviewInput {
+  return {
+    ...inputFor(writingContent),
+    maxUpgradeOpportunities,
+  };
+}
+
 function validOutputFor(
   writingContent: string,
   exact: string,
@@ -274,6 +281,81 @@ describe('review contract validation harness', () => {
     });
   });
 
+  it('detects semantically near pattern suggestions with different wording', () => {
+    const journal = 'Today I do a decision.';
+    const output = validOutputFor(journal, 'I do a decision', 'Today ', '.', 0);
+    const duplicateOutput = {
+      ...(output as Record<string, unknown>),
+      corrections: [
+        {
+          ...(output as { corrections: Record<string, unknown>[] }).corrections[0],
+          correctedText: 'I make a decision',
+          category: 'collocation',
+          matchedPatternId: null,
+          newPatternSuggestion: {
+            category: 'collocation',
+            rule: 'Choose make a decision instead of do a decision.',
+            canonicalExample: 'I made a decision.',
+          },
+        },
+      ],
+    };
+
+    const result = validateReviewResult(inputFor(journal), duplicateOutput);
+
+    expect(result.operations.patternOperations[0]).toMatchObject({
+      kind: 'suggest_new_pattern',
+      duplicateOfPatternId: 'collocation_make_decision',
+    });
+  });
+
+  it('accepts upgrade opportunities only when the source phrase appears in the writing', () => {
+    const journal = 'Today I go to school and it was very good.';
+    const output = {
+      ...(validOutputFor(journal, 'I go to school', 'Today ', ' and it was very good.', 0) as Record<string, unknown>),
+      upgradeOpportunities: [
+        {
+          sourceText: 'very good',
+          suggestedAlternatives: ['rewarding', 'worthwhile'],
+          reason: 'Use a more specific adjective.',
+        },
+      ],
+    };
+
+    const result = validateReviewResult(inputForWithUpgradeCap(journal, 1), output);
+
+    expect(result.validationStatus).toBe('valid');
+    expect(result.operations.upgradeOpportunities).toEqual([
+      {
+        opportunityIndex: 0,
+        sourceText: 'very good',
+        suggestedAlternatives: ['rewarding', 'worthwhile'],
+        reason: 'Use a more specific adjective.',
+        updatesLongTermStats: false,
+      },
+    ]);
+  });
+
+  it('rejects upgrade opportunities whose source phrase is not in the writing', () => {
+    const journal = 'Today I go to school.';
+    const output = {
+      ...(validOutputFor(journal, 'I go to school', 'Today ', '.', 0) as Record<string, unknown>),
+      upgradeOpportunities: [
+        {
+          sourceText: 'very good',
+          suggestedAlternatives: ['rewarding'],
+          reason: 'Use a more specific adjective.',
+        },
+      ],
+    };
+
+    const result = validateReviewResult(inputForWithUpgradeCap(journal, 1), output);
+
+    expect(result.validationStatus).toBe('invalid');
+    expect(result.operations.upgradeOpportunities).toHaveLength(0);
+    expect(result.issues.some((issue) => issue.code === 'upgrade_source_not_found')).toBe(true);
+  });
+
   it('rejects missing focus patterns at schema validation', () => {
     const journal = 'Today I go to school.';
     const output = validOutputFor(journal, 'I go to school', 'Today ', '.', 0);
@@ -386,12 +468,18 @@ describe('review contract validation harness', () => {
     expect(result.operations.corrections).toHaveLength(0);
   });
 
-  it('rejects upgrade opportunities when v0.1 caps them at zero', () => {
+  it('rejects upgrade opportunities when the input cap is zero', () => {
     const journal = 'Today I go to school.';
     const output = validOutputFor(journal, 'I go to school', 'Today ', '.', 0);
     const invalidOutput = {
       ...(output as Record<string, unknown>),
-      upgradeOpportunities: [{ description: 'Try a more vivid opening.' }],
+      upgradeOpportunities: [
+        {
+          sourceText: 'go to school',
+          suggestedAlternatives: ['head to school'],
+          reason: 'Use a more natural verb phrase.',
+        },
+      ],
     };
 
     const result = validateReviewResult(inputFor(journal), invalidOutput);
@@ -411,6 +499,7 @@ describe('review contract validation harness', () => {
       referenceRewrites: [],
       selfRepair: null,
       rewritePractice: [],
+      upgradeOpportunities: [],
       inputBridge: null,
     });
   });

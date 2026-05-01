@@ -23,7 +23,7 @@ Rules:
 - Include exactly one selfRepairTask for the focus correction, and keep its hint from revealing the full corrected text.
 - Include at most ${input.maxReferenceRewrites} referenceRewrites item with a concrete noticeTheGap.
 - Include at most ${input.maxRewriteTasks} rewriteTasks item, kind rewrite_original, for the focus correction.
-- Keep upgradeOpportunities empty; v0.1 does not support upgrades.
+- Include at most ${input.maxUpgradeOpportunities} upgradeOpportunities for reusable phrase upgrades that are not grammar corrections.
 - Use quote anchors whose exact field is a verbatim substring of writing_content.
 - For non-spelling corrections above low confidence, either reuse a matchedPatternId from existing patterns or provide newPatternSuggestion with category, rule, and canonicalExample only.
 
@@ -46,7 +46,7 @@ JSON shape:
   "inputBridge": { "correctionIndex": 0, "examples": ["short reusable example"] },
   "referenceRewrites": [{ "text": "one native reference rewrite", "noticeTheGap": "what changed and why" }],
   "rewriteTasks": [{ "kind": "rewrite_original", "prompt": "practice prompt", "focusCorrectionIndexes": [0], "dueOffsetDays": 1, "revealNativeModelAfterSubmit": true }],
-  "upgradeOpportunities": []
+  "upgradeOpportunities": [{ "sourceText": "plain phrase from writing_content", "suggestedAlternatives": ["more natural alternative"], "reason": "why this sounds better" }]
 }
 
 Review caps:

@@ -1,6 +1,8 @@
 import { describe, expect, it, vi } from 'vitest';
 import {
   corrections,
+  errorPatterns,
+  notebookEntries,
   writingAttempts,
   writingRevisions,
   referenceRewrites,
@@ -10,6 +12,8 @@ import {
 } from '../src/main/db/schema';
 import type {
   corrections as correctionsTable,
+  errorPatterns as errorPatternsTable,
+  notebookEntries as notebookEntriesTable,
   writingAttempts as writingAttemptsTable,
   writingRevisions as writingRevisionsTable,
   referenceRewrites as referenceRewritesTable,
@@ -27,6 +31,8 @@ type WritingAttemptRow = typeof writingAttemptsTable.$inferSelect;
 type WritingRevisionRow = typeof writingRevisionsTable.$inferSelect;
 type ReviewRunRow = typeof reviewRunsTable.$inferSelect;
 type CorrectionRow = typeof correctionsTable.$inferSelect;
+type ErrorPatternRow = typeof errorPatternsTable.$inferSelect;
+type NotebookEntryRow = typeof notebookEntriesTable.$inferSelect;
 type SelfRepairAttemptRow = typeof selfRepairAttemptsTable.$inferSelect;
 type ReferenceRewriteRow = typeof referenceRewritesTable.$inferSelect;
 type RewriteTaskRow = typeof rewriteTasksTable.$inferSelect;
@@ -36,6 +42,8 @@ type StoredRow =
   | WritingRevisionRow
   | ReviewRunRow
   | CorrectionRow
+  | ErrorPatternRow
+  | NotebookEntryRow
   | SelfRepairAttemptRow
   | ReferenceRewriteRow
   | RewriteTaskRow;
@@ -45,6 +53,8 @@ type TableName =
   | 'writingRevisions'
   | 'reviewRuns'
   | 'corrections'
+  | 'errorPatterns'
+  | 'notebookEntries'
   | 'selfRepairAttempts'
   | 'referenceRewrites'
   | 'rewriteTasks';
@@ -54,6 +64,8 @@ type RowStore = {
   writingRevisions: WritingRevisionRow[];
   reviewRuns: ReviewRunRow[];
   corrections: CorrectionRow[];
+  errorPatterns: ErrorPatternRow[];
+  notebookEntries: NotebookEntryRow[];
   selfRepairAttempts: SelfRepairAttemptRow[];
   referenceRewrites: ReferenceRewriteRow[];
   rewriteTasks: RewriteTaskRow[];
@@ -72,6 +84,8 @@ const tableNames = new Map<object, TableName>([
   [writingRevisions, 'writingRevisions'],
   [reviewRuns, 'reviewRuns'],
   [corrections, 'corrections'],
+  [errorPatterns, 'errorPatterns'],
+  [notebookEntries, 'notebookEntries'],
   [selfRepairAttempts, 'selfRepairAttempts'],
   [referenceRewrites, 'referenceRewrites'],
   [rewriteTasks, 'rewriteTasks'],
@@ -103,8 +117,8 @@ class FakeReviewDatabase {
         const rows = this.rowsFor(tableName(table));
         return {
           where: (condition: unknown) => {
-            const id = extractId(condition);
-            const filtered = rows.filter((row) => row.id === id);
+            const value = extractWhereStringValue(condition);
+            const filtered = rows.filter((row) => rowHasStringValue(row, value));
             return {
               get: () => filtered[0],
               all: () => [...filtered],
@@ -139,7 +153,7 @@ class FakeReviewDatabase {
     return {
       set: (patch: unknown) => ({
         where: (condition: unknown) => {
-          const updated = this.updateRow(tableName(table), extractId(condition), patch);
+          const updated = this.updateRow(tableName(table), extractWhereStringValue(condition), patch);
           return {
             run: () => undefined,
             returning: () => ({ get: () => updated }),
@@ -202,6 +216,24 @@ class FakeReviewDatabase {
     });
   }
 
+  seedErrorPattern(overrides: Partial<ErrorPatternRow> = {}): void {
+    this.store.errorPatterns.push({
+      id: 'pattern_tense',
+      patternKey: 'tense:use_past_tense_for_completed_actions',
+      category: 'tense',
+      rule: 'Use past tense for completed actions.',
+      canonicalExample: 'I go home -> I went home',
+      count: 2,
+      firstSeenDateKey: '2026-04-28',
+      lastSeenDateKey: '2026-04-28',
+      recentExamplesJson: JSON.stringify(['I eat dinner -> I ate dinner']),
+      active: true,
+      createdAt: now,
+      updatedAt: now,
+      ...overrides,
+    });
+  }
+
   setLastReviewRunId(reviewRunId: string): void {
     const entry = this.store.writingAttempts.find((candidate) => candidate.id === 'journal_1');
     if (entry) {
@@ -223,6 +255,14 @@ class FakeReviewDatabase {
 
   savedCorrections(): CorrectionRow[] {
     return [...this.store.corrections];
+  }
+
+  savedErrorPatterns(): ErrorPatternRow[] {
+    return [...this.store.errorPatterns];
+  }
+
+  savedNotebookEntries(): NotebookEntryRow[] {
+    return [...this.store.notebookEntries];
   }
 
   savedRewriteTasks(): RewriteTaskRow[] {
@@ -247,6 +287,20 @@ class FakeReviewDatabase {
       case 'corrections': {
         const inserted = row as CorrectionRow;
         this.store.corrections.push(inserted);
+        return inserted;
+      }
+      case 'errorPatterns': {
+        const inserted = {
+          ...row,
+          createdAt: now,
+          updatedAt: now,
+        } as ErrorPatternRow;
+        this.store.errorPatterns.push(inserted);
+        return inserted;
+      }
+      case 'notebookEntries': {
+        const inserted = { ...row, createdAt: now } as NotebookEntryRow;
+        this.store.notebookEntries.push(inserted);
         return inserted;
       }
       case 'selfRepairAttempts': {
@@ -281,7 +335,11 @@ class FakeReviewDatabase {
       return undefined;
     }
 
-    Object.assign(row, patch, table === 'writingAttempts' || table === 'reviewRuns' ? { updatedAt: now } : {});
+    Object.assign(
+      row,
+      patch,
+      table === 'writingAttempts' || table === 'reviewRuns' || table === 'errorPatterns' ? { updatedAt: now } : {},
+    );
     return row;
   }
 }
@@ -363,6 +421,7 @@ function baseOperations(overrides: Partial<PreviewOperationsSnapshot> = {}): Pre
         updatesLongTermStats: false,
       },
     ],
+    upgradeOpportunities: [],
     inputBridge: {
       correctionIndex: 0,
       examples: ['Yesterday I went home.'],
@@ -408,6 +467,171 @@ describe('saveReviewRun transaction', () => {
     expect(database.savedRewriteTasks()[0].dueAt?.getTime()).toBeGreaterThanOrEqual(
       now.getTime() + 24 * 60 * 60 * 1000 - 1000,
     );
+  });
+
+  it('increments a matched semantic pattern and links saved corrections once', async () => {
+    const database = new FakeReviewDatabase();
+    database.seedWriting();
+    database.seedErrorPattern();
+    database.seedReadyReview(
+      baseOperations({
+        corrections: [
+          {
+            ...baseOperations().corrections[0],
+            matchedPatternId: 'pattern_tense',
+          },
+        ],
+        patternOperations: [
+          {
+            kind: 'reuse_pattern',
+            correctionIndex: 0,
+            patternId: 'pattern_tense',
+            updatesLongTermStats: false,
+          },
+        ],
+      }),
+    );
+    const saveReviewRun = await loadSaveReviewRun();
+
+    const firstSave = saveReviewRun(
+      { reviewRunId: 'review_1', selfRepairAttemptText: 'I went home', revealedWithoutAttempt: false },
+      { database: database.asAppDatabase(), getWritingAttemptSnapshot: currentWriting },
+    );
+    const secondSave = saveReviewRun(
+      { reviewRunId: 'review_1', selfRepairAttemptText: 'I went home', revealedWithoutAttempt: false },
+      { database: database.asAppDatabase(), getWritingAttemptSnapshot: currentWriting },
+    );
+
+    expect(firstSave.success).toBe(true);
+    expect(secondSave.success).toBe(true);
+    expect(database.savedErrorPatterns()[0]).toMatchObject({
+      id: 'pattern_tense',
+      count: 3,
+      lastSeenDateKey: '2026-04-29',
+    });
+    expect(JSON.parse(database.savedErrorPatterns()[0].recentExamplesJson)).toEqual([
+      'I go home -> I went home',
+      'I eat dinner -> I ate dinner',
+    ]);
+    expect(database.savedCorrections()[0]).toMatchObject({
+      patternId: 'pattern_tense',
+      pattern: 'Use past tense for completed actions.',
+    });
+  });
+
+  it('creates a semantic pattern from a new suggestion and saves notebook upgrade opportunities', async () => {
+    const database = new FakeReviewDatabase();
+    database.seedWriting();
+    database.seedReadyReview(
+      baseOperations({
+        corrections: [
+          {
+            ...baseOperations().corrections[0],
+            matchedPatternId: null,
+            newPatternSuggestion: {
+              category: 'tense',
+              rule: 'Use past tense for completed actions.',
+              canonicalExample: 'I go home -> I went home',
+            },
+          },
+        ],
+        patternOperations: [
+          {
+            kind: 'suggest_new_pattern',
+            correctionIndex: 0,
+            category: 'tense',
+            rule: 'Use past tense for completed actions.',
+            canonicalExample: 'I go home -> I went home',
+            patternKey: 'tense:use_past_tense_for_completed_actions',
+            updatesLongTermStats: false,
+          },
+        ],
+        upgradeOpportunities: [
+          {
+            opportunityIndex: 0,
+            sourceText: 'very good',
+            suggestedAlternatives: ['effective', 'strong'],
+            reason: 'Use a more specific adjective.',
+            updatesLongTermStats: false,
+          },
+        ],
+      }),
+    );
+    const saveReviewRun = await loadSaveReviewRun();
+
+    const result = saveReviewRun(
+      { reviewRunId: 'review_1', selfRepairAttemptText: 'I went home', revealedWithoutAttempt: false },
+      { database: database.asAppDatabase(), getWritingAttemptSnapshot: currentWriting },
+    );
+
+    expect(result.success).toBe(true);
+    expect(database.savedErrorPatterns()).toHaveLength(1);
+    expect(database.savedErrorPatterns()[0]).toMatchObject({
+      patternKey: 'tense:use_past_tense_for_completed_actions',
+      count: 1,
+      firstSeenDateKey: '2026-04-29',
+      lastSeenDateKey: '2026-04-29',
+    });
+    expect(database.savedCorrections()[0].patternId).toBe(database.savedErrorPatterns()[0].id);
+    expect(database.savedNotebookEntries()).toHaveLength(1);
+    expect(database.savedNotebookEntries()[0]).toMatchObject({
+      reviewRunId: 'review_1',
+      dateKey: '2026-04-29',
+      templateId: 'journal',
+      sourceText: 'very good',
+      suggestedAlternativesJson: JSON.stringify(['effective', 'strong']),
+      reason: 'Use a more specific adjective.',
+    });
+  });
+
+  it('reuses a near-duplicate existing pattern during save instead of inserting another key', async () => {
+    const database = new FakeReviewDatabase();
+    database.seedWriting();
+    database.seedErrorPattern();
+    database.seedReadyReview(
+      baseOperations({
+        corrections: [
+          {
+            ...baseOperations().corrections[0],
+            matchedPatternId: null,
+            newPatternSuggestion: {
+              category: 'tense',
+              rule: 'Choose past tense instead of present tense for completed actions.',
+              canonicalExample: 'I go home -> I went home',
+            },
+          },
+        ],
+        patternOperations: [
+          {
+            kind: 'suggest_new_pattern',
+            correctionIndex: 0,
+            category: 'tense',
+            rule: 'Choose past tense instead of present tense for completed actions.',
+            canonicalExample: 'I go home -> I went home',
+            patternKey: 'tense:choose_past_tense_instead_of_present_tense_for_completed_actions',
+            updatesLongTermStats: false,
+          },
+        ],
+      }),
+    );
+    const saveReviewRun = await loadSaveReviewRun();
+
+    const result = saveReviewRun(
+      { reviewRunId: 'review_1', selfRepairAttemptText: 'I went home', revealedWithoutAttempt: false },
+      { database: database.asAppDatabase(), getWritingAttemptSnapshot: currentWriting },
+    );
+
+    expect(result.success).toBe(true);
+    expect(database.savedErrorPatterns()).toHaveLength(1);
+    expect(database.savedErrorPatterns()[0]).toMatchObject({
+      id: 'pattern_tense',
+      count: 3,
+      lastSeenDateKey: '2026-04-29',
+    });
+    expect(database.savedCorrections()[0]).toMatchObject({
+      patternId: 'pattern_tense',
+      pattern: 'Use past tense for completed actions.',
+    });
   });
 
   it('rolls back partial writes when one transaction step fails', async () => {
@@ -619,6 +843,8 @@ function emptyStore(): RowStore {
     writingRevisions: [],
     reviewRuns: [],
     corrections: [],
+    errorPatterns: [],
+    notebookEntries: [],
     selfRepairAttempts: [],
     referenceRewrites: [],
     rewriteTasks: [],
@@ -640,6 +866,12 @@ function cloneStore(store: RowStore): RowStore {
       updatedAt: cloneDate(row.updatedAt),
     })),
     corrections: store.corrections.map((row) => ({ ...row })),
+    errorPatterns: store.errorPatterns.map((row) => ({
+      ...row,
+      createdAt: cloneDate(row.createdAt),
+      updatedAt: cloneDate(row.updatedAt),
+    })),
+    notebookEntries: store.notebookEntries.map((row) => ({ ...row, createdAt: cloneDate(row.createdAt) })),
     selfRepairAttempts: store.selfRepairAttempts.map((row) => ({ ...row, createdAt: cloneDate(row.createdAt) })),
     referenceRewrites: store.referenceRewrites.map((row) => ({ ...row, createdAt: cloneDate(row.createdAt) })),
     rewriteTasks: store.rewriteTasks.map((row) => ({
@@ -658,7 +890,7 @@ function tableName(table: unknown): TableName {
   return name;
 }
 
-function extractId(condition: unknown): string {
+function extractWhereStringValue(condition: unknown): string {
   if (typeof condition !== 'object' || condition === null || !('queryChunks' in condition)) {
     throw new Error('Unsupported where condition');
   }
@@ -681,6 +913,10 @@ function extractId(condition: unknown): string {
   }
 
   return (param as { value: string }).value;
+}
+
+function rowHasStringValue(row: StoredRow, value: string): boolean {
+  return Object.values(row).some((item) => item === value);
 }
 
 function toRecord(value: unknown): Record<string, unknown> {

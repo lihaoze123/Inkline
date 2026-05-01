@@ -67,11 +67,38 @@ export const reviewRuns = sqliteTable('review_runs', {
     .$onUpdate(() => new Date()),
 });
 
+export const errorPatterns = sqliteTable(
+  'error_patterns',
+  {
+    id: text('id').primaryKey(),
+    patternKey: text('pattern_key').notNull(),
+    category: text('category', {
+      enum: ['tense', 'agreement', 'article', 'collocation', 'word_order', 'chinglish', 'wordiness', 'spelling'],
+    }).notNull(),
+    rule: text('rule').notNull(),
+    canonicalExample: text('canonical_example').notNull(),
+    count: integer('count').notNull().default(0),
+    firstSeenDateKey: text('first_seen_date_key').notNull(),
+    lastSeenDateKey: text('last_seen_date_key').notNull(),
+    recentExamplesJson: text('recent_examples_json').notNull().default('[]'),
+    active: integer('active', { mode: 'boolean' }).notNull().default(true),
+    createdAt: integer('created_at', { mode: 'timestamp_ms' })
+      .notNull()
+      .default(sql`(unixepoch() * 1000)`),
+    updatedAt: integer('updated_at', { mode: 'timestamp_ms' })
+      .notNull()
+      .default(sql`(unixepoch() * 1000)`)
+      .$onUpdate(() => new Date()),
+  },
+  (table) => [uniqueIndex('error_patterns_pattern_key_unique').on(table.patternKey)],
+);
+
 export const corrections = sqliteTable('corrections', {
   id: text('id').primaryKey(),
   reviewRunId: text('review_run_id')
     .notNull()
     .references(() => reviewRuns.id, { onDelete: 'cascade' }),
+  patternId: text('pattern_id').references(() => errorPatterns.id, { onDelete: 'set null' }),
   pattern: text('pattern').notNull().default(''),
   originalText: text('original_text').notNull(),
   correctedText: text('corrected_text').notNull(),
@@ -84,6 +111,21 @@ export const corrections = sqliteTable('corrections', {
     .default('suggested'),
   startOffset: integer('start_offset').notNull(),
   endOffset: integer('end_offset').notNull(),
+});
+
+export const notebookEntries = sqliteTable('notebook_entries', {
+  id: text('id').primaryKey(),
+  reviewRunId: text('review_run_id')
+    .notNull()
+    .references(() => reviewRuns.id, { onDelete: 'cascade' }),
+  dateKey: text('date_key').notNull(),
+  templateId: text('template_id', { enum: ['journal', 'cet4', 'cet6', 'free'] }).notNull(),
+  sourceText: text('source_text').notNull(),
+  suggestedAlternativesJson: text('suggested_alternatives_json').notNull(),
+  reason: text('reason'),
+  createdAt: integer('created_at', { mode: 'timestamp_ms' })
+    .notNull()
+    .default(sql`(unixepoch() * 1000)`),
 });
 
 export const selfRepairAttempts = sqliteTable('self_repair_attempts', {

@@ -29,6 +29,7 @@ import type {
   StartReviewInput,
   StartReviewOutput,
 } from '../shared/types/review';
+import type { ListErrorPatternsOutput, ListNotebookEntriesOutput } from '../shared/types/learning-assets';
 import type {
   SettingsSnapshot,
   SetDefaultProviderInput,
@@ -89,6 +90,12 @@ const api = {
     getPreview: (input: GetReviewPreviewInput): Promise<ReviewPreviewSnapshot | null> =>
       ipcRenderer.invoke(IPC_CHANNELS.REVIEW.GET_PREVIEW, input),
     save: (input: SaveReviewInput): Promise<SaveReviewOutput> => ipcRenderer.invoke(IPC_CHANNELS.REVIEW.SAVE, input),
+  },
+  learningAssets: {
+    listErrorPatterns: (): Promise<ListErrorPatternsOutput> =>
+      ipcRenderer.invoke(IPC_CHANNELS.LEARNING_ASSETS.LIST_ERROR_PATTERNS),
+    listNotebookEntries: (): Promise<ListNotebookEntriesOutput> =>
+      ipcRenderer.invoke(IPC_CHANNELS.LEARNING_ASSETS.LIST_NOTEBOOK_ENTRIES),
   },
 };
 

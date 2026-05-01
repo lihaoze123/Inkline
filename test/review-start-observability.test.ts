@@ -1,8 +1,9 @@
 import { createHash } from 'node:crypto';
 import { describe, expect, it, vi } from 'vitest';
-import { corrections, writingAttempts, writingRevisions, reviewRuns } from '../src/main/db/schema';
+import { corrections, errorPatterns, writingAttempts, writingRevisions, reviewRuns } from '../src/main/db/schema';
 import type {
   corrections as correctionsTable,
+  errorPatterns as errorPatternsTable,
   writingAttempts as writingAttemptsTable,
   writingRevisions as writingRevisionsTable,
   reviewRuns as reviewRunsTable,
@@ -17,15 +18,17 @@ type WritingAttemptRow = typeof writingAttemptsTable.$inferSelect;
 type WritingRevisionRow = typeof writingRevisionsTable.$inferSelect;
 type ReviewRunRow = typeof reviewRunsTable.$inferSelect;
 type CorrectionRow = typeof correctionsTable.$inferSelect;
+type ErrorPatternRow = typeof errorPatternsTable.$inferSelect;
 
-type TableName = 'writingAttempts' | 'writingRevisions' | 'reviewRuns' | 'corrections';
-type StoredRow = WritingAttemptRow | WritingRevisionRow | ReviewRunRow | CorrectionRow;
+type TableName = 'writingAttempts' | 'writingRevisions' | 'reviewRuns' | 'corrections' | 'errorPatterns';
+type StoredRow = WritingAttemptRow | WritingRevisionRow | ReviewRunRow | CorrectionRow | ErrorPatternRow;
 
 type RowStore = {
   writingAttempts: WritingAttemptRow[];
   writingRevisions: WritingRevisionRow[];
   reviewRuns: ReviewRunRow[];
   corrections: CorrectionRow[];
+  errorPatterns: ErrorPatternRow[];
 };
 
 const now = new Date('2026-04-29T12:00:00.000Z');
@@ -34,6 +37,7 @@ const tableNames = new Map<object, TableName>([
   [writingRevisions, 'writingRevisions'],
   [reviewRuns, 'reviewRuns'],
   [corrections, 'corrections'],
+  [errorPatterns, 'errorPatterns'],
 ]);
 
 class FakeStartReviewDatabase {
@@ -244,7 +248,7 @@ function successfulAgent(): ReviewAgent {
 }
 
 function emptyStore(): RowStore {
-  return { writingAttempts: [], writingRevisions: [], reviewRuns: [], corrections: [] };
+  return { writingAttempts: [], writingRevisions: [], reviewRuns: [], corrections: [], errorPatterns: [] };
 }
 
 function contentHash(content: string): string {
