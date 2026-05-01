@@ -751,3 +751,38 @@ Set Electron dev remote debugging to port 9222 and added a consistent right-top 
 ### Next Steps
 
 - None - task complete
+
+
+## Session 23: Learning assets workflow iteration
+
+**Date**: 2026-05-02
+**Task**: Learning assets workflow iteration
+**Branch**: `main`
+
+### Summary
+
+Compared the legacy english-journal-coach skill against recent journal examples, implemented persistent learning assets for recurring patterns and notebook upgrades, updated specs, and verified lint/typecheck/tests/review harness.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `6092d33` | (see git log) |
+| `4a20c5f` | (see git log) |
+| `9eb59ba` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
