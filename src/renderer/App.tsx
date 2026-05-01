@@ -142,6 +142,7 @@ function PracticePage({ initialWriting, settings, startup }: PracticePageProps):
   const [rewritePracticeError, setRewritePracticeError] = useState<string | null>(null);
   const [showDisclosure, setShowDisclosure] = useState(false);
   const [activeArea, setActiveArea] = useState<AppArea>('today');
+  const [currentHour, setCurrentHour] = useState(() => new Date().getHours());
   const [showRevealConfirmation, setShowRevealConfirmation] = useState(false);
   const [openAiBaseUrlInput, setOpenAiBaseUrlInput] = useState(
     settings.aiModelSettings?.providers['openai-compatible'].baseUrl ?? settings.baseUrl,
@@ -171,6 +172,15 @@ function PracticePage({ initialWriting, settings, startup }: PracticePageProps):
 
   const hasWritten = content.trim().length > 0;
   const practicePromptTitle = getPracticePromptTitle(writing);
+  const todayGreeting = getTodayGreeting(currentHour);
+
+  useEffect(() => {
+    const intervalId = window.setInterval(() => {
+      setCurrentHour(new Date().getHours());
+    }, 60_000);
+
+    return () => window.clearInterval(intervalId);
+  }, []);
 
   useEffect(() => {
     return window.api.review.onProgress((event: ReviewProgressEvent) => {
@@ -611,7 +621,10 @@ function PracticePage({ initialWriting, settings, startup }: PracticePageProps):
   return (
     <main className="app-chrome min-h-screen overflow-hidden text-base-content">
       <div className="relative grid h-screen grid-cols-[19.5rem_minmax(0,1fr)]">
-        <nav className="quiet-sidebar relative z-10 flex flex-col border-r border-base-300/45 px-9 py-10" aria-label="App areas">
+        <nav
+          className="quiet-sidebar relative z-10 flex flex-col border-r border-base-300/45 px-9 py-10"
+          aria-label="App areas"
+        >
           <div>
             <p className="editorial-heading text-[2rem] leading-none text-base-content">English Coach</p>
           </div>
@@ -623,9 +636,7 @@ function PracticePage({ initialWriting, settings, startup }: PracticePageProps):
                   key={item.id}
                   type="button"
                   className={`flex items-center gap-4 px-4 py-3.5 text-left text-lg transition ${
-                    isActive
-                      ? 'font-semibold text-primary'
-                      : 'text-base-content/62 hover:text-base-content'
+                    isActive ? 'font-semibold text-primary' : 'text-base-content/62 hover:text-base-content'
                   }`}
                   aria-current={isActive ? 'page' : undefined}
                   onClick={() => setActiveArea(item.id)}
@@ -647,48 +658,25 @@ function PracticePage({ initialWriting, settings, startup }: PracticePageProps):
             }`}
           >
             {activeArea === 'today' ? (
-              <section className="flex min-h-0 flex-1 flex-col gap-4" aria-labelledby="today-page-title">
-                <div className="flex min-h-[9rem] items-start justify-between gap-8 pb-3">
-                  <div>
-                    <h1 id="today-page-title" className="editorial-heading mt-4 text-5xl leading-none text-base-content md:text-[4rem]">
-                      Good evening, Chumeng.
-                    </h1>
-                    <p className="mt-5 max-w-2xl text-xl leading-8 text-base-content/60">
-                      Ready to write a little in English today?
-                    </p>
-                  </div>
-                  <div className="illustration-placeholder hidden lg:block" aria-hidden="true" />
-                </div>
-
-                <section className="py-8">
-                  <p className="text-xs font-bold uppercase tracking-[0.2em] text-primary/85">Today's practice</p>
-                  <h2 className="editorial-heading mt-7 max-w-3xl text-[3.45rem] leading-[1.05] text-base-content">
+              <section className="flex min-h-0 flex-1 flex-col" aria-labelledby="today-page-title">
+                <div className="max-w-[44rem] pt-10">
+                  <h1 id="today-page-title" className="editorial-heading text-5xl leading-none text-base-content">
+                    {todayGreeting}
+                  </h1>
+                  <p className="mt-4 max-w-2xl text-base leading-7 text-base-content/60">
+                    Ready to write a little in English today?
+                  </p>
+                  <h2 className="editorial-heading mt-10 max-w-[42rem] text-[2.4rem] leading-[1.12] text-base-content">
                     {practicePromptTitle}
                   </h2>
-                  <p className="mt-5 max-w-2xl text-base leading-7 text-base-content/58">{writing.template.description}</p>
-                  <p className="mt-5 text-sm text-base-content/52">{writing.template.title}</p>
                   <button
                     type="button"
-                    className="btn btn-primary mt-8 rounded-[0.7rem] px-8 text-base shadow-[0_12px_24px_rgba(22,71,101,0.18)]"
+                    className="btn btn-primary mt-7 rounded-[0.7rem] px-8 text-base shadow-[0_12px_24px_rgba(22,71,101,0.16)]"
                     onClick={() => setActiveArea('write')}
                   >
-                    <span className="inline-icon" aria-hidden="true">
-                      <svg viewBox="0 0 24 24">
-                        <path d="M12 20h9" />
-                        <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z" />
-                      </svg>
-                    </span>
                     {hasWritten ? 'Continue Writing' : 'Start Writing'}
                   </button>
-                </section>
-
-                <button
-                  type="button"
-                  className="mt-2 self-start text-sm text-base-content/50 transition hover:text-primary"
-                  onClick={() => setActiveArea('write')}
-                >
-                  Choose a different practice scenario in Practice
-                </button>
+                </div>
               </section>
             ) : null}
 
@@ -920,6 +908,22 @@ function PracticePage({ initialWriting, settings, startup }: PracticePageProps):
   );
 }
 
+function getTodayGreeting(hour: number): string {
+  if (hour < 5) {
+    return 'Good night.';
+  }
+
+  if (hour < 12) {
+    return 'Good morning.';
+  }
+
+  if (hour < 18) {
+    return 'Good afternoon.';
+  }
+
+  return 'Good evening.';
+}
+
 function getPracticePromptTitle(writing: WritingAttemptSnapshot): string {
   const prompt = writing.generatedPrompt?.text.trim();
   if (prompt) {
@@ -1039,7 +1043,9 @@ function FeedbackRewritePage({
         </div>
         <div className="max-w-xl pt-4">
           <h2 className="text-xl font-semibold">No feedback preview yet</h2>
-          <p className="mt-3 text-sm leading-6 text-base-content/60">Write first, then ask the coach for one focused note.</p>
+          <p className="mt-3 text-sm leading-6 text-base-content/60">
+            Write first, then ask the coach for one focused note.
+          </p>
           <button type="button" className="btn btn-outline mt-6 rounded-[0.7rem]" onClick={onBackToDraft}>
             Back to draft
           </button>
@@ -1073,7 +1079,11 @@ function FeedbackRewritePage({
       {preview.isStaleForCurrentWriting ? (
         <div className="border-l border-warning/50 pl-4 text-sm leading-6 text-base-content/70">
           This review is based on an earlier version of your writing.
-          <button type="button" className="btn btn-warning btn-sm ml-4 rounded-[0.6rem]" onClick={onReviewCurrentVersion}>
+          <button
+            type="button"
+            className="btn btn-warning btn-sm ml-4 rounded-[0.6rem]"
+            onClick={onReviewCurrentVersion}
+          >
             Review current version
           </button>
         </div>
@@ -1112,13 +1122,13 @@ function FeedbackRewritePage({
 
           {referenceRewrite ? (
             <details className="pt-6 text-sm text-base-content/62">
-              <summary className="cursor-pointer font-medium text-base-content/70">Reference rewrite and noticing-the-gap</summary>
+              <summary className="cursor-pointer font-medium text-base-content/70">
+                Reference rewrite and noticing-the-gap
+              </summary>
               <p className="writing-practice-surface mt-3 whitespace-pre-wrap text-base leading-7 text-base-content/78">
                 {referenceRewrite.text}
               </p>
-              <p className="mt-3 leading-6">
-                {referenceRewrite.noticeTheGap}
-              </p>
+              <p className="mt-3 leading-6">{referenceRewrite.noticeTheGap}</p>
             </details>
           ) : null}
         </div>
@@ -1161,12 +1171,15 @@ function FeedbackRewritePage({
               </p>
             ) : null}
             {focusCorrection && !modelAnswerRevealed ? (
-              <button type="button" className="btn btn-outline btn-sm mt-4 self-start rounded-[0.65rem]" onClick={onRevealModelAnswer}>
+              <button
+                type="button"
+                className="btn btn-outline btn-sm mt-4 self-start rounded-[0.65rem]"
+                onClick={onRevealModelAnswer}
+              >
                 Reveal model answer
               </button>
             ) : null}
           </section>
-
         </div>
       </div>
 
@@ -1188,8 +1201,9 @@ function FeedbackRewritePage({
           <span aria-hidden="true">→</span>
         </button>
       </div>
-      {saveState === 'error' ? <p className="text-right text-sm text-error">Could not save draft before feedback.</p> : null}
+      {saveState === 'error' ? (
+        <p className="text-right text-sm text-error">Could not save draft before feedback.</p>
+      ) : null}
     </section>
   );
 }
-
