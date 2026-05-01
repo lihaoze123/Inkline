@@ -582,3 +582,36 @@ Implemented the shell-first writing coach UI with Today/Write/Library/Settings, 
 ### Next Steps
 
 - None - task complete
+
+
+## Session 18: Quiet writing desk UI refinement
+
+**Date**: 2026-05-01
+**Task**: Quiet writing desk UI refinement
+**Branch**: `main`
+
+### Summary
+
+Committed the quiet editorial writing workspace refinements and OpenAI-compatible provider/settings support, then archived the quiet writing desk UI redesign task.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `30501a4` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
