@@ -1,0 +1,9 @@
+{"file": ".trellis/spec/product/mvp-scope.md", "reason": "Defines v0.1/v0.2 scope boundaries, caps, and deferred features for learning assets."}
+{"file": ".trellis/spec/product/data-model-contract.md", "reason": "Defines review save transaction, pattern rules, and D+1 rewrite persistence constraints."}
+{"file": ".trellis/spec/product/review-agent-contract.md", "reason": "Defines review input/output, prompt safety, pattern references, and upgrade opportunity constraints."}
+{"file": ".trellis/spec/product/validation-and-testing.md", "reason": "Defines review validation harness and required checks for review-flow changes."}
+{"file": ".trellis/spec/backend/index.md", "reason": "Entry point for backend/main-process guidelines needed for SQLite, services, IPC, and tests."}
+{"file": ".trellis/spec/frontend/index.md", "reason": "Entry point for renderer guidelines needed for Progress and Notebook UI changes."}
+{"file": ".trellis/spec/shared/index.md", "reason": "Entry point for shared type/schema contracts crossing IPC boundaries."}
+{"file": ".trellis/tasks/05-02-workflow-beats-journal-coach-skill/research/old-skill-and-journal-comparison.md", "reason": "Comparison against legacy skill and real journal usage that motivates the iteration."}
+{"file": ".trellis/tasks/05-02-workflow-beats-journal-coach-skill/info.md", "reason": "Technical design notes and focused grill result for this implementation."}

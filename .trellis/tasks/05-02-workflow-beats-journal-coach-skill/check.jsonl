@@ -1,0 +1,9 @@
+{"file": ".trellis/spec/product/mvp-scope.md", "reason": "Check implementation stays within intended v0.2 learning-assets scope and keeps deferred items out."}
+{"file": ".trellis/spec/product/data-model-contract.md", "reason": "Check database, pattern persistence, and review save transaction behavior."}
+{"file": ".trellis/spec/product/review-agent-contract.md", "reason": "Check review input/output, pattern IDs, and upgrade opportunity handling."}
+{"file": ".trellis/spec/product/validation-and-testing.md", "reason": "Check required tests and harness coverage for review-flow changes."}
+{"file": ".trellis/spec/backend/index.md", "reason": "Check backend/main-process style, transaction, IPC, and type-safety guidelines."}
+{"file": ".trellis/spec/frontend/index.md", "reason": "Check renderer UI and query patterns for Notebook and Progress."}
+{"file": ".trellis/spec/shared/index.md", "reason": "Check shared schemas and IPC data contracts."}
+{"file": ".trellis/tasks/05-02-workflow-beats-journal-coach-skill/research/old-skill-and-journal-comparison.md", "reason": "Check that delivered workflow addresses the legacy skill gap."}
+{"file": ".trellis/tasks/05-02-workflow-beats-journal-coach-skill/info.md", "reason": "Check implementation follows the agreed technical design."}
