@@ -11,7 +11,7 @@ Corrections are anchored to the reviewed writing content version, not necessaril
 - Editing the active writing revision makes old reviews stale but does not delete them.
 - Accepting corrections is out of scope for v0.1; future apply-correction behavior must create a new user-approved revision and never mutate historical snapshots.
 
-## v0.1 Required Tables
+## Required Tables
 
 ```text
 writing_attempts
@@ -21,9 +21,11 @@ corrections
 self_repair_attempts
 reference_rewrites
 rewrite_tasks
+error_patterns
+notebook_entries
 ```
 
-v0.1 may keep fields needed by later revisions, but it must not expose v0.2 workflows unless the task requires them.
+The app may keep fields needed by later revisions, but it must not expose future workflows unless the task requires them.
 
 ## Scenario: Writing Attempt, Template, and Starter Prompt Contract
 
@@ -335,6 +337,109 @@ Idempotency:
 - Default pattern selection excludes spelling.
 
 Pattern merge is v0.2+. Historical corrections keep original pattern IDs, and display follows `merged_into_pattern_id` only when merge exists.
+
+## Scenario: Learning Assets Persistence
+
+### 1. Scope / Trigger
+
+- Trigger: Any task that changes `error_patterns`, `notebook_entries`, review input pattern selection, review save persistence, or Notebook/Progress IPC.
+- This is a cross-layer contract: validated review operations -> save transaction -> SQLite learning assets -> preload IPC -> renderer queries -> Notebook/Progress UI.
+
+### 2. Signatures
+
+DB tables:
+
+```text
+error_patterns(
+  id text primary key,
+  pattern_key text not null unique,
+  category text not null,
+  rule text not null,
+  canonical_example text not null,
+  count integer not null default 0,
+  first_seen_date_key text not null,
+  last_seen_date_key text not null,
+  recent_examples_json text not null default '[]',
+  active integer boolean not null default true,
+  created_at integer timestamp_ms not null,
+  updated_at integer timestamp_ms not null
+)
+
+corrections.pattern_id text null references error_patterns(id) on delete set null
+
+notebook_entries(
+  id text primary key,
+  review_run_id text not null references review_runs(id) on delete cascade,
+  date_key text not null,
+  template_id text not null,
+  source_text text not null,
+  suggested_alternatives_json text not null,
+  reason text null,
+  created_at integer timestamp_ms not null
+)
+```
+
+Preload API:
+
+```ts
+window.api.learningAssets.listErrorPatterns(): Promise<ErrorPatternSnapshot[]>;
+window.api.learningAssets.listNotebookEntries(): Promise<NotebookEntrySnapshot[]>;
+```
+
+### 3. Contracts
+
+- `validateReviewResult` produces preview-only `patternOperations` and `upgradeOpportunities`; every operation must keep `updatesLongTermStats: false`.
+- `saveReviewRun` is the only place that turns preview learning operations into durable learning assets.
+- Saving a matched pattern increments `error_patterns.count`, updates `last_seen_date_key`, prepends the recent example, and links the saved correction through `corrections.pattern_id`.
+- Saving a new pattern suggestion normalizes `pattern_key`, checks exact-key and same-category rule similarity, and reuses an existing similar pattern before inserting.
+- `selectActiveReviewPatterns` reads active non-spelling `error_patterns`, sorts by count and recency, and respects `existingPatternsLimit`.
+- Upgrade opportunities must store the reviewed source phrase, 1-3 suggested alternatives, optional reason, date key, template, and review run ID.
+- Invalid review output and unsaved review previews must not update `error_patterns`, `notebook_entries`, or correction links.
+
+### 4. Validation & Error Matrix
+
+| Condition | Behavior |
+| --- | --- |
+| `matchedPatternId` not found during save | Roll back save transaction and return an error. |
+| New suggestion has a duplicate `pattern_key` | Reuse the existing pattern and increment it. |
+| New suggestion is same-category and rule-similar to an existing pattern | Reuse the existing pattern and increment it. |
+| Upgrade `sourceText` is not in reviewed writing | Validation is invalid; save never receives notebook operation. |
+| Save transaction fails after pattern/notebook writes begin | Roll back all review save side effects. |
+
+### 5. Good/Base/Bad Cases
+
+- Good: A saved review reuses `tense_past_narrative`, increments its count, links the correction, and shows the pattern in Progress.
+- Good: A valid upgrade for `very good` persists as a Notebook entry only when `very good` appears in the reviewed writing.
+- Base: A spelling correction can persist as a correction without becoming an active review pattern.
+- Bad: Future review input is built from recent correction row IDs instead of semantic `error_patterns`.
+- Bad: A review preview updates counts before the user explicitly saves.
+
+### 6. Tests Required
+
+- Save-review test: matched pattern increments once and repeated save remains idempotent.
+- Save-review test: new pattern suggestion creates one semantic pattern and links the correction.
+- Save-review test: near-duplicate same-category rule reuses an existing pattern.
+- Validation test: upgrade source must appear in writing content.
+- Validation test: upgrade cap violations return invalid and empty operations.
+- Service/API test: active review patterns exclude spelling and respect the cap.
+
+### 7. Wrong vs Correct
+
+#### Wrong
+
+```ts
+const existingPatterns = db.select().from(corrections).all();
+```
+
+This treats individual corrections as reusable patterns, which creates unstable IDs and noisy future review input.
+
+#### Correct
+
+```ts
+const existingPatterns = selectActiveReviewPatterns(db, existingPatternsLimit);
+```
+
+Future review input comes from the semantic pattern archive owned by the app.
 
 ## Scenario: D+1 Rewrite Practice Slot
 

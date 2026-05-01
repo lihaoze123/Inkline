@@ -11,6 +11,7 @@ The current app generalizes the original habit-writing flow into a Practice entr
 - Template-aware writing editor with autosave and one current draft per template.
 - Optional AI starter prompt/topic generation, regenerate, retry, and skip behavior.
 - Local SQLite storage for writing attempts, revisions, review runs, corrections, self-repair attempts, reference rewrites, and rewrite tasks.
+- Persistent learning assets for recurring error patterns and reusable expression upgrades.
 - Review flow for the active writing revision:
   - provider disclosure before the first review,
   - template-aware review context,
@@ -20,6 +21,8 @@ The current app generalizes the original habit-writing flow into a Practice entr
   - top corrections,
   - reference rewrite with "Notice the gap",
   - explicit "Save review and update learning history" action.
+- Progress page backed by saved recurring error patterns.
+- Notebook page backed by saved upgrade opportunities.
 - Anchored correction highlighting against the reviewed writing revision.
 - Stale review handling when the writing changes after review.
 - One D+1 rewrite practice slot in Practice, with submit and skip actions.

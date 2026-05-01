@@ -114,7 +114,7 @@ MVP internal target: anchoring success >= 95%; formal experience must not be bel
 - `selfRepairTask.hint` must not reveal the full corrected text.
 - `inputBridge.examples` must contain at most `maxInputExamples` examples and must focus on the focus pattern.
 - `rewriteTasks.focusCorrectionIndexes` reference correction indexes from the same result. The client converts them to persistent pattern/correction IDs on save.
-- v0.1 `upgradeOpportunities` must be empty or ignored.
+- `upgradeOpportunities` may contain up to `maxUpgradeOpportunities` reusable phrase upgrades. Each `sourceText` must be a verbatim substring of the reviewed writing content and must not duplicate grammar corrections.
 - Reference rewrite must include `noticeTheGap`.
 - Native model for rewrite practice is hidden until the user submits the rewrite unless the task says otherwise.
 
@@ -127,7 +127,7 @@ Before preview or save, validate:
 - `matchedPatternId` exists.
 - New pattern suggestions do not provide final IDs.
 - New pattern suggestions pass client de-dup logic before persistence.
-- Upgrade opportunities are not mixed into corrections.
+- Upgrade opportunities are capped, source-anchored to reviewed writing, and not mixed into corrections.
 - Rewrite tasks do not reference missing correction indexes.
 - A valid review can derive exactly one focus correction.
 

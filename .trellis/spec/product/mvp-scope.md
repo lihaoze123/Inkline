@@ -35,33 +35,33 @@ v0.1 validates whether template-aware writing practice plus focused review resul
 - Provider privacy disclosure before the first review.
 - Review contract test harness.
 
-### v0.1 Hard Caps
+### Current Review Caps
 
 ```text
 maxCorrections: 5
 maxReferenceRewrites: 1
 maxRewriteTasks: 1
-maxUpgradeOpportunities: 0
+maxUpgradeOpportunities: 3
 maxWhatWentWell: 2
 maxInputExamples: 2
 existingPatternsLimit: 30
 ```
 
-Implement validation and UI assuming these caps. Do not hide extra v0.1 agent output silently unless the task explicitly defines truncation behavior.
+Implement validation and UI assuming these caps. Do not hide extra agent output silently unless the task explicitly defines truncation behavior.
 
 ### v0.1 Out of Scope
 
 - User-created or editable templates.
 - In-editor AI co-writing.
 - Live writing suggestions.
-- History/progress pages.
+- Heavy analytics dashboards.
 - Mock-exam mode.
 - Timers.
 - Word-count pressure.
 - Precise CET scores.
 - Independent Error Patterns page.
 - Complete long-term pattern statistics dashboard.
-- Upgrade opportunities and lexicon entries.
+- User-managed lexicon editing.
 - Multiple rewrite practices.
 - Complete rewrite queue.
 - Anki sync.
@@ -73,17 +73,22 @@ Implement validation and UI assuming these caps. Do not hide extra v0.1 agent ou
 
 v0.2 validates whether users learn from recurring patterns and reuse them in new contexts.
 
-### v0.2 Adds
+### Implemented Learning-Assets Slice
 
-- Error Patterns page.
-- Pattern reuse, counts, recurring marks, and mastery status.
+- Persistent error patterns with reuse, counts, first/last seen dates, recent examples, and active state.
+- Saved corrections link to semantic pattern IDs when validation can derive one.
+- Review input reuses active non-spelling patterns from the persistent archive.
+- Upgrade opportunities are allowed by cap, validated against source writing, and persisted as Notebook entries.
+- Notebook and Progress pages read real local learning history.
+
+### Remaining v0.2 Adds
+
+- Pattern mastery status.
 - Successful reuse tracking.
 - Pattern merge/de-dup flow.
 - Rewrite-check agent.
 - Rewrite skip, snooze, and expire.
 - D+3 and D+7 spaced reuse tasks.
-- Upgrade opportunities.
-- Basic learning dashboard.
 - Apply correction through a revision mechanism.
 
 ## Backlog After v0.2

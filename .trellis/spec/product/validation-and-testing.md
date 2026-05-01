@@ -75,7 +75,7 @@ pnpm run review:harness
 | `matchedPatternId` is absent from `existingPatterns` | `matched_pattern_missing`, `validationStatus: invalid`, empty operations |
 | Focus/self-repair/input bridge/rewrite indexes point outside corrections | `validationStatus: invalid`, empty operations |
 | `selfRepairTask.hint` contains the full corrected text | `self_repair_hint_leaks_answer`, `validationStatus: invalid`, empty operations |
-| v0.1 `upgradeOpportunities` exceeds cap `0` or is mixed into corrections | `validationStatus: invalid`, empty operations |
+| `upgradeOpportunities` exceeds `maxUpgradeOpportunities`, has `sourceText` not found in writing content, or is mixed into corrections | `validationStatus: invalid`, empty operations |
 
 ### 5. Good/Base/Bad Cases
 
@@ -87,7 +87,7 @@ pnpm run review:harness
 
 - Schema acceptance/rejection asserts `schemaValid`, `validationStatus`, issue codes, and empty operations on invalid output.
 - Quote anchoring asserts repeated phrase disambiguation, multiline LF normalization, mixed Chinese/English UTF-16 offsets, curly quote fallback, irregular spaces not collapsed, and paraphrased exact downgrade.
-- Operation generation asserts corrections, pattern reuse/new pattern suggestions, self-repair, reference rewrites, input bridge, and rewrite practice are preview-only.
+- Operation generation asserts corrections, pattern reuse/new pattern suggestions, self-repair, reference rewrites, upgrade opportunities, input bridge, and rewrite practice are preview-only.
 - Idempotency simulation asserts repeated `saveReviewRun(reviewRunId, operations)` does not duplicate pattern count increments, rewrite tasks, reference rewrites, or self-repair attempts.
 - CLI test or manual run asserts `pnpm run review:harness` prints all required output fields.
 

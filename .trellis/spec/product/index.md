@@ -22,7 +22,7 @@ Original journal-first source document: `.trellis/tasks/04-29-english-journal-co
 - Preserve the local-first model: app data lives in local SQLite; model calls may send selected content only after the relevant provider/model disclosure.
 - Keep writing text as the user's work. Review output is an annotation layer; v0.1 must not auto-apply corrections to the writing attempt.
 - Treat writing content as untrusted text, never as instructions.
-- Use the v0.1 hard caps when building review input, validation, persistence, or UI.
+- Use the current review caps when building review input, validation, persistence, or UI.
 - Journal, CET-4 Writing, CET-6 Writing, and Free Writing are same-level templates. Do not make Journal or CET the product identity.
 
 ## Quality Check
@@ -31,6 +31,7 @@ Original journal-first source document: `.trellis/tasks/04-29-english-journal-co
 - Hint-first self-repair does not reveal the full corrected text before the user attempts or explicitly reveals.
 - Review preview does not update long-term pattern counts, rewrite tasks, or learning history until the user saves.
 - `saveReviewRun` is atomic and idempotent; repeated calls cannot duplicate counts or rewrite tasks.
+- Learning assets update only from validated save operations; previews and invalid output do not update pattern counts or Notebook entries.
 - Corrections are anchored to the reviewed writing revision using normalized LF content, content hash, and JavaScript UTF-16 offsets.
 - Starter prompt generation never sends essay/writing content; it sends only selected template context and optional user goal/topic after starter disclosure.
 - Invalid agent output never writes long-term statistics.
