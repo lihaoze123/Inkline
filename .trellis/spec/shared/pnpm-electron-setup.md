@@ -621,6 +621,204 @@ Keep the renderer source root for Vite's HTML entry resolution, but make the out
 
 ---
 
+## Scenario: Electron Forge Maker-Required Package Metadata
+
+### 1. Scope / Trigger
+
+- Trigger: Any task that adds or changes Electron Forge makers, creates a CI packaging workflow, or debugs `electron-forge make` failures.
+- This applies to platform-specific makers that translate `package.json` metadata into native package formats, especially Windows Squirrel/NuGet and Linux package makers.
+
+### 2. Signatures
+
+Root `package.json`:
+
+```json
+{
+  "name": "english-coach",
+  "author": "lihaoze123",
+  "license": "UNLICENSED",
+  "private": true
+}
+```
+
+Forge makers:
+
+```typescript
+makers: [new MakerSquirrel({}), new MakerDeb({}), new MakerAppImage({})];
+```
+
+### 3. Contracts
+
+| Field | Type | Constraint |
+| --- | --- | --- |
+| `package.json.author` | string or npm author object | Required for Windows Squirrel because NuGet requires package authors metadata. |
+| `package.json.license` | string | Required by native package metadata consumers. Use `UNLICENSED` for private packages unless the project has chosen an explicit distribution license. |
+
+### 4. Validation & Error Matrix
+
+| Condition | Behavior |
+| --- | --- |
+| Squirrel maker runs without package author metadata | Windows `pnpm make` can fail while building the `.nuspec` with `Authors is required.` |
+| A Linux native package maker runs without package license metadata | Linux `pnpm make` can fail during native package metadata validation. |
+| Private package uses `UNLICENSED` | npm-compatible metadata is present without implying an open-source distribution license. |
+
+### 5. Good/Base/Bad Cases
+
+- Good: A private Electron app sets `author` to the package owner or publishing entity and `license` to `UNLICENSED`; Squirrel and Linux package makers can derive native package metadata without per-maker overrides.
+- Base: A public Electron app sets `author` plus its chosen SPDX license in root `package.json`; makers reuse that package metadata.
+- Bad: Adding only maker-specific metadata while leaving root `package.json` incomplete; future makers or tooling can fail on the same missing fields.
+- Bad: Setting a placeholder open-source license for a private app just to satisfy package metadata validation; this can imply a distribution policy the project has not chosen.
+
+### 6. Tests Required
+
+- Metadata check: verify root `package.json` includes `author` and `license` before adding or changing Forge makers.
+- Packaging smoke when packaging is in scope: run `pnpm make` on the target platform, or `pnpm package` plus the closest available local maker validation when the current OS cannot build another platform's native installer.
+
+### 7. Wrong vs Correct
+
+#### Wrong
+
+```json
+{
+  "name": "english-coach",
+  "private": true
+}
+```
+
+This leaves Squirrel/NuGet without package authors metadata and native package makers without license metadata.
+
+#### Correct
+
+```json
+{
+  "name": "english-coach",
+  "author": "lihaoze123",
+  "license": "UNLICENSED",
+  "private": true
+}
+```
+
+Keep maker-required metadata in root `package.json` so Electron Forge makers and native package formats can consume the same source of truth.
+
+---
+
+## Scenario: Electron Forge Linux DEB and AppImage Makers
+
+### 1. Scope / Trigger
+
+- Trigger: Any task that changes Linux Electron Forge maker output or CI packages for `pnpm make`.
+- This app's Linux distributables are DEB and AppImage only. Do not add RPM unless product requirements change.
+
+### 2. Signatures
+
+Dependencies:
+
+```json
+{
+  "dependencies": {
+    "@electron-forge/maker-deb": "^7.10.2",
+    "@reforged/maker-appimage": "^5.2.0"
+  }
+}
+```
+
+Forge makers:
+
+```typescript
+import { MakerDeb } from '@electron-forge/maker-deb';
+import { MakerAppImage } from '@reforged/maker-appimage';
+
+makers: [
+  new MakerDeb({ options: { icon: pngIconPath } }),
+  new MakerAppImage({
+    options: {
+      categories: ['Education'],
+      icon: pngIconPath,
+    },
+  }),
+];
+```
+
+GitHub Actions Linux package setup:
+
+```yaml
+run: sudo apt-get update && sudo apt-get install -y libsecret-1-dev fakeroot dpkg squashfs-tools
+```
+
+### 3. Contracts
+
+| Item | Constraint |
+| --- | --- |
+| Linux maker set | Configure DEB plus AppImage only for current app requirements. |
+| `@reforged/maker-appimage` | Use this third-party Forge-compatible maker for AppImage output. |
+| `squashfs-tools` | Required on Linux CI because the AppImage maker requires the external `mksquashfs` binary. |
+| `fakeroot` and `dpkg` | Required for DEB maker support on Ubuntu runners. |
+| `libsecret-1-dev` | Required for rebuilding `keytar` on Linux. |
+
+### 4. Validation & Error Matrix
+
+| Condition | Behavior |
+| --- | --- |
+| RPM maker remains configured | Linux output includes an unsupported package format for current requirements. |
+| AppImage maker runs without `mksquashfs` | `electron-forge make` fails before producing the AppImage. |
+| DEB maker runs without `fakeroot`/`dpkg` | `electron-forge make` can fail while creating the `.deb`. |
+
+### 5. Good/Base/Bad Cases
+
+- Good: Linux CI installs `libsecret-1-dev fakeroot dpkg squashfs-tools`; Forge config emits `.deb` and `.AppImage` artifacts.
+- Base: Local Linux packaging validates `pnpm package` when maker system tools are unavailable, and CI covers full distributable creation.
+- Bad: Keeping `@electron-forge/maker-rpm`, `MakerRpm`, or the `rpm` apt package when Linux requirements are DEB plus AppImage only.
+
+### 6. Tests Required
+
+- Static config check: search for `MakerRpm`, `maker-rpm`, and Linux `rpm` package installation before finishing a DEB/AppImage-only task.
+- Quality checks: run `pnpm format:check`, `pnpm lint`, `pnpm typecheck`, and project tests.
+- Packaging smoke: run `pnpm package`, or `pnpm make` on Linux when `fakeroot`, `dpkg`, `squashfs-tools`, and any required network/runtime inputs are available.
+
+### 7. Wrong vs Correct
+
+#### Wrong
+
+```typescript
+import { MakerRpm } from '@electron-forge/maker-rpm';
+
+makers: [
+  new MakerRpm({ options: { icon: pngIconPath } }),
+  new MakerDeb({ options: { icon: pngIconPath } }),
+];
+```
+
+```yaml
+run: sudo apt-get update && sudo apt-get install -y libsecret-1-dev fakeroot rpm
+```
+
+This keeps RPM as a Linux output and omits the AppImage `mksquashfs` dependency.
+
+#### Correct
+
+```typescript
+import { MakerDeb } from '@electron-forge/maker-deb';
+import { MakerAppImage } from '@reforged/maker-appimage';
+
+makers: [
+  new MakerDeb({ options: { icon: pngIconPath } }),
+  new MakerAppImage({
+    options: {
+      categories: ['Education'],
+      icon: pngIconPath,
+    },
+  }),
+];
+```
+
+```yaml
+run: sudo apt-get update && sudo apt-get install -y libsecret-1-dev fakeroot dpkg squashfs-tools
+```
+
+Keep Linux maker outputs aligned with the product requirement: DEB plus AppImage only.
+
+---
+
 ## Scenario: Electron Forge App Icon Resources
 
 ### 1. Scope / Trigger
@@ -652,8 +850,8 @@ const config: ForgeConfig = {
   },
   makers: [
     new MakerSquirrel({ setupIcon: icoIconPath }),
-    new MakerRpm({ options: { icon: pngIconPath } }),
     new MakerDeb({ options: { icon: pngIconPath } }),
+    new MakerAppImage({ options: { categories: ['Education'], icon: pngIconPath } }),
   ],
 };
 ```
@@ -676,7 +874,7 @@ const iconPath = app.isPackaged
 | `packagerConfig.icon` | extensionless file path | Point to the icon base path so Electron Packager can select the platform-specific extension. |
 | `packagerConfig.extraResource` | string array | Include `resources` whenever main-process runtime code reads from `process.resourcesPath/resources/...`. |
 | Squirrel `setupIcon` | ICO file path | Point to the real `.ico` file, not the PNG source. |
-| Deb/RPM `options.icon` | PNG or SVG file path | Point to `resources/icon.png` unless a Linux-specific scalable icon exists. |
+| Deb/AppImage `options.icon` | PNG or SVG file path | Point to `resources/icon.png` unless a Linux-specific scalable icon exists. |
 | `BrowserWindow.icon` | string or omitted | Set only on non-macOS platforms; use the packaged `process.resourcesPath` path after packaging and the repo path during dev. |
 
 ### 4. Validation & Error Matrix
@@ -687,7 +885,7 @@ const iconPath = app.isPackaged
 | `resources/icon.png` has no alpha channel and a near-white outer background | The app icon can render as an opaque white square instead of a shaped app icon. |
 | `resources` is omitted from `extraResource` but `BrowserWindow` reads `process.resourcesPath/resources/icon.png` | Packaged non-macOS runtime icon path is missing. |
 | Squirrel `setupIcon` points to PNG | Windows installer icon generation can fail or use the default installer icon. |
-| Deb/RPM maker `options.icon` is omitted | Linux desktop entries can use a default/generated icon instead of the app icon. |
+| Deb/AppImage maker `options.icon` is omitted | Linux desktop entries can use a default/generated icon instead of the app icon. |
 | `BrowserWindow.icon` is set on macOS | It does not replace the dock/app bundle icon; use the packager `.icns` path for macOS. |
 | `.icns` cannot be generated locally | Leave it absent and document the tooling gap; do not commit an invalid renamed file. |
 
@@ -723,7 +921,7 @@ const config: ForgeConfig = {
   packagerConfig: {
     extraResource: ['drizzle'],
   },
-  makers: [new MakerSquirrel({}), new MakerRpm({}), new MakerDeb({})],
+  makers: [new MakerSquirrel({}), new MakerDeb({})],
 };
 ```
 
@@ -743,8 +941,8 @@ const config: ForgeConfig = {
   },
   makers: [
     new MakerSquirrel({ setupIcon: icoIconPath }),
-    new MakerRpm({ options: { icon: pngIconPath } }),
     new MakerDeb({ options: { icon: pngIconPath } }),
+    new MakerAppImage({ options: { categories: ['Education'], icon: pngIconPath } }),
   ],
 };
 ```
