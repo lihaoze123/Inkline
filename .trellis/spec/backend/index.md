@@ -26,6 +26,7 @@ Read [`../product/index.md`](../product/index.md) for every backend task that to
 | [environment.md](./environment.md)                 | Dev/prod isolation, userData separation           | Setting up environment, debugging  |
 | [type-safety.md](./type-safety.md)                 | Zod schemas, discriminated unions, type patterns  | Type-related decisions             |
 | [logging.md](./logging.md)                         | Logging and native module packaging               | Debugging, packaging               |
+| [electron-window-shell.md](./electron-window-shell.md) | Native titlebar, menu bar, drag region, and frame blending | Changing BrowserWindow shell/chrome options |
 | [pagination.md](./pagination.md)                   | Cursor vs offset pagination guidelines            | Implementing list APIs             |
 | [quality.md](./quality.md)                         | Import paths, Vite config, code quality           | Before committing                  |
 | [macos-permissions.md](./macos-permissions.md)     | macOS system permissions (mic, accessibility)     | Features requiring permissions     |
@@ -83,6 +84,7 @@ Read [`../product/index.md`](../product/index.md) for every backend task that to
 | Logging                  | [logging.md](./logging.md)         |
 | Scoped logger            | [logging.md](./logging.md)         |
 | Packaging native modules | [logging.md](./logging.md)         |
+| Electron window chrome   | [electron-window-shell.md](./electron-window-shell.md) |
 
 ### Import Paths & Quality
 
@@ -111,6 +113,7 @@ Read [`../product/index.md`](../product/index.md) for every backend task that to
 | **Use cursor pagination** for user-facing lists                | [pagination.md](./pagination.md)               |
 | **Use `timestamp_ms` mode** for millisecond precision          | [database.md](./database.md)                   |
 | **Use `logger.scope()`** for module loggers                    | [logging.md](./logging.md)                     |
+| **Split BrowserWindow chrome options by OS**                   | [electron-window-shell.md](./electron-window-shell.md) |
 | **Check permissions before use** on macOS                      | [macos-permissions.md](./macos-permissions.md) |
 | **Use direct text insertion** instead of clipboard             | [text-input.md](./text-input.md)               |
 
