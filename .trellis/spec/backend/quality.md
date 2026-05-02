@@ -151,6 +151,34 @@ export default defineConfig({
 - [ ] Use transactions for multiple write operations
 - [ ] Always use `$defaultFn` for auto-generated values
 
+### Common Mistake: Top-Level Settings Imports in Broad Service Modules
+
+**Symptom**: Importing an unrelated service in a unit test initializes `electron-store` and fails with an Electron-store setup error before the tested path runs.
+
+**Cause**: `settings/service` owns a userData-backed `Store` at module load. A broad service module that imports `settings/service` at top level triggers that side effect for every consumer, including tests and code paths that never call settings-dependent functions.
+
+**Fix**: In modules that are imported by many tests or non-AI paths, lazy-import settings inside the function that actually needs provider/runtime settings. The app entry must still import `env-setup` before modules that touch `electron-store`; this rule avoids unnecessary store initialization in unrelated imports.
+
+#### Wrong
+
+```ts
+import { getSettingsSnapshot } from '../settings/service';
+
+export function saveWritingAttempt(input: SaveWritingAttemptInput): SaveWritingAttemptResult {
+  // Tests importing this module initialize settings storage even though this path does not need it.
+}
+```
+
+#### Correct
+
+```ts
+async function runProviderBackedOperation(): Promise<void> {
+  const { getSettingsSnapshot } = await import('../settings/service');
+  const settings = await getSettingsSnapshot();
+  // Build runtime config and call the provider here.
+}
+```
+
 ---
 
 ## Testing Guidelines

@@ -85,14 +85,13 @@ describe('rewrite-check shared writing contracts', () => {
     });
   });
 
-  it('defines retry input and result payload shapes without requiring evaluator behavior', () => {
+  it('defines retry input and result payload shapes for retryable evaluator results', () => {
     expect(retryRewriteCheckInputSchema.parse({ rewriteTaskId: 'rewrite_1' })).toEqual({ rewriteTaskId: 'rewrite_1' });
     expect(
       retryRewriteCheckResultSchema.parse({
-        success: false,
-        rewriteCheck: null,
-        error: 'Rewrite-check retry is not implemented yet.',
+        success: true,
+        rewriteCheck: completedRewriteCheck,
       }),
-    ).toMatchObject({ success: false, rewriteCheck: null });
+    ).toMatchObject({ success: true, rewriteCheck: { status: 'completed', outcome: 'partly_correct' } });
   });
 });
