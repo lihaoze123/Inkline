@@ -1,154 +1,171 @@
 # Inkline
 
-Inkline is a local-first desktop app for practicing English through repeatable writing scenarios. It helps a learner choose a practice template, optionally generate a starter prompt/topic, write independently, review the current writing with focused AI feedback, try one self-repair, compare with a reference rewrite, and keep one follow-up D+1 rewrite practice for later.
+Inkline is a local-first Electron desktop app for focused English writing practice. It helps learners choose a repeatable writing scenario, write independently, request focused AI feedback, try one self-repair, compare against a reference rewrite, and return later for a small D+1 rewrite practice.
 
-The current app generalizes the original habit-writing flow into a Practice entry surface with Journal, CET-4 Writing, CET-6 Writing, and Free Writing as same-level templates.
+Journal, CET-4 Writing, CET-6 Writing, and Free Writing are equal practice templates inside Inkline. None of those templates is the product identity.
 
-## Current v0.1 features
+## Status and Scope
 
-- Practice page with local app/database status.
-- Template picker for Journal, CET-4 Writing, CET-6 Writing, and Free Writing.
-- Template-aware writing editor with autosave and one current draft per template.
-- Optional AI starter prompt/topic generation, regenerate, retry, and skip behavior.
-- Local SQLite storage for writing attempts, revisions, review runs, corrections, self-repair attempts, reference rewrites, and rewrite tasks.
-- Persistent learning assets for recurring error patterns and reusable expression upgrades.
-- Review flow for the active writing revision:
-  - provider disclosure before the first review,
-  - template-aware review context,
-  - validated review preview,
-  - one focus pattern,
-  - hint-first self-repair,
-  - top corrections,
-  - reference rewrite with "Notice the gap",
-  - explicit "Save review and update learning history" action.
-- Progress page backed by saved recurring error patterns.
-- Notebook page backed by saved upgrade opportunities.
-- Anchored correction highlighting against the reviewed writing revision.
-- Stale review handling when the writing changes after review.
-- One D+1 rewrite practice slot in Practice, with submit and skip actions.
-- Review contract harness for validating mock review output without depending on live model output.
-- Minimal OpenAI-compatible live review adapter configurable with base URL, model, and an OS-keychain API key.
+| Area | Current state |
+| --- | --- |
+| Product stage | v0.1 desktop app in active development |
+| App brand | Inkline; the package name is still `english-coach` |
+| Data model | Local SQLite data under Electron's user data path |
+| AI providers | OpenAI-compatible endpoints and Anthropic Claude |
+| Review flow | Preview first; learning history updates only after explicit save |
+| Backlog boundary | Remaining v0.2 and backlog work is not documented as current behavior |
 
-Review execution is wired through the app-side review boundary and validation flow. The default live review path calls an OpenAI-compatible chat completions endpoint and validates the JSON response before showing preview results.
+Not implemented as current behavior: pattern mastery status, pattern merge/de-dup flows, rewrite-check agents, D+3/D+7 reuse tasks, Drill Center, Anki sync, and import/export jobs.
 
-## Privacy and local data
-
-Inkline is local-first by default:
-
-- App data is stored in a local SQLite database at Electron's user data path as `english-coach.sqlite`.
-- Raw model responses are disabled by default.
-- Provider credentials are handled through the OS keychain boundary.
-- The renderer does not receive direct filesystem, database, Electron main-process, or credential access.
-- Before first starter prompt/topic generation, the app explains that AI will be called without sending user essay content.
-- When review is configured, the app shows a disclosure before sending the current writing attempt, template context, and selected learning context to the configured model provider.
-
-## Tech stack
-
-- Electron Forge + Vite
-- React 19
-- TypeScript
-- SQLite through `better-sqlite3`
-- Drizzle ORM
-- Zod validation
-- pnpm
-
-## Prerequisites
-
-- Node.js `>=22.0.0`
-- pnpm `>=9.0.0` (`packageManager` is `pnpm@10.23.0`)
-- Native build tools required by Electron native modules such as `better-sqlite3` and `keytar`
-
-This project uses a hoisted pnpm layout for Electron/native-module compatibility. The required settings are already committed in `.npmrc`.
-
-## Install
+## Quick Start
 
 ```bash
 pnpm install
-```
-
-`postinstall` runs `electron-rebuild` so native modules are rebuilt for Electron.
-
-## Run the app in development
-
-```bash
 pnpm dev
 ```
 
-This starts Electron Forge with the Vite-powered main, preload, and renderer builds.
+Then open **Settings** in the app, choose a default AI provider/model, save the provider API key, and return to **Today** or **Practice** to write and request feedback.
 
-## Configure live review
+## What Inkline Does Today
 
-Live review uses an OpenAI-compatible `/chat/completions` API.
+| Surface | Implemented behavior |
+| --- | --- |
+| First launch | Branded welcome intro for the writing loop, with replay from Settings |
+| Today | Default entry surface with a greeting, current practice prompt, and route into writing |
+| Practice | Template picker, selected-template workbench, optional goal/topic, starter prompt generation, autosave, independent draft editing, review progress, and pending D+1 rewrite slot |
+| Feedback and Rewrite | Focused review preview, one focus pattern, hint-first self-repair, anchored highlights, reference rewrite, "Notice the gap", stale-review handling, and explicit save boundary |
+| Notebook | Saved upgrade opportunities from reviewed drafts, including source phrases and suggested alternatives |
+| Progress | Recurring error patterns from saved reviews, current draft/rewrite status, pattern counts, and recent examples |
+| Settings | Global provider/model configuration, OS-keychain API key status, raw response storage toggle, database/migration status, pi-mono status, reserved AnkiConnect status, and welcome intro replay |
 
-1. Open the app and find **Live review provider** in Settings.
-2. Set the provider base URL, for example `https://api.openai.com/v1`.
-3. Set the model, for example `gpt-4o-mini` or another model supported by your compatible provider.
-4. Paste your provider API key and click **Save API key**. The key is stored in the OS keychain and is never shown back in the renderer.
-5. Leave **Save raw model responses for debugging** off unless you explicitly want raw provider JSON saved in local review runs.
-6. Choose a practice template, optionally generate a starter prompt/topic, write independently, and click **Review current writing**. The first review shows a disclosure before sending the current writing and bounded learning context to the configured provider.
+## Writing and Review Flow
 
-If the key is missing or the OS keychain is unavailable, Review returns a recoverable configuration error and local writing/autosave behavior is unaffected.
+- Local SQLite initialization and migrations run at startup.
+- Each template has one current draft.
+- Starter prompt/topic generation is optional and supports regenerate, retry, and skip behavior.
+- Starter generation sends template context and optional user goal/topic, not the user's essay text.
+- Review generation uses the selected writing, template context, and bounded learning history after disclosure.
+- Review output is Zod-validated before it can be saved.
+- A valid saved review has exactly one focus pattern and at least one concrete "What you did well" item.
+- Saving a review is the boundary that updates corrections, self-repair attempts, reference rewrites, rewrite tasks, error patterns, and notebook entries.
+- Invalid review output does not update long-term learning history.
 
-## Quality checks
+## AI and Privacy
 
-```bash
-pnpm lint
-pnpm typecheck
-pnpm test
-pnpm review:harness
-```
+Inkline is local-first, not local-inference-only.
 
-Use these before committing documentation-adjacent code changes or review-flow changes.
+| Topic | Behavior |
+| --- | --- |
+| Local data | Writing attempts, revisions, review runs, corrections, rewrite tasks, error patterns, and notebook entries are stored in local SQLite. |
+| Provider calls | Starter prompt generation and review may send selected context to the configured provider after the relevant disclosure. |
+| Providers | OpenAI-compatible providers use `@ai-sdk/openai`; Anthropic Claude uses `@ai-sdk/anthropic`. |
+| Runtime boundary | Provider calls run from the Electron main process through Vercel AI SDK adapters with Electron `net.fetch`. |
+| API keys | Keys are stored through the OS keychain and are never returned to the renderer. |
+| Raw responses | Raw model responses are disabled by default in production behavior and can be enabled locally in Settings for debugging. |
+| User writing | Inkline annotates and explains. It does not auto-apply corrections to the draft. |
 
-## Package and make installers
+The renderer talks to the main process through a narrow preload IPC API. It does not import provider SDKs, database modules, keychain modules, filesystem APIs, or Electron main-process APIs directly.
 
-Create a packaged app:
+## Configure AI Providers
 
-```bash
-pnpm package
-```
+1. Open **Settings**.
+2. Choose the **Default provider**: OpenAI-compatible or Anthropic Claude.
+3. For OpenAI-compatible providers, set the base URL and model. The base URL can point to OpenAI or another compatible endpoint such as `https://api.deepseek.com/v1`.
+4. For Anthropic Claude, set the Claude model.
+5. Paste the provider API key and save it. Keys are stored through the OS keychain.
+6. Leave **Save raw model responses for debugging** off unless you explicitly want raw provider JSON saved locally.
 
-Create platform makers configured by Electron Forge:
+If provider settings, API keys, or keychain access are unavailable, AI calls return recoverable configuration errors. Local writing and autosave remain available.
 
-```bash
-pnpm make
-```
+## Requirements
 
-The Forge config includes ZIP, DEB, RPM, and Squirrel makers. Packaged builds include the Drizzle migration resources and unpack native binaries from ASAR.
+| Requirement | Version |
+| --- | --- |
+| Node.js | `>=22.0.0` |
+| pnpm | `>=9.0.0`; repository package manager is `pnpm@10.23.0` |
+| Native tooling | Required for Electron native modules such as `better-sqlite3` and `keytar` |
 
-## Project structure
+The repository commits a hoisted pnpm layout in `.npmrc` for Electron/native-module compatibility. `postinstall` runs `electron-rebuild`.
+
+## Scripts
+
+| Command | Purpose |
+| --- | --- |
+| `pnpm dev` | Start the Electron app in development mode. |
+| `pnpm format` | Format the repository with Prettier. |
+| `pnpm format:check` | Check repository formatting with Prettier. |
+| `pnpm lint` | Run ESLint. |
+| `pnpm typecheck` | Run TypeScript without emitting files. |
+| `pnpm test` | Run the Vitest suite. |
+| `pnpm review:harness` | Exercise the review contract harness. |
+| `pnpm check` | Run format, lint, typecheck, tests, and the review contract harness. |
+| `pnpm build` | Package the app through Electron Forge. |
+| `pnpm package` | Package the app through Electron Forge. |
+| `pnpm make` | Build distributable artifacts through Electron Forge makers. |
+
+## Stack
+
+| Layer | Tools |
+| --- | --- |
+| Desktop shell | Electron Forge, Vite |
+| UI | React 19, Tailwind CSS, daisyUI |
+| Renderer async state | TanStack Query |
+| Main-process AI | Vercel AI SDK, OpenAI-compatible adapter, Anthropic adapter |
+| Storage | SQLite, `better-sqlite3`, Drizzle ORM |
+| Validation | Zod, review contract harness |
+| Language and quality | TypeScript, ESLint, Prettier, Vitest, pnpm |
+
+## Project Structure
 
 ```text
 src/
-  main/       Electron main process, SQLite, migrations, IPC handlers, services
-  preload/    contextBridge API exposed to the renderer
-  renderer/   React app and styles
-  shared/     shared IPC types, review contract schemas, validation utilities
+  main/
+    db/                  SQLite client, schema, and migration runner
+    ipc/                 Main-process IPC handlers
+    services/
+      ai/                AI SDK provider model creation and generation helpers
+      credentials/       OS-keychain credential service
+      learning-assets/   Error pattern and notebook persistence
+      review/            Review orchestration types and flow support
+      settings/          Provider, privacy, onboarding, and status settings
+      writing/           Writing attempts, starter prompts, and rewrite practice
+  preload/               contextBridge API exposed to the renderer
+  renderer/
+    assets/              App icon and ink landscape visual assets
+    components/          Today, Practice, Feedback, Notebook, Progress, Settings UI pieces
+    query/               TanStack Query clients, keys, queries, mutations, and cache updates
+    App.tsx              App shell, navigation, and main surface composition
+    styles.css           Renderer styling
+  shared/
+    constants/           IPC channel constants
+    review-contract/     Schemas, anchoring, validation, and harness helpers
+    types/               Shared IPC and domain snapshots
+    writing/             Template/content utilities
 
-drizzle/      SQL migrations and migration metadata
-scripts/      developer and contract harness scripts
-test/         Vitest tests
-.trellis/     project workflow, specs, task records, and AI development context
+drizzle/                 SQL migrations and migration metadata
+resources/               Packaged app icon resources
+scripts/                 Developer and contract harness scripts
+test/                    Vitest tests
+.trellis/                Project workflow, specs, task records, and AI development context
 ```
 
-## Useful scripts
+## Packaging
 
-| Command               | Purpose                                                      |
-| --------------------- | ------------------------------------------------------------ |
-| `pnpm dev`            | Start the Electron app in development mode.                  |
-| `pnpm lint`           | Run ESLint.                                                  |
-| `pnpm typecheck`      | Run TypeScript without emitting files.                       |
-| `pnpm test`           | Run the Vitest suite.                                        |
-| `pnpm review:harness` | Exercise the review contract harness.                        |
-| `pnpm build`          | Package the app through Electron Forge.                      |
-| `pnpm package`        | Package the app through Electron Forge.                      |
-| `pnpm make`           | Build distributable artifacts through Electron Forge makers. |
+```bash
+pnpm package
+pnpm make
+```
 
-## Development notes
+`pnpm package` creates a packaged app through Electron Forge. `pnpm make` creates platform maker artifacts configured in the Forge setup, including ZIP, DEB, RPM, and Squirrel makers.
 
-- Keep documentation and user-facing claims scoped to implemented v0.1 behavior.
+Packaged builds include Drizzle migration resources, app resources, native module copies for `better-sqlite3`, `bindings`, `file-uri-to-path`, and `keytar`, plus app icon resources from `resources/icon.png` and `resources/icon.ico`.
+
+## Development Notes
+
+- Keep documentation and user-facing claims scoped to implemented behavior.
 - Review output is preview-only until the user saves it.
-- Writing text is the user's work; corrections are annotations and are not auto-applied.
+- Saving review is the boundary that updates pattern counts, rewrite practice, and notebook history.
+- Writing text remains the user's work; corrections are annotations and are not auto-applied.
 - The writing-practice schema rebuild is a development-stage reset and is not a production-safe migration for old local journal data.
-- Invalid review output must not update learning history.
+- Production builds do not save raw model responses by default.
 - Documentation in this repository should be written in English.
