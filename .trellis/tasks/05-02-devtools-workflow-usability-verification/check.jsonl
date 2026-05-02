@@ -1,0 +1,6 @@
+{"file": ".trellis/spec/product/mvp-scope.md", "reason": "Check scope and usability judgment against current product boundaries."}
+{"file": ".trellis/spec/product/learning-flow.md", "reason": "Check workflow surfaces and user flow behavior."}
+{"file": ".trellis/spec/product/data-model-contract.md", "reason": "Check learning asset data flow and IPC contracts."}
+{"file": ".trellis/spec/product/validation-and-testing.md", "reason": "Check required automated and DevTools/manual verification evidence."}
+{"file": ".trellis/spec/frontend/index.md", "reason": "Check renderer UI consistency and frontend quality."}
+{"file": ".trellis/spec/backend/index.md", "reason": "Check Electron launch and main-process behavior if touched."}
