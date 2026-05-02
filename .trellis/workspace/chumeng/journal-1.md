@@ -902,3 +902,36 @@ Improved review provider long-output diagnostics, added review thinking controls
 ### Next Steps
 
 - None - task complete
+
+
+## Session 27: Fix macOS release asset packaging
+
+**Date**: 2026-05-02
+**Task**: Fix macOS release asset packaging
+**Branch**: `fix/macos-dmg-release-asset`
+
+### Summary
+
+Changed macOS Electron Forge release output from ZIP to DMG, updated maker dependencies and lockfile, documented DMG packaging constraints, opened PR #9, and archived the app build workflow task.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `b55d0c3` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete

@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-1.md`
-- **Total Sessions**: 26
+- **Total Sessions**: 27
 - **Last Active**: 2026-05-02
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-1.md` | ~900 | Active |
+| `journal-1.md` | ~937 | Active |
 <!-- @@@/auto:active-documents -->
 
 ---
@@ -29,6 +29,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 27 | 2026-05-02 | Fix macOS release asset packaging | `b55d0c3` | `fix/macos-dmg-release-asset` |
 | 27 | 2026-05-02 | Update README progress | `0bcf1d7`, `c813517` | `edit-readme` |
 | 26 | 2026-05-02 | Review provider observability and CDP e2e | `cbe45cd` | `main` |
 | 25 | 2026-05-02 | Refine sidebar spacing | `7aaa64f`, `a40ae43`, `478dd03` | `main` |
