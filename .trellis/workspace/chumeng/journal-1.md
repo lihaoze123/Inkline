@@ -822,3 +822,38 @@ Verified the Inkline workflow through Chrome DevTools MCP, fixed Electron startu
 ### Next Steps
 
 - None - task complete
+
+
+## Session 25: Refine sidebar spacing
+
+**Date**: 2026-05-02
+**Task**: Refine sidebar spacing
+**Branch**: `main`
+
+### Summary
+
+Refined Inkline sidebar spacing and alignment while preserving the original understated active-state color treatment; updated frontend visual contract and task record.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `7aaa64f` | (see git log) |
+| `a40ae43` | (see git log) |
+| `478dd03` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
