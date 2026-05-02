@@ -87,7 +87,7 @@ jobs:
 
       - name: Install Linux native and maker dependencies
         if: runner.os == 'Linux'
-        run: sudo apt-get update && sudo apt-get install -y libsecret-1-dev fakeroot rpm
+        run: sudo apt-get update && sudo apt-get install -y libsecret-1-dev fakeroot dpkg squashfs-tools
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile

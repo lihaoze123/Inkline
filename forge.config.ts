@@ -1,9 +1,9 @@
 import type { ForgeConfig } from '@electron-forge/shared-types';
 import { MakerDeb } from '@electron-forge/maker-deb';
-import { MakerRpm } from '@electron-forge/maker-rpm';
 import { MakerSquirrel } from '@electron-forge/maker-squirrel';
 import { MakerZIP } from '@electron-forge/maker-zip';
 import { VitePlugin } from '@electron-forge/plugin-vite';
+import { MakerAppImage } from '@reforged/maker-appimage';
 import { cp, mkdir } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -46,13 +46,14 @@ const config: ForgeConfig = {
       setupIcon: icoIconPath,
     }),
     new MakerZIP({}, ['darwin']),
-    new MakerRpm({
+    new MakerDeb({
       options: {
         icon: pngIconPath,
       },
     }),
-    new MakerDeb({
+    new MakerAppImage({
       options: {
+        categories: ['Education'],
         icon: pngIconPath,
       },
     }),
