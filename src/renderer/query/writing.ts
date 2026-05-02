@@ -10,6 +10,10 @@ import type {
   CompleteRewritePracticeInput,
   GenerateStarterPromptInput,
   GenerateStarterPromptResult,
+  RetryRewriteCheckInput,
+  RetryRewriteCheckResult,
+  RewriteCheckSnapshot,
+  RewritePracticeSnapshot,
   RewritePracticeUpdateResult,
   SaveWritingAttemptInput,
   SaveWritingAttemptResult,
@@ -50,8 +54,15 @@ export function useSaveWritingAttempt(): UseMutationResult<SaveWritingAttemptRes
   });
 }
 
-export function updateRewritePracticeCache(queryClient: QueryClient, result: RewritePracticeUpdateResult): void {
-  if (result.success && result.writing) {
+export function updateRewritePracticeCache(
+  queryClient: QueryClient,
+  result: RewritePracticeUpdateResult | RetryRewriteCheckResult,
+): void {
+  if (!result.success) {
+    return;
+  }
+
+  if (result.writing) {
     updateWritingAttemptCache(queryClient, result.writing);
     queryClient.setQueriesData<WritingAttemptSnapshot>({ queryKey: queryKeys.writing.attempts }, (cachedWriting) => {
       if (!cachedWriting) {
@@ -63,7 +74,53 @@ export function updateRewritePracticeCache(queryClient: QueryClient, result: Rew
         pendingRewritePractice: result.writing?.pendingRewritePractice ?? null,
       };
     });
+    return;
   }
+
+  const rewritePractice = result.rewritePractice;
+  const rewriteCheck = 'rewriteCheck' in result ? result.rewriteCheck : undefined;
+
+  if (rewritePractice !== undefined) {
+    updateCachedRewritePractice(queryClient, rewritePractice);
+  }
+
+  if (rewriteCheck) {
+    updateCachedRewriteCheck(queryClient, rewriteCheck);
+  }
+}
+
+function updateCachedRewritePractice(queryClient: QueryClient, rewritePractice: RewritePracticeSnapshot | null): void {
+  if (!rewritePractice) {
+    return;
+  }
+
+  queryClient.setQueriesData<WritingAttemptSnapshot>({ queryKey: queryKeys.writing.attempts }, (cachedWriting) => {
+    if (!cachedWriting || cachedWriting.pendingRewritePractice?.id !== rewritePractice.id) {
+      return cachedWriting;
+    }
+
+    return {
+      ...cachedWriting,
+      pendingRewritePractice: rewritePractice,
+    };
+  });
+}
+
+function updateCachedRewriteCheck(queryClient: QueryClient, rewriteCheck: RewriteCheckSnapshot): void {
+  queryClient.setQueriesData<WritingAttemptSnapshot>({ queryKey: queryKeys.writing.attempts }, (cachedWriting) => {
+    const cachedRewritePractice = cachedWriting?.pendingRewritePractice;
+    if (!cachedWriting || !cachedRewritePractice || cachedRewritePractice.id !== rewriteCheck.rewriteTaskId) {
+      return cachedWriting;
+    }
+
+    return {
+      ...cachedWriting,
+      pendingRewritePractice: {
+        ...cachedRewritePractice,
+        latestRewriteCheck: rewriteCheck,
+      },
+    };
+  });
 }
 
 export function useGenerateStarterPrompt(): UseMutationResult<
@@ -105,6 +162,15 @@ export function useSkipRewritePractice(): UseMutationResult<
 
   return useMutation({
     mutationFn: (input: SkipRewritePracticeInput) => window.api.writing.skipRewritePractice(input),
+    onSuccess: (result) => updateRewritePracticeCache(queryClient, result),
+  });
+}
+
+export function useRetryRewriteCheck(): UseMutationResult<RetryRewriteCheckResult, Error, RetryRewriteCheckInput> {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (input: RetryRewriteCheckInput) => window.api.writing.retryRewriteCheck(input),
     onSuccess: (result) => updateRewritePracticeCache(queryClient, result),
   });
 }

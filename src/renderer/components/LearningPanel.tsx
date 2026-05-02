@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import type { WritingAttemptSnapshot } from '@shared/types/writing';
+import type { RewriteCheckOutcome, RewriteCheckSnapshot, WritingAttemptSnapshot } from '@shared/types/writing';
 import type { AiProviderDiagnostics } from '@shared/types/ai';
 import type {
   ReviewErrorCategory,
@@ -23,8 +23,10 @@ export function LearningPanel({
   rewritePracticeInput,
   completedRewritePractice,
   rewritePracticeError,
+  isRewritePracticeChecking,
   onRewritePracticeInputChange,
   onCompleteRewritePractice,
+  onRetryRewriteCheck,
   onSkipRewritePractice,
   onReviewCurrentVersion,
 }: LearningPanelProps): React.JSX.Element {
@@ -57,8 +59,10 @@ export function LearningPanel({
             practice={completedRewritePractice ?? writing.pendingRewritePractice}
             inputValue={rewritePracticeInput}
             error={rewritePracticeError}
+            isChecking={isRewritePracticeChecking}
             onInputChange={onRewritePracticeInputChange}
             onComplete={onCompleteRewritePractice}
+            onRetryCheck={onRetryRewriteCheck}
             onSkip={onSkipRewritePractice}
           />
         </details>
@@ -153,23 +157,29 @@ function RewritePracticeCard({
   practice,
   inputValue,
   error,
+  isChecking,
   onInputChange,
   onComplete,
+  onRetryCheck,
   onSkip,
 }: {
   practice: WritingAttemptSnapshot['pendingRewritePractice'];
   inputValue: string;
   error: string | null;
+  isChecking: boolean;
   onInputChange: (value: string) => void;
   onComplete: () => void;
+  onRetryCheck: () => void;
   onSkip: () => void;
 }): React.JSX.Element | null {
   if (!practice) {
     return null;
   }
 
+  const latestCheck = practice.latestRewriteCheck;
   const isCompleted = practice.status === 'completed';
-  const canSubmit = inputValue.trim().length > 0 && !isCompleted;
+  const isCheckInProgress = isChecking || latestCheck?.status === 'pending' || latestCheck?.status === 'in_progress';
+  const canSubmit = inputValue.trim().length > 0 && !isCompleted && !isCheckInProgress;
   const showNativeModel = isCompleted && Boolean(practice.userRewriteText);
 
   return (
@@ -194,18 +204,28 @@ function RewritePracticeCard({
         value={inputValue}
         onChange={(event) => onInputChange(event.target.value)}
         placeholder="Rewrite it in your own words."
-        disabled={isCompleted}
+        disabled={isCompleted || isCheckInProgress}
       />
       <div className="mt-4 flex flex-wrap gap-2">
         <button type="button" className="btn btn-success btn-sm rounded-xl" disabled={!canSubmit} onClick={onComplete}>
-          {isCompleted ? 'Rewrite submitted' : 'Submit rewrite'}
+          {isCheckInProgress ? 'Checking rewrite...' : isCompleted ? 'Rewrite submitted' : 'Submit rewrite'}
         </button>
         {!isCompleted ? (
-          <button type="button" className="btn btn-ghost btn-sm rounded-xl" onClick={onSkip}>
+          <button
+            type="button"
+            className="btn btn-ghost btn-sm rounded-xl"
+            disabled={isCheckInProgress}
+            onClick={onSkip}
+          >
             Skip
           </button>
         ) : null}
       </div>
+      {isCheckInProgress ? (
+        <p className="mt-3 text-sm leading-6 text-base-content/55">
+          Checking whether the rewrite repairs the focus pattern...
+        </p>
+      ) : null}
       {showNativeModel ? (
         <p className="mt-4 rounded-xl bg-base-100 p-3 text-sm leading-6">
           <strong>Native model:</strong> {practice.nativeModelSentence}
@@ -213,6 +233,9 @@ function RewritePracticeCard({
       ) : (
         <p className="mt-4 text-sm text-base-content/50">Native model stays hidden until you submit.</p>
       )}
+      {latestCheck ? (
+        <RewriteCheckFeedbackCard check={latestCheck} isChecking={isCheckInProgress} onRetryCheck={onRetryCheck} />
+      ) : null}
       {practice.isOlderThanSevenDays ? (
         <p className="mt-3 text-sm text-base-content/50">This older practice is de-prioritized from Today.</p>
       ) : null}
@@ -223,6 +246,71 @@ function RewritePracticeCard({
       ) : null}
     </PanelCard>
   );
+}
+
+function RewriteCheckFeedbackCard({
+  check,
+  isChecking,
+  onRetryCheck,
+}: {
+  check: RewriteCheckSnapshot;
+  isChecking: boolean;
+  onRetryCheck: () => void;
+}): React.JSX.Element | null {
+  if (isChecking || check.status === 'pending' || check.status === 'in_progress') {
+    return (
+      <div className="mt-4 border-l border-primary/35 pl-4 text-sm leading-6 text-base-content/62">
+        Checking your rewrite now. The rewrite is saved while the evaluator runs.
+      </div>
+    );
+  }
+
+  if (check.status === 'completed' && check.outcome) {
+    const copy = rewriteOutcomeCopy(check.outcome);
+    return (
+      <div className={`mt-4 border-l pl-4 text-sm leading-6 ${copy.className}`}>
+        <p className="font-semibold text-base-content/78">{copy.title}</p>
+        {check.feedback?.message ? <p className="mt-1 text-base-content/65">{check.feedback.message}</p> : null}
+        {check.feedback?.nextStep ? <p className="mt-2 text-base-content/58">Next: {check.feedback.nextStep}</p> : null}
+      </div>
+    );
+  }
+
+  if (check.status === 'failed' || check.status === 'retryable') {
+    return (
+      <div className="mt-4 border-l border-error/40 pl-4 text-sm leading-6 text-base-content/65">
+        <p className="font-semibold text-base-content/78">Rewrite saved, check did not finish.</p>
+        <p className="mt-1">
+          {check.errorMessage ?? 'The evaluator could not check this rewrite. Your submitted rewrite was preserved.'}
+        </p>
+        <button type="button" className="btn btn-outline btn-sm mt-3 rounded-xl" onClick={onRetryCheck}>
+          Retry check
+        </button>
+      </div>
+    );
+  }
+
+  return null;
+}
+
+function rewriteOutcomeCopy(outcome: RewriteCheckOutcome): { title: string; className: string } {
+  switch (outcome) {
+    case 'correct':
+      return {
+        title: 'Good repair.',
+        className: 'border-success/55',
+      };
+    case 'partly_correct':
+      return {
+        title: 'Progress on the pattern.',
+        className: 'border-warning/55',
+      };
+    case 'incorrect':
+      return {
+        title: 'Keep this pattern in view.',
+        className: 'border-error/45',
+      };
+  }
 }
 
 function ReviewProgressCard({ progress }: { progress: ReviewProgressModel }): React.JSX.Element {

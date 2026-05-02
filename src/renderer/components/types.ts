@@ -91,8 +91,10 @@ export type LearningPanelProps = {
   rewritePracticeInput: string;
   completedRewritePractice: WritingAttemptSnapshot['pendingRewritePractice'];
   rewritePracticeError: string | null;
+  isRewritePracticeChecking: boolean;
   onRewritePracticeInputChange: (value: string) => void;
   onCompleteRewritePractice: () => void;
+  onRetryRewriteCheck: () => void;
   onSkipRewritePractice: () => void;
   onReviewCurrentVersion: () => void;
 };

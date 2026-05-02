@@ -35,6 +35,7 @@ import {
   updateWritingAttemptCache,
   useCompleteRewritePractice,
   useGenerateStarterPrompt,
+  useRetryRewriteCheck,
   useSaveWritingAttempt,
   useSkipRewritePractice,
   useWritingAttempt,
@@ -121,7 +122,9 @@ function PracticePage({ initialWriting, settings, startup }: PracticePageProps):
   const { mutateAsync: startReview } = useStartReview();
   const { mutateAsync: saveReviewMutation } = useSaveReview();
   const { mutateAsync: generateStarterPromptMutation } = useGenerateStarterPrompt();
-  const { mutateAsync: completeRewritePracticeMutation } = useCompleteRewritePractice();
+  const { mutateAsync: completeRewritePracticeMutation, isPending: isCompleteRewritePracticePending } =
+    useCompleteRewritePractice();
+  const { mutateAsync: retryRewriteCheckMutation, isPending: isRetryRewriteCheckPending } = useRetryRewriteCheck();
   const { mutateAsync: skipRewritePracticeMutation } = useSkipRewritePractice();
   const { mutateAsync: setDefaultProviderMutation } = useSetDefaultProvider();
   const { mutateAsync: setOnboardingIntroVersionSeenMutation, isPending: isOnboardingIntroDismissPending } =
@@ -470,8 +473,10 @@ function PracticePage({ initialWriting, settings, startup }: PracticePageProps):
         userRewriteText: rewritePracticeInput,
       });
 
-      if (result.success && result.writing && result.rewritePractice) {
-        updateWritingCache(result.writing);
+      if (result.success && result.rewritePractice) {
+        if (result.writing) {
+          updateWritingCache(result.writing);
+        }
         setCompletedRewritePractice(result.rewritePractice);
         setRewritePracticeInput(result.rewritePractice.userRewriteText ?? rewritePracticeInput.trim());
         return;
@@ -482,6 +487,40 @@ function PracticePage({ initialWriting, settings, startup }: PracticePageProps):
       setRewritePracticeError(getErrorMessage(error, 'Unable to complete rewrite practice.'));
     }
   }, [completeRewritePracticeMutation, updateWritingCache, writing.pendingRewritePractice, rewritePracticeInput]);
+
+  const retryCompletedRewriteCheck = useCallback(async (): Promise<void> => {
+    const rewritePractice = completedRewritePractice ?? writing.pendingRewritePractice;
+    if (!rewritePractice) {
+      return;
+    }
+
+    setRewritePracticeError(null);
+
+    try {
+      const result = await retryRewriteCheckMutation({ rewriteTaskId: rewritePractice.id });
+
+      if (result.success) {
+        if (result.writing) {
+          updateWritingCache(result.writing);
+        }
+
+        const checkedRewritePractice =
+          result.rewritePractice ??
+          (result.rewriteCheck && result.rewriteCheck.rewriteTaskId === rewritePractice.id
+            ? { ...rewritePractice, latestRewriteCheck: result.rewriteCheck }
+            : null);
+
+        if (checkedRewritePractice) {
+          setCompletedRewritePractice(checkedRewritePractice);
+          return;
+        }
+      }
+
+      setRewritePracticeError(result.error ?? 'Unable to retry rewrite check.');
+    } catch (error) {
+      setRewritePracticeError(getErrorMessage(error, 'Unable to retry rewrite check.'));
+    }
+  }, [completedRewritePractice, retryRewriteCheckMutation, updateWritingCache, writing.pendingRewritePractice]);
 
   const skipPendingRewritePractice = useCallback(async (): Promise<void> => {
     if (!writing.pendingRewritePractice) {
@@ -781,12 +820,16 @@ function PracticePage({ initialWriting, settings, startup }: PracticePageProps):
                       rewritePracticeInput={rewritePracticeInput}
                       completedRewritePractice={completedRewritePractice}
                       rewritePracticeError={rewritePracticeError}
+                      isRewritePracticeChecking={isCompleteRewritePracticePending || isRetryRewriteCheckPending}
                       onRewritePracticeInputChange={(value) => {
                         setRewritePracticeInput(value);
                         setCompletedRewritePractice(null);
                       }}
                       onCompleteRewritePractice={() => {
                         void completePendingRewritePractice();
+                      }}
+                      onRetryRewriteCheck={() => {
+                        void retryCompletedRewriteCheck();
                       }}
                       onSkipRewritePractice={() => {
                         void skipPendingRewritePractice();
