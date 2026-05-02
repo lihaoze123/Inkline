@@ -935,3 +935,36 @@ Changed macOS Electron Forge release output from ZIP to DMG, updated maker depen
 ### Next Steps
 
 - None - task complete
+
+
+## Session 28: Rewrite-check contract baseline
+
+**Date**: 2026-05-02
+**Task**: Rewrite-check contract baseline
+**Branch**: `rewrite-check-contract-persistence`
+
+### Summary
+
+Implemented and checked the rewrite-check contract/persistence baseline: durable rewrite_checks attempts, shared rewrite-check contracts, latestRewriteCheck exposure, minimal retry IPC/preload shape, tests, and code-spec update.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `cc4733b` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
