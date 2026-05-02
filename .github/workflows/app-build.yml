@@ -92,6 +92,10 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Rebuild macOS maker native dependencies
+        if: runner.os == 'macOS'
+        run: pnpm rebuild macos-alias
+
       - name: Make distributables
         run: pnpm make
 

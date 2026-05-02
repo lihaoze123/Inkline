@@ -24,7 +24,7 @@ const config: ForgeConfig = {
   },
   rebuildConfig: {
     force: true,
-    onlyModules: ['better-sqlite3'],
+    onlyModules: ['better-sqlite3', 'keytar'],
   },
   hooks: {
     packageAfterCopy: async (_forgeConfig, buildPath) => {
