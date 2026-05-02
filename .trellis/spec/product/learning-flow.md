@@ -221,3 +221,101 @@ A rewrite practice includes:
 - Snooze action only if the task explicitly implements snooze.
 
 v0.1 does not require the full rewrite queue or rewrite-check agent unless the task PRD says so.
+
+## Scenario: Rewrite-Check Feedback UI
+
+### 1. Scope / Trigger
+
+- Trigger: Any task that changes D+1 rewrite-practice submit, persisted rewrite-check result display, retry behavior, or renderer cache handling for rewrite-check responses.
+- Rewrite-check UI is a learning feedback surface, not a correction-application flow. The user's submitted rewrite remains their text.
+
+### 2. Signatures
+
+Renderer IPC calls:
+
+```ts
+window.api.writing.completeRewritePractice(input: {
+  rewriteTaskId: string;
+  userRewriteText: string;
+}): Promise<RewritePracticeUpdateResult>;
+
+window.api.writing.retryRewriteCheck(input: {
+  rewriteTaskId: string;
+}): Promise<RetryRewriteCheckResult>;
+```
+
+Renderer state/cache helpers:
+
+```ts
+updateRewritePracticeCache(
+  queryClient: QueryClient,
+  result: RewritePracticeUpdateResult | RetryRewriteCheckResult,
+): void;
+```
+
+### 3. Contracts
+
+- While submit or retry is pending, disable rewrite input, submit, skip, and retry controls for that card.
+- A saved submitted rewrite may have `status: 'completed'` even when `latestRewriteCheck.outcome` is `partly_correct`, `incorrect`, or unavailable after evaluator failure.
+- The native model sentence remains hidden before a saved submit, then becomes visible once `status === 'completed'` and `userRewriteText` exists.
+- Completed check outcomes render as annotation-only feedback:
+  - `correct`: encouraging concise copy.
+  - `partly_correct`: progress-oriented copy; do not claim mastery.
+  - `incorrect`: actionable copy; do not reopen/delete the completed attempt.
+- Retryable/failed checks explain that the rewrite was saved and expose retry.
+- `RetryRewriteCheckResult` handling must tolerate partial success payloads. If `writing` is absent but `rewritePractice` is present, patch cached attempts by `rewritePractice.id`. If only `rewriteCheck` is present, patch the cached pending/completed rewrite whose id matches `rewriteCheck.rewriteTaskId`.
+
+### 4. Validation & Error Matrix
+
+| Condition | Behavior |
+| --- | --- |
+| Submit mutation is pending | Disable rewrite input and actions; show checking copy. |
+| Persisted check status is `pending` or `in_progress` | Treat the card as checking even after renderer reload. |
+| Completed check outcome is `correct` | Show concise positive feedback without changing user rewrite text. |
+| Completed check outcome is `partly_correct` | Show progress feedback without presenting it as mastery success. |
+| Completed check outcome is `incorrect` | Show actionable feedback while keeping the attempt completed. |
+| Check status is `failed` or `retryable` | Say the rewrite was saved, show safe error/fallback copy, and offer retry. |
+| Retry succeeds with only `rewriteCheck` | Update the matching cached rewrite task's `latestRewriteCheck`; do not show a false retry error. |
+| Retry/submit returns `success: false` | Keep existing rewrite state visible and show the returned safe error. |
+
+### 5. Good/Base/Bad Cases
+
+- Good: User submits a D+1 rewrite, sees `Checking rewrite...`, then sees native model plus `correct` feedback while their rewrite text remains unchanged.
+- Base: Retry returns only a fresh `rewriteCheck`; the renderer patches the existing rewrite card by `rewriteTaskId` and updates feedback.
+- Base: `partly_correct` shows progress language but does not imply the pattern is mastered.
+- Bad: `incorrect` reopens the task, clears the user's submitted rewrite, or hides the native model after save.
+- Bad: Retry succeeds but the UI shows `Unable to retry rewrite check` because the response omitted a full writing snapshot.
+
+### 6. Tests Required
+
+- Renderer query/cache tests assert completion results write persisted `latestRewriteCheck` feedback into the template-scoped cache.
+- Renderer query/cache tests assert retry results update cached rewrite feedback when the response includes `writing` and `rewritePractice`.
+- Renderer query/cache tests assert retry results update cached rewrite feedback when the response includes only `rewriteCheck`.
+- UI/manual smoke should cover checking, `correct`, `partly_correct`, `incorrect`, retryable failure, and native-model reveal after submit.
+
+### 7. Wrong vs Correct
+
+#### Wrong
+
+```tsx
+if (result.success && result.writing) {
+  updateWritingAttemptCache(queryClient, result.writing);
+} else {
+  setRewritePracticeError('Unable to retry rewrite check.');
+}
+```
+
+This treats a successful partial retry response as a failure and leaves persisted feedback stale.
+
+#### Correct
+
+```tsx
+if (result.success && result.rewriteCheck?.rewriteTaskId === rewritePractice.id) {
+  setCompletedRewritePractice({
+    ...rewritePractice,
+    latestRewriteCheck: result.rewriteCheck,
+  });
+}
+```
+
+The renderer accepts the narrow successful retry payload and patches the matching rewrite card without replacing the user's rewrite.
