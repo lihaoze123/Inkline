@@ -857,3 +857,37 @@ Refined Inkline sidebar spacing and alignment while preserving the original unde
 ### Next Steps
 
 - None - task complete
+
+
+## Session 26: Update README progress
+
+**Date**: 2026-05-02
+**Task**: Update README progress
+**Branch**: `edit-readme`
+
+### Summary
+
+Updated README to match current Inkline progress with a restrained modern structure, documented implemented app surfaces, AI provider architecture, privacy behavior, quality scripts, packaging, and project layout; added and archived the Trellis task record.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `0bcf1d7` | (see git log) |
+| `c813517` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
