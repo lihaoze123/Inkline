@@ -3,5 +3,6 @@ onlyBuiltDependencies:
   - electron
   - electron-winstaller
   - esbuild
+  - fs-xattr
   - keytar
   - macos-alias

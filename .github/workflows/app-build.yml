@@ -94,7 +94,7 @@ jobs:
 
       - name: Rebuild macOS maker native dependencies
         if: runner.os == 'macOS'
-        run: pnpm rebuild macos-alias
+        run: pnpm rebuild fs-xattr macos-alias
 
       - name: Make distributables
         run: pnpm make
