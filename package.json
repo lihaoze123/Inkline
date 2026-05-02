@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "description": "Local-first AI writing practice desktop app.",
   "author": "lihaoze123",
-  "license": "UNLICENSED",
+  "license": "GPL-3.0-or-later",
   "private": true,
   "type": "module",
   "main": ".vite/build/index.cjs",

@@ -1,0 +1,2 @@
+{"file": ".trellis/spec/shared/index.md", "reason": "Shared documentation language and repository metadata conventions apply to README and package metadata edits."}
+{"file": ".trellis/spec/product/index.md", "reason": "Product identity context ensures README wording remains scoped to Inkline as a desktop app."}

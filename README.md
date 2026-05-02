@@ -169,3 +169,7 @@ Packaged builds include Drizzle migration resources, app resources, native modul
 - The writing-practice schema rebuild is a development-stage reset and is not a production-safe migration for old local journal data.
 - Production builds do not save raw model responses by default.
 - Documentation in this repository should be written in English.
+
+## License
+
+Inkline is licensed under `GPL-3.0-or-later`. See [LICENSE](LICENSE) for details.
