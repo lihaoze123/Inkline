@@ -1037,3 +1037,37 @@ Implemented renderer rewrite-check feedback states, retry cache handling, tests,
 ### Next Steps
 
 - None - task complete
+
+
+## Session 31: Rewrite-check integration hardening
+
+**Date**: 2026-05-03
+**Task**: Rewrite-check integration hardening
+**Branch**: `main`
+
+### Summary
+
+Merged rewrite-check evaluator and feedback UI slices, fixed retryable retry transport semantics, verified pnpm check and Xvfb Electron smoke, and marked the integration task complete.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `6500882` | (see git log) |
+| `bc12bcc` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
