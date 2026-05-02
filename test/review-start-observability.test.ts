@@ -11,6 +11,7 @@ import type {
 import type { db as appDatabase } from '../src/main/db/client';
 import type { startReview as startReviewFunction } from '../src/main/services/review/procedures/start';
 import type { ReviewAgent } from '../src/main/services/review/types';
+import type { AiProviderDiagnostics } from '../src/shared/types/ai';
 import type { ReviewProgressEvent, ReviewRunSummary } from '../src/shared/types/review';
 
 type AppDatabase = typeof appDatabase;
@@ -199,6 +200,7 @@ async function loadStartReview(): Promise<typeof startReviewFunction> {
       model: 'review-model',
       providerApiKeyStatus: 'configured',
       rawResponseStorageEnabled: true,
+      reviewThinkingEnabled: false,
     }),
   }));
   vi.doMock('../src/main/services/review/lib/disclosure', () => ({
@@ -301,11 +303,15 @@ describe('startReview observability', () => {
     database.seedWriting();
     const events: ReviewProgressEvent[] = [];
     const startReview = await loadStartReview();
+    let observedProviderOptions: unknown;
 
     const result = await startReview(
       { writingAttemptId: 'journal_1', writingRevisionId: 'revision_1' },
       {
-        agent: successfulAgent(),
+        agent: async (request) => {
+          observedProviderOptions = request.providerOptions;
+          return successfulAgent()(request);
+        },
         hasDisclosureAcknowledgement: () => true,
         settings: {
           provider: 'openai-compatible',
@@ -313,6 +319,7 @@ describe('startReview observability', () => {
           model: 'review-model',
           providerApiKeyStatus: 'configured',
           rawResponseStorageEnabled: true,
+          reviewThinkingEnabled: false,
         },
         onProgress: (event) => events.push(event),
       },
@@ -332,9 +339,15 @@ describe('startReview observability', () => {
       'building_preview:completed',
     ]);
     expect(new Set(events.map((event) => event.runId)).size).toBe(1);
+    expect(observedProviderOptions).toEqual({
+      openai: {
+        reasoningEffort: 'none',
+      },
+    });
     expect(result.reviewRun?.summary).toMatchObject({
       resultKind: 'ready',
       errorCategory: null,
+      providerDiagnostics: null,
       rawSaved: true,
       reviewStats: {
         anchoredCorrections: 1,
@@ -374,6 +387,7 @@ describe('startReview observability', () => {
           model: 'review-model',
           providerApiKeyStatus: 'configured',
           rawResponseStorageEnabled: true,
+          reviewThinkingEnabled: false,
         },
         onProgress: (event) => events.push(event),
       },
@@ -384,6 +398,11 @@ describe('startReview observability', () => {
     expect(result.reviewRun?.summary).toMatchObject({
       resultKind: 'failed',
       errorCategory: 'timeout',
+      providerDiagnostics: {
+        errorName: 'Error',
+        errorMessage: 'Provider request timed out.',
+        failureKind: 'timeout',
+      },
       rawSaved: false,
       reviewStats: {
         anchoredCorrections: 0,
@@ -394,6 +413,228 @@ describe('startReview observability', () => {
       },
     });
     expect(database.reviewRun()?.rawOutputJson).toBeNull();
+  });
+
+  it('persists reasoning fallback diagnostics on successful review output', async () => {
+    database.reset();
+    database.seedWriting();
+    const startReview = await loadStartReview();
+    const fallbackDiagnostics: AiProviderDiagnostics = {
+      finishReason: 'stop',
+      rawFinishReason: 'stop',
+      usage: {
+        inputTokens: 100,
+        outputTokens: 900,
+        totalTokens: 1_000,
+        reasoningTokens: 850,
+        textTokens: 50,
+        cachedInputTokens: null,
+      },
+      warningCount: 1,
+      warnings: ['Provider rejected reasoningEffort none; retried without reasoningEffort.'],
+      responseId: 'response_fallback',
+      responseModelId: 'deepseek-v4-flash',
+      providerMetadataKeys: [],
+      errorName: null,
+      errorMessage: null,
+      failureKind: null,
+      reasoningEnabled: null,
+      reasoningEffort: null,
+      reasoningRequestedEffort: 'none',
+      reasoningEffectiveEffort: null,
+      reasoningFallbackUsed: true,
+      reasoningFallbackReason: 'Provider rejected reasoningEffort none; retried without reasoningEffort.',
+    };
+
+    const result = await startReview(
+      { writingAttemptId: 'journal_1', writingRevisionId: 'revision_1' },
+      {
+        agent: async (request) => ({
+          ...(await successfulAgent()(request)),
+          providerDiagnostics: fallbackDiagnostics,
+        }),
+        hasDisclosureAcknowledgement: () => true,
+        settings: {
+          provider: 'openai-compatible',
+          baseUrl: 'https://api.deepseek.com/v1',
+          model: 'deepseek-v4-flash',
+          providerApiKeyStatus: 'configured',
+          rawResponseStorageEnabled: true,
+          reviewThinkingEnabled: false,
+        },
+      },
+    );
+
+    expect(result.success).toBe(true);
+    expect(result.reviewRun?.summary?.providerDiagnostics).toMatchObject({
+      finishReason: 'stop',
+      reasoningEnabled: null,
+      reasoningEffort: null,
+      reasoningRequestedEffort: 'none',
+      reasoningEffectiveEffort: null,
+      reasoningFallbackUsed: true,
+      reasoningFallbackReason: 'Provider rejected reasoningEffort none; retried without reasoningEffort.',
+      warnings: ['Provider rejected reasoningEffort none; retried without reasoningEffort.'],
+      failureKind: null,
+    });
+  });
+
+  it('persists sanitized provider token diagnostics for long-output failures', async () => {
+    database.reset();
+    database.seedWriting();
+    const startReview = await loadStartReview();
+    const providerDiagnostics: AiProviderDiagnostics = {
+      finishReason: 'length',
+      rawFinishReason: 'length',
+      usage: {
+        inputTokens: 123,
+        outputTokens: 16_000,
+        totalTokens: 16_123,
+        reasoningTokens: 15_000,
+        textTokens: 1_000,
+        cachedInputTokens: 12,
+      },
+      warningCount: 1,
+      warnings: ['provider-warning: The model used a long reasoning budget.'],
+      responseId: 'response_length',
+      responseModelId: 'deepseek-v4-flash',
+      providerMetadataKeys: ['deepseek'],
+      errorName: 'AI_NoOutputGeneratedError',
+      errorMessage: 'Provider returned no usable output.',
+      failureKind: 'no_output',
+      reasoningEnabled: true,
+      reasoningEffort: 'medium',
+      reasoningRequestedEffort: 'medium',
+      reasoningEffectiveEffort: 'medium',
+      reasoningFallbackUsed: false,
+      reasoningFallbackReason: null,
+    };
+    let observedProviderOptions: unknown;
+
+    const result = await startReview(
+      { writingAttemptId: 'journal_1', writingRevisionId: 'revision_1' },
+      {
+        agent: async (request) => {
+          observedProviderOptions = request.providerOptions;
+          const error = new Error('No output generated.') as Error & {
+            providerDiagnostics?: AiProviderDiagnostics;
+          };
+          error.name = 'AI_NoOutputGeneratedError';
+          error.providerDiagnostics = providerDiagnostics;
+          throw error;
+        },
+        hasDisclosureAcknowledgement: () => true,
+        settings: {
+          provider: 'openai-compatible',
+          baseUrl: 'https://api.deepseek.com/v1',
+          model: 'deepseek-v4-flash',
+          providerApiKeyStatus: 'configured',
+          rawResponseStorageEnabled: true,
+          reviewThinkingEnabled: true,
+        },
+      },
+    );
+
+    expect(result).toMatchObject({
+      success: false,
+      error: 'AI service connection failed. Try again or check Settings.',
+    });
+    expect(observedProviderOptions).toEqual({
+      openai: {
+        reasoningEffort: 'medium',
+      },
+    });
+    expect(result.reviewRun?.summary?.providerDiagnostics).toMatchObject({
+      finishReason: 'length',
+      usage: {
+        outputTokens: 16_000,
+        reasoningTokens: 15_000,
+        textTokens: 1_000,
+      },
+      responseModelId: 'deepseek-v4-flash',
+      providerMetadataKeys: ['deepseek'],
+      failureKind: 'no_output',
+      reasoningEnabled: true,
+      reasoningEffort: 'medium',
+    });
+    expect(database.reviewRun()?.rawOutputJson).toBeNull();
+
+    const persistedSummary = JSON.parse(database.reviewRun()?.summaryJson ?? 'null') as ReviewRunSummary;
+    expect(persistedSummary.providerDiagnostics).toMatchObject({
+      finishReason: 'length',
+      responseId: 'response_length',
+      failureKind: 'no_output',
+    });
+  });
+
+  it('keeps raw provider body text and secrets out of persisted failure details', async () => {
+    database.reset();
+    database.seedWriting();
+    const startReview = await loadStartReview();
+    const rawProviderMessage =
+      'Provider failed (500): {"content":"Today I go home.","api_key":"sk-secret123456789","detail":"raw response body"}';
+
+    const result = await startReview(
+      { writingAttemptId: 'journal_1', writingRevisionId: 'revision_1' },
+      {
+        agent: async () => {
+          const error = new Error(rawProviderMessage) as Error & {
+            providerDiagnostics?: AiProviderDiagnostics;
+          };
+          error.providerDiagnostics = {
+            finishReason: null,
+            rawFinishReason: null,
+            usage: null,
+            warningCount: 1,
+            warnings: ['provider-warning: raw body repeated Today I go home with api_key=sk-secret123456789'],
+            responseId: null,
+            responseModelId: null,
+            providerMetadataKeys: [],
+            errorName: 'AI_APICallError',
+            errorMessage: rawProviderMessage,
+            failureKind: 'provider_error',
+            reasoningEnabled: false,
+            reasoningEffort: 'none',
+            reasoningRequestedEffort: 'none',
+            reasoningEffectiveEffort: 'none',
+            reasoningFallbackUsed: false,
+            reasoningFallbackReason: null,
+          };
+          throw error;
+        },
+        hasDisclosureAcknowledgement: () => true,
+        settings: {
+          provider: 'openai-compatible',
+          baseUrl: 'https://provider.example/v1',
+          model: 'review-model',
+          providerApiKeyStatus: 'configured',
+          rawResponseStorageEnabled: true,
+          reviewThinkingEnabled: false,
+        },
+      },
+    );
+
+    expect(result).toMatchObject({
+      success: false,
+      error: 'AI service connection failed. Try again or check Settings.',
+    });
+    expect(result.reviewRun?.validationErrors).toEqual(['AI service connection failed. Try again or check Settings.']);
+    expect(result.reviewRun?.summary?.providerDiagnostics).toMatchObject({
+      errorName: 'AI_APICallError',
+      errorMessage: 'Provider request failed.',
+      failureKind: 'provider_error',
+      warnings: ['provider-warning'],
+    });
+
+    const persistedRun = database.reviewRun();
+    const persistedSummaryText = persistedRun?.summaryJson ?? '';
+    const persistedValidationErrorsText = persistedRun?.validationErrorsJson ?? '';
+    expect(persistedSummaryText).not.toContain('Today I go home');
+    expect(persistedSummaryText).not.toContain('sk-secret');
+    expect(persistedSummaryText).not.toContain('raw response body');
+    expect(persistedValidationErrorsText).not.toContain('Today I go home');
+    expect(persistedValidationErrorsText).not.toContain('sk-secret');
+    expect(persistedRun?.rawOutputJson).toBeNull();
   });
 
   it('preserves actionable missing-key configuration errors from the selected provider', async () => {
@@ -415,6 +656,7 @@ describe('startReview observability', () => {
           model: 'claude-sonnet-4-5',
           providerApiKeyStatus: 'not-configured',
           rawResponseStorageEnabled: false,
+          reviewThinkingEnabled: false,
         },
         onProgress: (event) => events.push(event),
       },
@@ -453,6 +695,7 @@ describe('startReview observability', () => {
           model: 'review-model',
           providerApiKeyStatus: 'configured',
           rawResponseStorageEnabled: true,
+          reviewThinkingEnabled: false,
         },
         onProgress: (event) => events.push(event),
       },

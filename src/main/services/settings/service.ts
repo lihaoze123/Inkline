@@ -6,6 +6,7 @@ import {
   setOnboardingIntroVersionSeenInputSchema,
   setDefaultProviderInputSchema,
   setProviderConfigInputSchema,
+  setReviewThinkingInputSchema,
   type AiModelSettings,
   type AnthropicProviderSettings,
   type OpenAiCompatibleProviderSettings,
@@ -13,6 +14,7 @@ import {
   type SetDefaultProviderInput,
   type SetOnboardingIntroVersionSeenInput,
   type SetProviderConfigInput,
+  type SetReviewThinkingInput,
   type SetRawResponseStorageInput,
 } from '../../../shared/types/settings';
 import type { AiProviderId, ProviderCredentialStatuses } from '../../../shared/types/credentials';
@@ -27,11 +29,18 @@ const REVIEW_CONTEXT_DESCRIPTION =
 
 export type ReviewSettingsSnapshot = Pick<
   SettingsSnapshot,
-  'provider' | 'baseUrl' | 'model' | 'rawResponseStorageEnabled' | 'providerApiKeyStatus' | 'aiModelSettings'
+  | 'provider'
+  | 'baseUrl'
+  | 'model'
+  | 'rawResponseStorageEnabled'
+  | 'reviewThinkingEnabled'
+  | 'providerApiKeyStatus'
+  | 'aiModelSettings'
 >;
 
 type SettingsStore = {
   rawResponseStorageEnabled: boolean;
+  reviewThinkingEnabled: boolean;
   openAiCompatibleBaseUrl: string;
   openAiCompatibleModel: string;
   anthropicModel: string;
@@ -43,6 +52,7 @@ const store = new Store<SettingsStore>({
   name: 'settings',
   defaults: {
     rawResponseStorageEnabled: false,
+    reviewThinkingEnabled: false,
     openAiCompatibleBaseUrl: DEFAULT_OPENAI_COMPATIBLE_BASE_URL,
     openAiCompatibleModel: DEFAULT_OPENAI_COMPATIBLE_MODEL,
     anthropicModel: DEFAULT_ANTHROPIC_MODEL,
@@ -100,6 +110,7 @@ export async function getSettingsSnapshot(): Promise<SettingsSnapshot> {
     isLocalModel: defaultProvider.isLocalModel,
     reviewContextDescription: REVIEW_CONTEXT_DESCRIPTION,
     rawResponseStorageEnabled: store.get('rawResponseStorageEnabled'),
+    reviewThinkingEnabled: store.get('reviewThinkingEnabled'),
     onboardingIntroVersionSeen: store.get('onboardingIntroVersionSeen'),
     databaseLocation: getDatabasePath(),
     piMonoAuthStatus: 'not-configured',
@@ -113,6 +124,12 @@ export async function getSettingsSnapshot(): Promise<SettingsSnapshot> {
 export function setRawResponseStorage(input: SetRawResponseStorageInput): boolean {
   store.set('rawResponseStorageEnabled', input.enabled);
   return store.get('rawResponseStorageEnabled');
+}
+
+export function setReviewThinking(input: SetReviewThinkingInput): boolean {
+  const parsedInput = setReviewThinkingInputSchema.parse(input);
+  store.set('reviewThinkingEnabled', parsedInput.enabled);
+  return store.get('reviewThinkingEnabled');
 }
 
 export function setProviderConfig(

@@ -7,6 +7,7 @@ import {
   correctionStatusSchema,
   newPatternSuggestionSchema,
 } from '../review-contract/schemas';
+import { aiProviderDiagnosticsSchema } from './ai';
 import { writingAttemptSnapshotSchema } from './writing';
 
 export const acknowledgeReviewDisclosureInputSchema = z.object({
@@ -54,6 +55,7 @@ export const reviewRunSummarySchema = z.object({
   resultKind: reviewRunResultKindSchema,
   errorCategory: reviewErrorCategorySchema.nullable(),
   providerStatus: z.string().nullable(),
+  providerDiagnostics: aiProviderDiagnosticsSchema.nullable().default(null),
   reviewStats: reviewStatsSchema,
   warningCount: z.number().int().nonnegative(),
   rawSaved: z.boolean(),

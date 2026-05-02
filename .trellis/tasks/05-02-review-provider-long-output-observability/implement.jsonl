@@ -1,0 +1,14 @@
+{"file": ".trellis/spec/product/review-agent-contract.md", "reason": "Review contract and validation behavior"}
+{"file": ".trellis/spec/product/privacy-security.md", "reason": "Provider disclosure and raw response storage boundaries"}
+{"file": ".trellis/spec/product/index.md", "reason": "Product review flow context"}
+{"file": ".trellis/spec/product/validation-and-testing.md", "reason": "Review validation testing requirements"}
+{"file": ".trellis/spec/backend/error-handling.md", "reason": "Provider failure classification and recovery behavior"}
+{"file": ".trellis/spec/backend/logging.md", "reason": "Observability and logging conventions"}
+{"file": ".trellis/spec/backend/index.md", "reason": "Backend service and review procedure conventions"}
+{"file": ".trellis/spec/backend/type-safety.md", "reason": "Zod-first typing for diagnostics"}
+{"file": ".trellis/spec/shared/typescript.md", "reason": "TypeScript conventions"}
+{"file": ".trellis/spec/shared/index.md", "reason": "Shared TypeScript/code quality conventions"}
+{"file": ".trellis/spec/shared/code-quality.md", "reason": "Mandatory shared code quality rules"}
+{"file": ".trellis/spec/frontend/index.md", "reason": "Settings UI and renderer diagnostics context"}
+{"file": ".trellis/spec/frontend/components.md", "reason": "Settings toggle and details presentation guidelines"}
+{"file": ".trellis/spec/frontend/quality.md", "reason": "Frontend quality checks"}

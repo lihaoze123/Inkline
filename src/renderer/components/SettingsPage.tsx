@@ -32,6 +32,7 @@ export function SettingsPage({
   onSaveApiKey,
   onDeleteApiKey,
   onRawResponseStorageChange,
+  onReviewThinkingChange,
   onViewWelcomeIntro,
 }: SettingsPageProps): React.JSX.Element {
   const aiModelSettings = settings.aiModelSettings;
@@ -147,12 +148,28 @@ export function SettingsPage({
           </ProviderSettingsSection>
 
           <section>
-            <h2 className="editorial-copy text-2xl text-base-content">Privacy and debug</h2>
+            <h2 className="editorial-copy text-2xl text-base-content">Review behavior</h2>
             <p className="mt-2 max-w-2xl text-sm leading-6 text-base-content/55">
               Your writing stays local by default. Review sends the current writing, template context, and bounded
               learning context to your configured provider.
             </p>
             <div className="mt-5 grid gap-5">
+              <FormRow
+                label="Thinking"
+                htmlFor="review-thinking-toggle"
+                helperText="Off by default. Turning this on can make reviews much slower and may consume provider reasoning tokens."
+              >
+                <label className="flex max-w-xl cursor-pointer items-start gap-3 border-l border-info/45 pl-4">
+                  <input
+                    id="review-thinking-toggle"
+                    className="toggle toggle-info mt-1"
+                    type="checkbox"
+                    checked={settings.reviewThinkingEnabled}
+                    onChange={(event) => onReviewThinkingChange(event.target.checked)}
+                  />
+                  <span className="font-medium">Enable thinking for review calls</span>
+                </label>
+              </FormRow>
               <FormRow
                 label="Raw responses"
                 htmlFor="raw-response-storage-toggle"

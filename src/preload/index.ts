@@ -35,6 +35,7 @@ import type {
   SetDefaultProviderInput,
   SetOnboardingIntroVersionSeenInput,
   SetProviderConfigInput,
+  SetReviewThinkingInput,
   SetRawResponseStorageInput,
 } from '../shared/types/settings';
 
@@ -62,6 +63,8 @@ const api = {
     get: (): Promise<SettingsSnapshot> => ipcRenderer.invoke(IPC_CHANNELS.SETTINGS.GET),
     setRawResponseStorage: (input: SetRawResponseStorageInput): Promise<boolean> =>
       ipcRenderer.invoke(IPC_CHANNELS.SETTINGS.SET_RAW_RESPONSE_STORAGE, input),
+    setReviewThinking: (input: SetReviewThinkingInput): Promise<SettingsSnapshot> =>
+      ipcRenderer.invoke(IPC_CHANNELS.SETTINGS.SET_REVIEW_THINKING, input),
     setProviderConfig: (input: SetProviderConfigInput): Promise<SettingsSnapshot> =>
       ipcRenderer.invoke(IPC_CHANNELS.SETTINGS.SET_PROVIDER_CONFIG, input),
     setDefaultProvider: (input: SetDefaultProviderInput): Promise<SettingsSnapshot> =>

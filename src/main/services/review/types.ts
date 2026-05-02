@@ -1,5 +1,7 @@
 import { z } from 'zod';
+import type { ProviderOptions } from '@ai-sdk/provider-utils';
 import { reviewInputSchema, type ReviewInput, type ReviewOutput } from '../../../shared/review-contract/schemas';
+import { aiProviderDiagnosticsSchema } from '../../../shared/types/ai';
 import {
   startReviewInputSchema,
   startReviewOutputSchema,
@@ -21,11 +23,15 @@ export const reviewAgentRequestSchema = z.object({
   systemPrompt: z.string().min(1),
   userPrompt: z.string().min(1),
   input: reviewInputSchema,
+  providerOptions: z
+    .custom<ProviderOptions>((value) => typeof value === 'object' && value !== null && !Array.isArray(value))
+    .optional(),
 });
 
 export const reviewAgentResponseSchema = z.object({
   output: z.unknown(),
   rawOutput: z.unknown(),
+  providerDiagnostics: aiProviderDiagnosticsSchema.nullable().optional(),
 });
 
 export type ReviewAgentRequest = z.infer<typeof reviewAgentRequestSchema>;

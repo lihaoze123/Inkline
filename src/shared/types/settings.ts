@@ -65,6 +65,7 @@ export const settingsSnapshotSchema = z.object({
   isLocalModel: z.boolean(),
   reviewContextDescription: z.string().min(1),
   rawResponseStorageEnabled: z.boolean(),
+  reviewThinkingEnabled: z.boolean(),
   onboardingIntroVersionSeen: z.number().int().nonnegative(),
   databaseLocation: z.string().min(1),
   piMonoAuthStatus: z.enum(['not-configured', 'configured']),
@@ -80,6 +81,10 @@ export const settingsSnapshotSchema = z.object({
 });
 
 export const setRawResponseStorageInputSchema = z.object({
+  enabled: z.boolean(),
+});
+
+export const setReviewThinkingInputSchema = z.object({
   enabled: z.boolean(),
 });
 
@@ -116,6 +121,7 @@ export type AiProviderSettingsMap = z.infer<typeof aiProviderSettingsMapSchema>;
 export type AiModelSettings = z.infer<typeof aiModelSettingsSchema>;
 export type SettingsSnapshot = z.infer<typeof settingsSnapshotSchema>;
 export type SetRawResponseStorageInput = z.infer<typeof setRawResponseStorageInputSchema>;
+export type SetReviewThinkingInput = z.infer<typeof setReviewThinkingInputSchema>;
 export type SetProviderConfigInput = z.input<typeof setProviderConfigInputSchema>;
 export type ParsedSetProviderConfigInput = z.infer<typeof setProviderConfigInputSchema>;
 export type SetDefaultProviderInput = z.infer<typeof setDefaultProviderInputSchema>;

@@ -1,4 +1,6 @@
 import { z } from 'zod';
+import type { ProviderOptions } from '@ai-sdk/provider-utils';
+import { aiProviderDiagnosticsSchema } from '../../../shared/types/ai';
 
 export const aiProviderIdSchema = z.enum(['openai-compatible', 'anthropic']);
 
@@ -23,11 +25,15 @@ export const aiGenerationRequestSchema = z.object({
   maxOutputTokens: z.number().int().positive().optional(),
   timeoutMs: z.number().int().positive().optional(),
   maxRetries: z.number().int().nonnegative().optional(),
+  providerOptions: z
+    .custom<ProviderOptions>((value) => typeof value === 'object' && value !== null && !Array.isArray(value))
+    .optional(),
 });
 
 export const aiGenerationResultSchema = z.object({
   output: z.unknown(),
   rawOutput: z.unknown(),
+  providerDiagnostics: aiProviderDiagnosticsSchema.nullable().optional(),
   provider: aiProviderIdSchema,
   model: z.string().min(1),
 });

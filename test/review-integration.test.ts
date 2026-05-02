@@ -119,14 +119,24 @@ describe('review agent integration contracts', () => {
 
   it('calls the shared AI SDK structured generation boundary', async () => {
     const output = validOutputFor('Today I go home.');
+    let observedMaxOutputTokens: number | undefined;
+    let observedTimeoutMs: number | undefined;
+    let observedProviderOptions: unknown;
     const generateStructured = async <Output>(
       input: Parameters<typeof generateStructuredObject<Output>>[0],
-    ): Promise<Awaited<ReturnType<typeof generateStructuredObject<Output>>>> => ({
-      output: output as Output,
-      rawOutput: { response: 'metadata' },
-      provider: input.runtimeConfig.provider,
-      model: input.runtimeConfig.model,
-    });
+    ): Promise<Awaited<ReturnType<typeof generateStructuredObject<Output>>>> => {
+      observedMaxOutputTokens = input.maxOutputTokens;
+      observedTimeoutMs = input.timeoutMs;
+      observedProviderOptions = input.providerOptions;
+
+      return {
+        output: output as Output,
+        rawOutput: { response: 'metadata' },
+        providerDiagnostics: null,
+        provider: input.runtimeConfig.provider,
+        model: input.runtimeConfig.model,
+      };
+    };
     const createOpenAiCompatibleReviewAgent = await loadCreateOpenAiCompatibleReviewAgent();
     const agent = createOpenAiCompatibleReviewAgent({
       generateStructured,
@@ -149,6 +159,62 @@ describe('review agent integration contracts', () => {
 
     expect(response.output).toMatchObject({ summary: { focusPattern: { correctionIndex: 0 } } });
     expect(response.rawOutput).toMatchObject({ response: 'metadata' });
+    expect(response.providerDiagnostics).toBeNull();
+    expect(observedMaxOutputTokens).toBe(16_000);
+    expect(observedTimeoutMs).toBe(1_000);
+    expect(observedProviderOptions).toEqual({
+      openai: {
+        reasoningEffort: 'none',
+      },
+    });
+  });
+
+  it('uses medium reasoning effort when review thinking is enabled', async () => {
+    const output = validOutputFor('Today I go home.');
+    let observedProviderOptions: unknown;
+    const generateStructured = async <Output>(
+      input: Parameters<typeof generateStructuredObject<Output>>[0],
+    ): Promise<Awaited<ReturnType<typeof generateStructuredObject<Output>>>> => {
+      observedProviderOptions = input.providerOptions;
+
+      return {
+        output: output as Output,
+        rawOutput: { response: 'metadata' },
+        providerDiagnostics: null,
+        provider: input.runtimeConfig.provider,
+        model: input.runtimeConfig.model,
+      };
+    };
+    const createOpenAiCompatibleReviewAgent = await loadCreateOpenAiCompatibleReviewAgent();
+    const agent = createOpenAiCompatibleReviewAgent({
+      generateStructured,
+      apiKey: 'test-key',
+      baseUrl: 'https://provider.example/v1',
+      model: 'review-model',
+      timeoutMs: 1_000,
+    });
+
+    await agent({
+      systemPrompt: REVIEW_SYSTEM_PROMPT,
+      userPrompt: 'Return JSON.',
+      input: buildBoundedReviewInput({
+        writingContent: 'Today I go home.',
+        contentHash: contentHash('Today I go home.'),
+        date: '2026-04-29',
+        existingPatterns: [],
+      }),
+      providerOptions: {
+        openai: {
+          reasoningEffort: 'medium',
+        },
+      },
+    });
+
+    expect(observedProviderOptions).toEqual({
+      openai: {
+        reasoningEffort: 'medium',
+      },
+    });
   });
 
   it('returns a clear error when the provider key is missing', async () => {

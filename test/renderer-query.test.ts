@@ -155,6 +155,7 @@ function makeSettingsSnapshot(): SettingsSnapshot {
     isLocalModel: false,
     reviewContextDescription: 'Test context',
     rawResponseStorageEnabled: false,
+    reviewThinkingEnabled: false,
     onboardingIntroVersionSeen: 1,
     databaseLocation: '/tmp/english-coach.db',
     piMonoAuthStatus: 'not-configured',

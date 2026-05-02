@@ -14,6 +14,7 @@ export const IPC_CHANNELS = {
   SETTINGS: {
     GET: 'settings:get',
     SET_RAW_RESPONSE_STORAGE: 'settings:setRawResponseStorage',
+    SET_REVIEW_THINKING: 'settings:setReviewThinking',
     SET_PROVIDER_CONFIG: 'settings:setProviderConfig',
     SET_DEFAULT_PROVIDER: 'settings:setDefaultProvider',
     SET_ONBOARDING_INTRO_VERSION_SEEN: 'settings:setOnboardingIntroVersionSeen',
