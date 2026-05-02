@@ -1,0 +1,7 @@
+{"file": ".trellis/spec/frontend/index.md", "reason": "Renderer component/style guidelines for window chrome spacing and drag-region styling."}
+{"file": ".trellis/spec/frontend/css-design.md", "reason": "CSS design constraints for polished responsive UI changes."}
+{"file": ".trellis/spec/frontend/electron-browser-api-restrictions.md", "reason": "Ensure renderer chrome changes do not use forbidden Electron/browser APIs directly."}
+{"file": ".trellis/spec/frontend/ipc-electron.md", "reason": "Relevant Electron renderer/preload boundary guidance if shell metadata is exposed."}
+{"file": ".trellis/spec/backend/index.md", "reason": "Main-process conventions for Electron window configuration changes."}
+{"file": ".trellis/spec/shared/code-quality.md", "reason": "Shared quality expectations for scoped implementation."}
+{"file": ".trellis/spec/shared/typescript.md", "reason": "TypeScript style and type-safety rules for Electron option helpers."}

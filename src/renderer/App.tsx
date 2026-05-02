@@ -674,6 +674,7 @@ function PracticePage({ initialWriting, settings, startup }: PracticePageProps):
 
   return (
     <main className="app-chrome min-h-screen overflow-hidden text-base-content">
+      <div className="app-window-drag-strip" aria-hidden="true" />
       <div className="relative grid h-screen grid-cols-[19.5rem_minmax(0,1fr)]">
         <nav
           className="quiet-sidebar relative z-10 flex flex-col overflow-hidden border-r border-base-300/45 px-9 py-9"
@@ -711,7 +712,7 @@ function PracticePage({ initialWriting, settings, startup }: PracticePageProps):
         >
           <AppInkDecoration activeArea={activeArea} />
           <div
-            className={`relative z-10 mx-auto flex min-h-screen flex-col px-10 py-9 ${
+            className={`app-content-shell relative z-10 mx-auto flex min-h-screen flex-col px-10 py-9 ${
               activeArea === 'write' || activeArea === 'feedback' ? 'max-w-[74rem] 2xl:max-w-[83rem]' : 'max-w-[69rem]'
             }`}
           >

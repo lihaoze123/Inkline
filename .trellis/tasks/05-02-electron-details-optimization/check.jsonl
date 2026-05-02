@@ -1,0 +1,6 @@
+{"file": ".trellis/spec/frontend/index.md", "reason": "Verify renderer UI/style changes against frontend conventions."}
+{"file": ".trellis/spec/frontend/css-design.md", "reason": "Verify chrome blending and drag-region styling quality."}
+{"file": ".trellis/spec/frontend/electron-browser-api-restrictions.md", "reason": "Verify renderer changes preserve Electron security boundaries."}
+{"file": ".trellis/spec/backend/index.md", "reason": "Verify Electron main-process changes follow backend/main-process conventions."}
+{"file": ".trellis/spec/shared/code-quality.md", "reason": "General quality gate for scoped implementation."}
+{"file": ".trellis/spec/shared/typescript.md", "reason": "Typecheck and TypeScript quality review."}

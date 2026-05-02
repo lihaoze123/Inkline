@@ -1,8 +1,13 @@
 import { app, BrowserWindow } from 'electron';
+import type { BrowserWindowConstructorOptions } from 'electron';
 import './env-setup';
 import path from 'node:path';
 import { runMigrations } from './db/migrate';
 import { registerIpcHandlers } from './ipc/handlers';
+
+const WINDOW_BACKGROUND_COLOR = '#faf8f3';
+const WINDOW_CONTROL_SYMBOL_COLOR = '#242936';
+const WINDOW_TITLE_BAR_HEIGHT = 40;
 
 let mainWindow: BrowserWindow | null = null;
 
@@ -14,6 +19,51 @@ function getWindowIconPath(): string {
   return path.join(app.getAppPath(), 'resources', 'icon.png');
 }
 
+type NativeShellOptions = Pick<
+  BrowserWindowConstructorOptions,
+  | 'autoHideMenuBar'
+  | 'backgroundColor'
+  | 'backgroundMaterial'
+  | 'titleBarOverlay'
+  | 'titleBarStyle'
+  | 'trafficLightPosition'
+>;
+
+function getNativeShellOptions(): NativeShellOptions {
+  const sharedOptions: NativeShellOptions = {
+    backgroundColor: WINDOW_BACKGROUND_COLOR,
+  };
+
+  if (process.platform === 'darwin') {
+    return {
+      ...sharedOptions,
+      titleBarStyle: 'hiddenInset',
+      trafficLightPosition: { x: 18, y: 18 },
+    };
+  }
+
+  const titleBarOverlay = {
+    color: WINDOW_BACKGROUND_COLOR,
+    symbolColor: WINDOW_CONTROL_SYMBOL_COLOR,
+    height: WINDOW_TITLE_BAR_HEIGHT,
+  };
+
+  if (process.platform === 'win32') {
+    return {
+      ...sharedOptions,
+      autoHideMenuBar: true,
+      backgroundMaterial: 'none',
+      titleBarOverlay,
+      titleBarStyle: 'hidden',
+    };
+  }
+
+  return {
+    ...sharedOptions,
+    autoHideMenuBar: true,
+  };
+}
+
 function createWindow(): void {
   const iconPath = process.platform === 'darwin' ? undefined : getWindowIconPath();
 
@@ -23,6 +73,7 @@ function createWindow(): void {
     minWidth: 860,
     minHeight: 620,
     title: 'Inkline',
+    ...getNativeShellOptions(),
     ...(iconPath ? { icon: iconPath } : {}),
     webPreferences: {
       preload: path.join(__dirname, 'preload.cjs'),
@@ -31,6 +82,10 @@ function createWindow(): void {
       sandbox: true,
     },
   });
+
+  if (process.platform !== 'darwin') {
+    mainWindow.setMenuBarVisibility(false);
+  }
 
   if (MAIN_WINDOW_VITE_DEV_SERVER_URL) {
     void mainWindow.loadURL(MAIN_WINDOW_VITE_DEV_SERVER_URL);
