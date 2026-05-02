@@ -1,7 +1,7 @@
 import type { ForgeConfig } from '@electron-forge/shared-types';
 import { MakerDeb } from '@electron-forge/maker-deb';
+import { MakerDMG } from '@electron-forge/maker-dmg';
 import { MakerSquirrel } from '@electron-forge/maker-squirrel';
-import { MakerZIP } from '@electron-forge/maker-zip';
 import { VitePlugin } from '@electron-forge/plugin-vite';
 import { MakerAppImage } from '@reforged/maker-appimage';
 import { cp, mkdir } from 'node:fs/promises';
@@ -45,7 +45,9 @@ const config: ForgeConfig = {
     new MakerSquirrel({
       setupIcon: icoIconPath,
     }),
-    new MakerZIP({}, ['darwin']),
+    new MakerDMG({
+      format: 'ULFO',
+    }),
     new MakerDeb({
       options: {
         icon: pngIconPath,

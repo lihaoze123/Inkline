@@ -17,6 +17,8 @@ Fix the GitHub Actions App Build workflow failure from run `25245022408` so Wind
 * The user clarified that build outputs should be platform-specific installer/package formats, not just simple packaged app directories.
 * The user clarified that Linux should output DEB and AppImage only.
 * The user clarified that release-triggered builds should attach generated packages to the GitHub Release, not only upload temporary Actions artifacts.
+* The user observed that the macOS release asset is currently a ZIP, because `forge.config.ts` configures `MakerZIP` for `darwin`.
+* The user wants the Apple/macOS release artifact changed to a DMG.
 
 ## Assumptions
 
@@ -36,6 +38,7 @@ Fix the GitHub Actions App Build workflow failure from run `25245022408` so Wind
 * Add Linux AppImage maker support.
 * Ensure Linux CI installs AppImage maker system dependencies.
 * Ensure Linux artifacts include DEB and AppImage outputs only for Linux.
+* Ensure macOS release artifacts are DMG installers instead of ZIP archives.
 * When triggered by a published GitHub Release, upload generated platform packages to that release as release assets.
 * Keep Actions artifacts for workflow-dispatch/manual build downloads and debugging.
 * Preserve the existing App Build workflow triggers and matrix behavior.
@@ -47,6 +50,8 @@ Fix the GitHub Actions App Build workflow failure from run `25245022408` so Wind
 * [ ] `package.json` includes package metadata needed by configured makers.
 * [ ] `forge.config.ts` no longer configures the RPM maker.
 * [ ] `forge.config.ts` configures DEB and AppImage for Linux.
+* [ ] `forge.config.ts` configures a macOS DMG maker instead of the Darwin ZIP maker.
+* [ ] `package.json` includes the Electron Forge DMG maker dependency needed by `pnpm make`.
 * [ ] `.github/workflows/app-build.yml` installs Linux dependencies needed for DEB and AppImage creation.
 * [ ] `.github/workflows/app-build.yml` grants the minimum release asset upload permission needed for release-triggered runs.
 * [ ] Release-triggered build jobs upload generated files under `out/make/**` to the triggering GitHub Release.
@@ -74,3 +79,4 @@ Fix the GitHub Actions App Build workflow failure from run `25245022408` so Wind
 * Electron Forge official makers cover DEB and RPM; AppImage support is handled by a third-party Forge maker.
 * `@reforged/maker-appimage` requires `mksquashfs`, available from Ubuntu's `squashfs-tools` package.
 * `gh release upload` needs `contents: write`, the target release tag from `github.event.release.tag_name`, and an explicit `--repo "${GITHUB_REPOSITORY}"` when running in a job without checkout.
+* Current macOS release asset `english-coach-darwin-arm64-0.1.0.zip` reflects `MakerZIP({}, ['darwin'])`; replacing it with Electron Forge's DMG maker should make release upload pick up the generated `.dmg` from `out/make/**`.
