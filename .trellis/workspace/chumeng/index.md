@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-1.md`
-- **Total Sessions**: 28
+- **Total Sessions**: 29
 - **Last Active**: 2026-05-02
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-1.md` | ~970 | Active |
+| `journal-1.md` | ~1004 | Active |
 <!-- @@@/auto:active-documents -->
 
 ---
@@ -29,6 +29,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 29 | 2026-05-02 | Rewrite-check evaluator service | `1c59a0b`, `f406204` | `rewrite-check-evaluator-service` |
 | 28 | 2026-05-02 | Rewrite-check contract baseline | `cc4733b` | `rewrite-check-contract-persistence` |
 | 27 | 2026-05-02 | Fix macOS release asset packaging | `b55d0c3` | `fix/macos-dmg-release-asset` |
 | 27 | 2026-05-02 | Update README progress | `0bcf1d7`, `c813517` | `edit-readme` |
