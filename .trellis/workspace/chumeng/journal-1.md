@@ -786,3 +786,39 @@ Compared the legacy english-journal-coach skill against recent journal examples,
 ### Next Steps
 
 - None - task complete
+
+
+## Session 24: DevTools workflow usability verification
+
+**Date**: 2026-05-02
+**Task**: DevTools workflow usability verification
+**Branch**: `main`
+
+### Summary
+
+Verified the Inkline workflow through Chrome DevTools MCP, fixed Electron startup DB directory creation and stale rewrite-practice cache state, documented the contracts, and restored the formatter baseline.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `ed62fd5` | (see git log) |
+| `7e88ce4` | (see git log) |
+| `0ac7bdb` | (see git log) |
+| `d6662c6` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
