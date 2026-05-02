@@ -7,9 +7,9 @@ Merge the rewrite-check contract, backend evaluator, and feedback UI slices into
 ## Dependency / Worktree Plan
 
 - Depends on these child tasks being ready to merge:
-  - `05-02-rewrite-check-contract-persistence`
-  - `05-02-rewrite-check-evaluator-service`
-  - `05-02-rewrite-check-feedback-ui`
+  - `05-02-rewrite-check-contract-persistence` (already merged as PR #13)
+  - `05-02-rewrite-check-evaluator-service` (merged as PR #15)
+  - `05-02-rewrite-check-feedback-ui` (merged as PR #14)
 - Suggested branch/worktree name after the three slices are ready: `rewrite-check-integration-hardening`.
 - This is intentionally not parallel with the other slices; it is the final convergence task.
 
@@ -25,14 +25,14 @@ Merge the rewrite-check contract, backend evaluator, and feedback UI slices into
 
 ## Acceptance Criteria
 
-- [ ] Contract, backend, and UI branches merge without unresolved schema/type drift.
-- [ ] End-to-end flow works for successful check outcomes.
-- [ ] End-to-end flow works for provider/check failure and retry.
-- [ ] Existing review save creates D+1 rewrite tasks as before.
-- [ ] Existing skip behavior remains intact.
-- [ ] `pnpm check` passes.
-- [ ] Relevant tests pass, including rewrite-practice service/contract/renderer coverage.
-- [ ] Manual UI smoke test is performed or the reason it could not be performed is documented.
+- [x] Contract, backend, and UI branches merge without unresolved schema/type drift.
+- [x] End-to-end flow works for successful check outcomes.
+- [x] End-to-end flow works for provider/check failure and retry.
+- [x] Existing review save creates D+1 rewrite tasks as before.
+- [x] Existing skip behavior remains intact.
+- [x] `pnpm check` passes.
+- [x] Relevant tests pass, including rewrite-practice service/contract/renderer coverage.
+- [x] Manual UI smoke test is performed or the reason it could not be performed is documented.
 
 ## Definition of Done
 
@@ -55,7 +55,14 @@ Merge the rewrite-check contract, backend evaluator, and feedback UI slices into
 - Rewrite task lifecycle enhancements beyond ensuring skip remains stable.
 - Release packaging work.
 
+## Verification
+
+- PR #15 and PR #14 were merged after PR #13, with contract drift checked across shared writing schemas, IPC channels, preload API, main service handlers, renderer cache, and feedback UI.
+- `pnpm check` passes, including format check, lint, typecheck, 116 Vitest tests, and review contract harness.
+- Rewrite-check success outcomes are covered by rewrite-practice service tests for `correct`, `partly_correct`, and `incorrect`, plus contract and renderer-query coverage for latest-check payload handling.
+- Xvfb Electron/CDP smoke passed using an isolated app profile and seeded D+1 rewrite task. It verified renderer `window.api`, due practice display, submit persistence on evaluator failure, native model reveal after submit, retry of a persisted retryable attempt without false transport error, and removal of completed rewrite practice from the pending slot.
+
 ## Technical Notes
 
-- Highest conflict files are likely `src/shared/types/writing.ts`, `src/main/services/writing/service.ts`, `src/renderer/App.tsx`, and `src/renderer/components/LearningPanel.tsx`.
-- Manual smoke should cover at least submit success, retryable failure, and skip if test data/provider setup permits.
+- Highest conflict files were `src/shared/types/writing.ts`, `src/main/services/writing/service.ts`, `src/renderer/App.tsx`, and `src/renderer/components/LearningPanel.tsx`.
+- Manual UI smoke covered provider/check failure and retry under Xvfb; successful evaluator outcomes are verified by automated service/contract/renderer tests because the local smoke profile has no configured AI provider.
