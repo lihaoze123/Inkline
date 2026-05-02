@@ -775,11 +775,10 @@ export async function retryRewriteCheck(input: RetryRewriteCheckInput): Promise<
   const check = await evaluateRewriteCheck(task, userRewriteText);
   const writing = getWritingForRewriteTask(task);
   return {
-    success: check.status === 'completed',
+    success: true,
     writing,
     rewritePractice: rewriteTaskToSnapshot(task),
     rewriteCheck: rewriteCheckToSnapshot(check),
-    error: check.status === 'completed' ? undefined : (check.errorMessage ?? 'Rewrite check failed.'),
   };
 }
 

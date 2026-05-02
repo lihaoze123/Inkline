@@ -461,6 +461,30 @@ describe('rewrite practice service updates', () => {
     expect(mocks.generateStructuredObject.mock.calls[0]?.[0].userPrompt).toContain('I went home.');
   });
 
+  it('returns persisted retryable retry attempts as successful transport results', async () => {
+    fakeDatabase.reset();
+    fakeDatabase.seedPracticeWithPendingRewrite();
+    mocks.generateStructuredObject.mockRejectedValueOnce(new Error('temporary network failure'));
+    const completeRewritePractice = await loadCompleteRewritePractice();
+    await completeRewritePractice({ rewriteTaskId: 'rewrite_1', userRewriteText: 'I went home.' });
+
+    mocks.generateStructuredObject.mockClear();
+    mocks.generateStructuredObject.mockRejectedValueOnce(new Error('temporary retry failure'));
+    const retryRewriteCheck = await loadRetryRewriteCheck();
+
+    const result = await retryRewriteCheck({ rewriteTaskId: 'rewrite_1' });
+
+    expect(result.success).toBe(true);
+    expect(result.error).toBeUndefined();
+    expect(result.rewriteCheck).toMatchObject({
+      status: 'retryable',
+      outcome: null,
+      errorMessage: 'AI service connection failed while checking this rewrite. Try again or check Settings.',
+    });
+    expect(result.rewritePractice?.latestRewriteCheck).toMatchObject({ status: 'retryable', outcome: null });
+    expect(fakeDatabase.rewriteChecks()).toHaveLength(2);
+  });
+
   it('removes skipped rewrite practice from the pending practice slot', async () => {
     fakeDatabase.reset();
     fakeDatabase.seedPracticeWithPendingRewrite();
