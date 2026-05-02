@@ -3,7 +3,7 @@
   "name": "rewrite-check-contract-persistence",
   "title": "Rewrite-check contract and persistence",
   "description": "Add rewrite_checks storage and shared rewrite-check result contracts as the baseline for parallel rewrite-check work.",
-  "status": "planning",
+  "status": "in_progress",
   "dev_type": null,
   "scope": null,
   "package": null,

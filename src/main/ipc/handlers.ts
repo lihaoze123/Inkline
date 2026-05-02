@@ -32,6 +32,8 @@ import {
   generateStarterPromptInputSchema,
   generateStarterPromptResultSchema,
   getWritingAttemptInputSchema,
+  retryRewriteCheckInputSchema,
+  retryRewriteCheckResultSchema,
   rewritePracticeUpdateResultSchema,
   saveWritingAttemptInputSchema,
   saveWritingAttemptResultSchema,
@@ -51,6 +53,7 @@ import {
   completeRewritePractice,
   generateStarterPrompt,
   getWritingAttempt,
+  retryRewriteCheck,
   saveWritingAttempt,
   skipRewritePractice,
 } from '../services/writing/service';
@@ -115,6 +118,11 @@ export function registerIpcHandlers(migrationResult: MigrationResult): void {
   ipcMain.handle(IPC_CHANNELS.WRITING.SKIP_REWRITE_PRACTICE, (_event, input: unknown): unknown => {
     const parsedInput = skipRewritePracticeInputSchema.parse(input);
     return rewritePracticeUpdateResultSchema.parse(skipRewritePractice(parsedInput));
+  });
+
+  ipcMain.handle(IPC_CHANNELS.WRITING.RETRY_REWRITE_CHECK, (_event, input: unknown): unknown => {
+    const parsedInput = retryRewriteCheckInputSchema.parse(input);
+    return retryRewriteCheckResultSchema.parse(retryRewriteCheck(parsedInput));
   });
 
   ipcMain.handle(IPC_CHANNELS.SETTINGS.GET, async (): Promise<unknown> => {

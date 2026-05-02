@@ -21,6 +21,7 @@ corrections
 self_repair_attempts
 reference_rewrites
 rewrite_tasks
+rewrite_checks
 error_patterns
 notebook_entries
 ```
@@ -241,6 +242,24 @@ completed
 skipped
 snoozed
 expired
+```
+
+Rewrite check status:
+
+```text
+pending
+in_progress
+completed
+failed
+retryable
+```
+
+Rewrite check outcome:
+
+```text
+correct
+partly_correct
+incorrect
 ```
 
 Self-repair result:
@@ -546,6 +565,155 @@ const practice = completedRewritePractice ?? writing.pendingRewritePractice;
 ```
 
 The pending Practice slot stays empty after completion, while the completed task remains available long enough to show the native model result.
+
+## Scenario: Rewrite Check Attempt Baseline
+
+### 1. Scope / Trigger
+
+- Trigger: Any task that changes rewrite-check persistence, `RewritePracticeSnapshot.latestRewriteCheck`, rewrite-check retry IPC, or shared rewrite-check contracts.
+- This is a cross-layer contract: rewrite task completion -> SQLite `rewrite_checks` attempts -> shared Zod schemas -> preload IPC -> renderer state.
+
+### 2. Signatures
+
+DB table:
+
+```text
+rewrite_checks(
+  id text primary key,
+  rewrite_task_id text not null references rewrite_tasks(id) on delete cascade,
+  status text not null default 'pending',
+  outcome text null,
+  feedback text null,
+  provider text null,
+  model text null,
+  validation_errors_json text null,
+  error_message text null,
+  diagnostics_json text null,
+  created_at integer timestamp_ms not null,
+  updated_at integer timestamp_ms not null,
+  completed_at integer timestamp_ms null,
+  check status in ('pending', 'in_progress', 'completed', 'failed', 'retryable'),
+  check outcome is null or outcome in ('correct', 'partly_correct', 'incorrect'),
+  check completed rows have an outcome and non-completed rows do not
+)
+```
+
+Shared snapshot:
+
+```ts
+type RewriteCheckSnapshot = {
+  id: string;
+  rewriteTaskId: string;
+  status: 'pending' | 'in_progress' | 'completed' | 'failed' | 'retryable';
+  outcome: 'correct' | 'partly_correct' | 'incorrect' | null;
+  feedback: { message: string; nextStep?: string } | null;
+  provider: string | null;
+  model: string | null;
+  validationErrors: string[] | null;
+  errorMessage: string | null;
+  diagnostics: Record<string, unknown> | null;
+  createdAt: number;
+  updatedAt: number;
+  completedAt: number | null;
+};
+```
+
+API shape:
+
+```ts
+type RewritePracticeSnapshot = {
+  latestRewriteCheck: RewriteCheckSnapshot | null;
+};
+
+type CompleteRewritePracticeResult = RewritePracticeUpdateResult;
+
+window.api.writing.retryRewriteCheck({ rewriteTaskId: string }): Promise<RetryRewriteCheckResult>;
+
+type RetryRewriteCheckResult = {
+  success: boolean;
+  writing?: WritingAttemptSnapshot;
+  rewritePractice?: RewritePracticeSnapshot | null;
+  rewriteCheck?: RewriteCheckSnapshot | null;
+  error?: string;
+};
+```
+
+### 3. Contracts
+
+- Each evaluation attempt is a separate `rewrite_checks` row. Do not overwrite `rewrite_tasks` with evaluation outcome or feedback.
+- `rewrite_tasks.status` remains the practice lifecycle; `rewrite_checks.status` is the evaluator lifecycle.
+- `latestRewriteCheck` is nullable and derived from the latest check row for the task, ordered by creation/update time.
+- `completed` checks must carry exactly one outcome: `correct`, `partly_correct`, or `incorrect`.
+- Non-completed checks must keep `outcome = null`; retryable/failure explanation belongs in `errorMessage`, `validationErrors`, or `diagnostics`.
+- Baseline contract work may expose retry channel/preload/result shapes, but it must not call an evaluator or render feedback UI unless the task PRD says so.
+- All timestamp fields crossing IPC are Unix milliseconds numbers, not ISO strings.
+
+### 4. Validation & Error Matrix
+
+| Condition | Behavior |
+| --- | --- |
+| `rewriteTaskId` is blank at IPC/service boundary | Reject through shared Zod validation; do not create a check row. |
+| No check row exists for a rewrite task | Expose `latestRewriteCheck: null`; keep rewrite practice completion/skip behavior unchanged. |
+| Check status is `completed` with `outcome = null` | Reject through shared Zod validation and SQL check constraint. |
+| Check status is not `completed` with a non-null outcome | Reject through shared Zod validation and SQL check constraint. |
+| Persisted `validation_errors_json` is malformed | Expose `validationErrors: null` rather than leaking parse failure to renderer state. |
+| Persisted `diagnostics_json` is malformed or not an object | Expose `diagnostics: null`. |
+| Retry endpoint exists before evaluator implementation | Return `{ success: false, error }`; do not create a fake evaluator result. |
+
+### 5. Good/Base/Bad Cases
+
+- Good: Completing rewrite practice returns the completed practice snapshot and, when a completed check row exists, `latestRewriteCheck` with outcome, concise feedback, provider, model, and millisecond timestamps.
+- Base: A rewrite task with no checks still completes/skips exactly as before and exposes `latestRewriteCheck: null`.
+- Base: A retryable check stores `status = 'retryable'`, `outcome = null`, and diagnostic/error metadata for later retry/debugging.
+- Bad: Adding `check_outcome` or feedback columns directly to `rewrite_tasks`, so repeated attempts overwrite history.
+- Bad: Treating a `retryable` check as `incorrect`; evaluator failure and learner outcome are different states.
+
+### 6. Tests Required
+
+- Migration/schema test:
+  - Assert `rewrite_checks` exists, references `rewrite_tasks`, cascades on delete, and has status/outcome check constraints.
+  - Assert provider/model, validation error, error message, diagnostics, and timestamp columns exist.
+- Shared contract test:
+  - Assert all baseline check statuses parse.
+  - Assert completed checks require an outcome.
+  - Assert non-completed checks reject outcomes.
+  - Assert retry input/result payloads parse without evaluator behavior.
+- Service test:
+  - Assert rewrite practice snapshots include `latestRewriteCheck: null` when no row exists.
+  - Assert the latest existing check maps database strings/JSON/timestamps into `RewriteCheckSnapshot`.
+  - Assert complete/skip behavior is unchanged except for nullable latest-check exposure.
+- IPC/preload contract test:
+  - Assert retry channel/preload signatures use shared input/result schemas and do not call an evaluator in the baseline task.
+
+### 7. Wrong vs Correct
+
+#### Wrong
+
+```typescript
+await db.update(rewriteTasks).set({
+  status: 'completed',
+  checkOutcome: 'incorrect',
+  checkFeedback: 'Try again.',
+});
+```
+
+This collapses practice lifecycle and evaluator lifecycle into one row and loses attempt history.
+
+#### Correct
+
+```typescript
+await db.insert(rewriteChecks).values({
+  id: checkId,
+  rewriteTaskId,
+  status: 'completed',
+  outcome: 'partly_correct',
+  feedback: 'The tense is repaired, but article use still needs attention.',
+  provider,
+  model,
+});
+```
+
+The rewrite task remains the durable practice item, and each evaluator attempt becomes auditable retry/debug history.
 
 ## Scenario: Review Preview Payload and Save Boundary
 

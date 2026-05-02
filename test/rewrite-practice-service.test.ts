@@ -1,9 +1,10 @@
 import { describe, expect, it, vi } from 'vitest';
-import { writingAttempts, writingRevisions, reviewRuns, rewriteTasks } from '../src/main/db/schema';
+import { writingAttempts, writingRevisions, reviewRuns, rewriteChecks, rewriteTasks } from '../src/main/db/schema';
 import type {
   writingAttempts as writingAttemptsTable,
   writingRevisions as writingRevisionsTable,
   reviewRuns as reviewRunsTable,
+  rewriteChecks as rewriteChecksTable,
   rewriteTasks as rewriteTasksTable,
 } from '../src/main/db/schema';
 import type { db as appDatabase } from '../src/main/db/client';
@@ -16,14 +17,16 @@ type AppDatabase = typeof appDatabase;
 type WritingAttemptRow = typeof writingAttemptsTable.$inferSelect;
 type WritingRevisionRow = typeof writingRevisionsTable.$inferSelect;
 type ReviewRunRow = typeof reviewRunsTable.$inferSelect;
+type RewriteCheckRow = typeof rewriteChecksTable.$inferSelect;
 type RewriteTaskRow = typeof rewriteTasksTable.$inferSelect;
-type StoredRow = WritingAttemptRow | WritingRevisionRow | ReviewRunRow | RewriteTaskRow;
-type TableName = 'writingAttempts' | 'writingRevisions' | 'reviewRuns' | 'rewriteTasks';
+type StoredRow = WritingAttemptRow | WritingRevisionRow | ReviewRunRow | RewriteCheckRow | RewriteTaskRow;
+type TableName = 'writingAttempts' | 'writingRevisions' | 'reviewRuns' | 'rewriteChecks' | 'rewriteTasks';
 
 type RowStore = {
   writingAttempts: WritingAttemptRow[];
   writingRevisions: WritingRevisionRow[];
   reviewRuns: ReviewRunRow[];
+  rewriteChecks: RewriteCheckRow[];
   rewriteTasks: RewriteTaskRow[];
 };
 
@@ -40,6 +43,7 @@ const tableNames = new Map<object, TableName>([
   [writingAttempts, 'writingAttempts'],
   [writingRevisions, 'writingRevisions'],
   [reviewRuns, 'reviewRuns'],
+  [rewriteChecks, 'rewriteChecks'],
   [rewriteTasks, 'rewriteTasks'],
 ]);
 
@@ -131,6 +135,24 @@ class FakeWritingDatabase {
     this.store.rewriteTasks.push(createPendingRewriteTask('rewrite_1'));
   }
 
+  seedCompletedRewriteCheck(): void {
+    this.store.rewriteChecks.push({
+      id: 'rewrite_check_1',
+      rewriteTaskId: 'rewrite_1',
+      status: 'completed',
+      outcome: 'correct',
+      feedback: 'Good repair.',
+      provider: 'test-provider',
+      model: 'test-model',
+      validationErrorsJson: null,
+      errorMessage: null,
+      diagnosticsJson: null,
+      createdAt: now,
+      updatedAt: now,
+      completedAt: now,
+    });
+  }
+
   rewriteTask(id: string): RewriteTaskRow | undefined {
     return this.store.rewriteTasks.find((task) => task.id === id);
   }
@@ -161,6 +183,10 @@ class FakeWritingDatabase {
       return new QueryResult(this.store.writingAttempts.filter((row) => row.id === value || row.dateKey === value));
     }
 
+    if (table === 'rewriteChecks') {
+      return new QueryResult(this.store.rewriteChecks.filter((row) => row.id === value || row.rewriteTaskId === value));
+    }
+
     return new QueryResult(rows.filter((row) => row.id === value));
   }
 
@@ -186,8 +212,8 @@ class QueryResult {
     return [...this.rows];
   }
 
-  orderBy(): { all: () => StoredRow[] } {
-    return { all: () => [...this.rows] };
+  orderBy(): { all: () => StoredRow[]; get: () => StoredRow | undefined } {
+    return { all: () => [...this.rows], get: () => this.rows[0] };
   }
 }
 
@@ -223,6 +249,25 @@ describe('rewrite practice service updates', () => {
       status: 'completed',
       userRewriteText: 'I went home.',
       completedAt: now,
+    });
+  });
+
+  it('exposes the latest rewrite check snapshot when present', async () => {
+    fakeDatabase.reset();
+    fakeDatabase.seedPracticeWithPendingRewrite();
+    fakeDatabase.seedCompletedRewriteCheck();
+    const completeRewritePractice = await loadCompleteRewritePractice();
+
+    const result = completeRewritePractice({ rewriteTaskId: 'rewrite_1', userRewriteText: 'I went home.' });
+
+    expect(result.success).toBe(true);
+    expect(result.rewritePractice?.latestRewriteCheck).toMatchObject({
+      id: 'rewrite_check_1',
+      status: 'completed',
+      outcome: 'correct',
+      feedback: { message: 'Good repair.' },
+      provider: 'test-provider',
+      model: 'test-model',
     });
   });
 
@@ -264,6 +309,7 @@ function emptyStore(): RowStore {
     writingAttempts: [],
     writingRevisions: [],
     reviewRuns: [],
+    rewriteChecks: [],
     rewriteTasks: [],
   };
 }
