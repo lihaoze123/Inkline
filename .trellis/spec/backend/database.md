@@ -171,6 +171,9 @@ export function runMigrations() {
 - Database path: `getDatabasePath(): string`
   - Returns `path.join(app.getPath('userData'), 'english-coach.sqlite')`.
   - Dev/prod isolation comes from `env-setup` changing `app.getPath('userData')` before database initialization.
+- SQLite open precondition:
+  - Create `path.dirname(getDatabasePath())` with `mkdirSync(..., { recursive: true })` before constructing `new Database(...)`.
+  - Do not assume Electron has already created the nested dev `userData` directory; startup must be able to create it on first launch.
 - Client exports:
   - `export const db = drizzle(sqlite, { schema })`
   - `export { sqlite }`
@@ -227,6 +230,7 @@ type MigrationResult =
 ### 6. Tests Required
 
 - Database contract test:
+  - Assert a missing `userData` parent directory is created before the SQLite constructor opens the database file.
   - Assert migration SQL creates all required v0.1 foundation tables.
   - Assert timestamp defaults use millisecond precision.
   - Assert foreign keys exist for review/correction/rewrite relationships.

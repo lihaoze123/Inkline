@@ -165,6 +165,7 @@ export const queryKeys = {
     snapshot: ['settings'] as const,
   },
   writing: {
+    attempts: ['writing', 'attempt'] as const,
     attempt: (templateId: WritingTemplateId) => ['writing', 'attempt', templateId] as const,
   },
   review: {
@@ -208,6 +209,7 @@ export function useSetProviderConfig(): UseMutationResult<SettingsSnapshot, Erro
 - Query functions call the typed preload API only, e.g. `window.api.writing.getWritingAttempt({ templateId })`. Renderer query hooks must not import Electron, Node APIs, database modules, or main-process services.
 - Query keys must include every input that changes returned data. For example, writing attempt data is keyed by `templateId`, while review preview data is keyed by `reviewRunId`.
 - Settings are a singleton snapshot keyed by `queryKeys.settings.snapshot`; successful settings/config mutations should update that cache when they return a fresh snapshot, and credential mutations should invalidate it when the snapshot must be refetched.
+- Template-scoped writing snapshots may also contain app-global derived fields such as `pendingRewritePractice`. Mutations that complete or skip rewrite practice must update that field across all cached `queryKeys.writing.attempts` entries, not only the template associated with the returned writing snapshot.
 - Local IPC query defaults should be conservative:
   - `retry: false`
   - `refetchOnWindowFocus: false`
@@ -226,16 +228,19 @@ export function useSetProviderConfig(): UseMutationResult<SettingsSnapshot, Erro
 | Mutation succeeds but affects related data not returned in response | `invalidateQueries({ queryKey })` refetches the affected cache entries. |
 | Review start emits progress events while also returning snapshots | Keep progress events in local React state; cache the final run/preview snapshots by `reviewRunId`. |
 | Provider credential mutation succeeds but does not return a full settings snapshot | Invalidate `queryKeys.settings.snapshot` so credential status refetches. |
+| Rewrite-practice completion/skip returns a writing snapshot for a different template than the active editor | Update `pendingRewritePractice` across all cached writing attempts using the `queryKeys.writing.attempts` prefix. |
 | Autosave mutation fails | Keep local draft state unchanged and show autosave error state. |
 | Query key omits an input such as `templateId` or `reviewRunId` | This is invalid because cache entries can bleed across templates/entities/runs. |
 
 ### 5. Good/Base/Bad Cases
 
 - Good: `useWritingAttempt({ templateId })` calls `window.api.writing.getWritingAttempt({ templateId })`, keys by `['writing', 'attempt', templateId]`, and autosave writes the returned snapshot into that same cache key.
+- Good: `completeRewritePractice` writes the returned template snapshot to its specific key and propagates the returned global `pendingRewritePractice` value to every cached `['writing', 'attempt', *]` entry.
 - Good: settings/provider mutations that return `SettingsSnapshot` update `queryKeys.settings.snapshot`; credential-only mutations invalidate that singleton settings key.
 - Base: A review-start mutation invalidates the active writing-attempt query after review state changes because the mutation flow does not directly own every derived field, while the progress event stream remains local state.
 - Bad: A component stores IPC snapshots in `useState` and manually tracks loading/error/saved state when a query/mutation hook would provide the same lifecycle.
 - Bad: A query key like `['writing', 'attempt']` is reused for Journal, CET-4, CET-6, and Free Writing.
+- Bad: Completing a due rewrite task only updates the returned task's template cache, leaving the active template's Progress summary stuck on `Waiting`.
 - Bad: An autosave failure replaces the editor's local draft with stale cached content.
 
 ### 6. Tests Required
@@ -247,6 +252,7 @@ export function useSetProviderConfig(): UseMutationResult<SettingsSnapshot, Erro
   - Assert entity-specific keys include all identity inputs such as `templateId`.
 - Mutation cache update test where practical:
   - Assert a successful mutation writes the returned snapshot to the expected query key or invalidates the expected key.
+  - Assert rewrite-practice complete/skip updates `pendingRewritePractice` across multiple cached writing-attempt keys.
 - Manual Electron smoke:
   - Launch the app through Electron, not only browser Vite, and verify initial load plus the changed query/mutation path.
 
