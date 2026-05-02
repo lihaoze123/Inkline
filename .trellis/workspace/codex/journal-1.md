@@ -39,3 +39,38 @@ Generated a new square Inkline icon, removed the chroma-key background to preser
 ### Next Steps
 
 - None - task complete
+
+
+## Session 2: Add CI build workflow
+
+**Date**: 2026-05-02
+**Task**: Add CI build workflow
+**Branch**: `add-ci-workflow`
+
+### Summary
+
+Added a tag/release-triggered and manually dispatchable GitHub Actions workflow that builds Electron Forge distributables on Windows, macOS, and Linux; documented pnpm 10.23 build-script approvals for Electron CI and archived the Trellis task context.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `f7be366` | (see git log) |
+| `76413e5` | (see git log) |
+| `e5d6f71` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete

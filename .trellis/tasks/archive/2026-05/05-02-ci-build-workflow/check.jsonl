@@ -1,0 +1,5 @@
+{"_example": "Fill with {\"file\": \"<path>\", \"reason\": \"<why>\"}. Put spec/research files only — no code paths. Run `python3 .trellis/scripts/get_context.py --mode packages` to list available specs. Delete this line once real entries are added."}
+{"file": ".trellis/spec/shared/index.md", "reason": "Shared project conventions and quality checklist entry point"}
+{"file": ".trellis/spec/shared/pnpm-electron-setup.md", "reason": "Electron + pnpm packaging and CI setup constraints to verify"}
+{"file": ".trellis/spec/big-question/native-module-packaging.md", "reason": "Native module packaging constraints for Electron Forge artifact verification"}
+{"file": ".trellis/tasks/05-02-ci-build-workflow/research/electron-forge-actions-build.md", "reason": "Research-backed expected workflow shape and artifact caveats"}
