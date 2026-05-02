@@ -1,0 +1,8 @@
+{"file":".trellis/spec/product/roadmap.md","reason":"Verify backend stays within first rewrite-check milestone."}
+{"file":".trellis/spec/product/learning-flow.md","reason":"Verify learning outcome semantics are correct."}
+{"file":".trellis/spec/product/privacy-security.md","reason":"Verify diagnostics/raw output handling does not violate privacy expectations."}
+{"file":".trellis/spec/product/validation-and-testing.md","reason":"Verify test coverage for provider success/failure and retry."}
+{"file":".trellis/spec/backend/error-handling.md","reason":"Verify provider and validation failures are handled consistently."}
+{"file":".trellis/spec/backend/quality.md","reason":"Backend quality gate context."}
+{"file":".trellis/spec/guides/transaction-consistency-guide.md","reason":"Verify durable ordering of rewrite save and check attempt persistence."}
+{"file":".trellis/spec/shared/code-quality.md","reason":"General code quality review context."}

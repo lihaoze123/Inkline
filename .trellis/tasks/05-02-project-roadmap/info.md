@@ -46,6 +46,15 @@ The first implementation milestone should create a durable rewrite-check signal 
    - Render checking, checked, partly-correct, incorrect, and retryable failure states.
    - Keep corrections as annotations only; never auto-rewrite the user's text.
 
+## Parallel Worktree Split
+
+- `05-02-rewrite-check-contract-persistence`: first baseline branch. Owns schema, migration, shared writing contracts, channel/API shape, and contract tests. It should avoid evaluator and renderer behavior beyond nullable/latest-check exposure.
+- `05-02-rewrite-check-evaluator-service`: backend branch from the baseline. Owns AI evaluator prompt/service, submit-time check attempt persistence, failure diagnostics, retry endpoint, and service/IPC tests.
+- `05-02-rewrite-check-feedback-ui`: frontend branch from the baseline. Owns React Query mutation state, App/LearningPanel props, checking/result/retry UI, and renderer tests with mocked API responses.
+- `05-02-rewrite-check-integration-hardening`: final convergence branch. Owns merge conflict resolution, shared contract drift fixes, full quality gates, and manual smoke verification.
+
+Expected conflict hotspots: `src/shared/types/writing.ts`, `src/shared/constants/channels.ts`, `src/preload/index.ts`, `src/main/services/writing/service.ts`, `src/renderer/App.tsx`, and `src/renderer/components/LearningPanel.tsx`.
+
 ## Long-Term Architecture Implications
 
 - A future learning event log is likely useful before advanced analytics, mastery transitions, Drill Center, or Anki Sync. It would prevent later features from inferring user progress from scattered task/status fields.

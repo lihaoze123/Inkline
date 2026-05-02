@@ -1,0 +1,8 @@
+{"file":".trellis/spec/product/roadmap.md","reason":"Roadmap source for rewrite-check-first scope and deferrals."}
+{"file":".trellis/spec/product/learning-flow.md","reason":"Product semantics for review, rewrite, learning outcomes, and reuse signals."}
+{"file":".trellis/spec/product/data-model-contract.md","reason":"Data model constraints for durable learning assets and cross-layer contracts."}
+{"file":".trellis/spec/backend/database.md","reason":"Database and migration conventions for Drizzle/SQLite changes."}
+{"file":".trellis/spec/guides/db-schema-change-guide.md","reason":"Checklist for schema and migration changes."}
+{"file":".trellis/spec/guides/cross-layer-thinking-guide.md","reason":"Shared type and persistence changes affect main, preload, and renderer boundaries."}
+{"file":".trellis/spec/backend/type-safety.md","reason":"Type-safety expectations for schema and service contracts."}
+{"file":".trellis/spec/shared/typescript.md","reason":"Shared TypeScript conventions for exported contracts."}

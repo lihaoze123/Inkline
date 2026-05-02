@@ -1,0 +1,8 @@
+{"file":".trellis/spec/product/roadmap.md","reason":"Roadmap source for final rewrite-check-first acceptance and deferrals."}
+{"file":".trellis/spec/product/learning-flow.md","reason":"End-to-end learning outcome semantics."}
+{"file":".trellis/spec/product/validation-and-testing.md","reason":"Integration quality and manual validation expectations."}
+{"file":".trellis/spec/guides/cross-layer-thinking-guide.md","reason":"Integration spans shared contracts, main process, preload, and renderer."}
+{"file":".trellis/spec/guides/semantic-change-checklist.md","reason":"Ensure final merged behavior matches intended product semantics."}
+{"file":".trellis/spec/backend/quality.md","reason":"Backend quality context for final checks."}
+{"file":".trellis/spec/frontend/quality.md","reason":"Frontend quality context for final checks."}
+{"file":".trellis/spec/shared/code-quality.md","reason":"General code quality review context."}

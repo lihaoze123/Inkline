@@ -18,7 +18,12 @@
   "commit": null,
   "pr_url": null,
   "subtasks": [],
-  "children": [],
+  "children": [
+    "05-02-rewrite-check-contract-persistence",
+    "05-02-rewrite-check-evaluator-service",
+    "05-02-rewrite-check-feedback-ui",
+    "05-02-rewrite-check-integration-hardening"
+  ],
   "parent": null,
   "relatedFiles": [],
   "notes": "",

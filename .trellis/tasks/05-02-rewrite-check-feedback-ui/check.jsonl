@@ -1,0 +1,7 @@
+{"file":".trellis/spec/product/roadmap.md","reason":"Verify UI stays within rewrite-check feedback scope."}
+{"file":".trellis/spec/product/learning-flow.md","reason":"Verify UI copy does not misrepresent mastery/success semantics."}
+{"file":".trellis/spec/product/validation-and-testing.md","reason":"Verify renderer tests/smoke cover key UI states."}
+{"file":".trellis/spec/frontend/components.md","reason":"Verify component conventions and visual consistency."}
+{"file":".trellis/spec/frontend/state-management.md","reason":"Verify mutation/cache/local state handling."}
+{"file":".trellis/spec/frontend/quality.md","reason":"Frontend quality gate context."}
+{"file":".trellis/spec/shared/code-quality.md","reason":"General code quality review context."}
