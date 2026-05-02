@@ -56,9 +56,7 @@ export function WritingEditorCard({
             </summary>
             <div className="mt-4 grid gap-4">
               {generatedPrompt ? (
-                <p className="max-w-3xl text-sm leading-6 text-base-content/70">
-                  {generatedPrompt.text}
-                </p>
+                <p className="max-w-3xl text-sm leading-6 text-base-content/70">{generatedPrompt.text}</p>
               ) : (
                 <p className="max-w-xl text-sm leading-6 text-base-content/50">
                   Generate a starter topic, skip it, or write from your own intention.
@@ -80,7 +78,11 @@ export function WritingEditorCard({
           {starterPromptError ? (
             <div className="border-l border-error/40 py-1 pl-4 text-sm leading-6 text-error">
               <span>{starterPromptError}</span>
-              <button type="button" className="btn btn-outline btn-error btn-xs ml-3 rounded-lg" onClick={onGenerateStarterPrompt}>
+              <button
+                type="button"
+                className="btn btn-outline btn-error btn-xs ml-3 rounded-lg"
+                onClick={onGenerateStarterPrompt}
+              >
                 Retry
               </button>
             </div>

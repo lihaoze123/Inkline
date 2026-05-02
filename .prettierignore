@@ -5,6 +5,7 @@ dist
 coverage
 src/renderer/.vite
 .claude
+.agents
 .trellis
 pnpm-lock.yaml
 *.log

@@ -257,7 +257,9 @@ function ReviewProgressCard({ progress }: { progress: ReviewProgressModel }): Re
           />
         ))}
       </ol>
-      {showSlowHint ? <p className="text-xs leading-5 text-base-content/42">Taking longer than usual — you can keep writing.</p> : null}
+      {showSlowHint ? (
+        <p className="text-xs leading-5 text-base-content/42">Taking longer than usual — you can keep writing.</p>
+      ) : null}
     </section>
   );
 }
