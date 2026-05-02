@@ -819,6 +819,213 @@ Keep Linux maker outputs aligned with the product requirement: DEB plus AppImage
 
 ---
 
+## Scenario: Release-Triggered Electron Forge Asset Uploads
+
+### 1. Scope / Trigger
+
+- Trigger: A GitHub Actions workflow builds Electron Forge distributables from `out/make/**` and is triggered by a published GitHub Release.
+- The workflow should keep temporary Actions artifacts for manual downloads and debugging, while also attaching generated distributables to the triggering Release.
+
+### 2. Signatures
+
+Workflow permissions:
+
+```yaml
+permissions:
+  contents: read
+
+jobs:
+  build:
+    # Inherits repository-level contents: read.
+    # Build jobs keep Actions artifacts for every trigger.
+
+  release-assets:
+    if: github.event_name == 'release' && github.event.action == 'published'
+    permissions:
+      actions: read
+      contents: write
+```
+
+Release asset upload job:
+
+```yaml
+release-assets:
+  name: Upload release assets
+  needs: build
+  if: github.event_name == 'release' && github.event.action == 'published'
+  runs-on: ubuntu-latest
+  permissions:
+    actions: read
+    contents: write
+
+  steps:
+    - name: Download build artifacts
+      uses: actions/download-artifact@v4
+      with:
+        pattern: electron-forge-*-${{ github.run_id }}-${{ github.run_attempt }}
+        path: release-assets
+
+    - name: Upload release assets
+      shell: bash
+      env:
+        GH_TOKEN: ${{ github.token }}
+        RELEASE_TAG: ${{ github.event.release.tag_name }}
+      run: |
+        set -euo pipefail
+
+        assets=()
+        duplicate_asset_names=0
+        declare -A seen_asset_names=()
+
+        while IFS= read -r -d '' asset; do
+          asset_name="$(basename "${asset}")"
+
+          if [[ -n "${seen_asset_names[${asset_name}]:-}" ]]; then
+            echo "::error ::Duplicate release asset name '${asset_name}' from '${asset}' and '${seen_asset_names[${asset_name}]}'"
+            duplicate_asset_names=1
+          else
+            seen_asset_names["${asset_name}"]="${asset}"
+          fi
+
+          assets+=("${asset}")
+        done < <(find release-assets -type f -print0 | sort -z)
+
+        if [ "${#assets[@]}" -eq 0 ]; then
+          echo "No release assets found in downloaded build artifacts" >&2
+          exit 1
+        fi
+
+        if [ "${duplicate_asset_names}" -ne 0 ]; then
+          exit 1
+        fi
+
+        gh release upload "${RELEASE_TAG}" "${assets[@]}" --clobber
+```
+
+### 3. Contracts
+
+| Item | Constraint |
+| --- | --- |
+| Release upload trigger | Gate release asset upload on `github.event_name == 'release' && github.event.action == 'published'`. |
+| Release tag | Use `github.event.release.tag_name`; do not infer the release from branch or ref names. |
+| Token env var | Set `GH_TOKEN: ${{ github.token }}` for GitHub CLI commands. |
+| Permissions | Keep repository-level default as `contents: read`; grant `contents: write` only to a release-only upload job. If that job downloads build artifacts, also grant `actions: read`. |
+| Actions artifacts | Keep `actions/upload-artifact` for all build triggers so manual and debug downloads still work. |
+| Asset source | Upload files generated under `out/make`. If a separate release job is used, pass those files through Actions artifacts and upload the downloaded artifact contents, not packaged app directories outside maker output. |
+| Matrix upload safety | Do not let concurrent matrix jobs upload directly to the same Release. Use one upload job, and fail if two files would produce the same Release asset filename. |
+
+### 4. Validation & Error Matrix
+
+| Condition | Behavior |
+| --- | --- |
+| Release upload runs without `contents: write` | `gh release upload` fails with insufficient permissions. |
+| `GH_TOKEN` is omitted | GitHub CLI cannot authenticate in the runner. |
+| Release tag is inferred from `github.ref_name` | Release event behavior can diverge from tag push behavior; use `github.event.release.tag_name`. |
+| Actions artifact upload is replaced by release upload | Manual workflow dispatch and debugging lose temporary downloadable artifacts. |
+| Matrix jobs upload release assets directly | Concurrent uploads can race, and duplicate basenames can clobber each other. Use one release-only upload job. |
+| Two downloaded files share the same basename | `gh release upload` would target the same asset name; fail before upload and rename maker outputs or artifact contents deliberately. |
+
+### 5. Good/Base/Bad Cases
+
+- Good: Each matrix build uploads `out/make` files as an Actions artifact, and a single published-release-only job downloads those artifacts and attaches the generated files to the GitHub Release.
+- Base: A workflow-dispatch build uploads only Actions artifacts.
+- Bad: Every build matrix job has `contents: write` and uploads directly to the same Release.
+- Bad: A release-triggered build requires a separate manual download from Actions instead of attaching installer assets to the Release.
+
+### 6. Tests Required
+
+- Static workflow check: verify release upload is conditional on published Release events and uses `GH_TOKEN`.
+- Static permission check: verify `contents: write` is scoped to the release-only upload job.
+- Static concurrency check: verify matrix jobs do not upload directly to the Release and duplicate asset filenames fail before upload.
+- Local syntax/formatting check: run the project's formatter check after editing workflow YAML.
+
+### 7. Wrong vs Correct
+
+#### Wrong
+
+```yaml
+permissions:
+  contents: read
+
+- name: Upload release assets
+  if: github.event_name == 'release'
+  run: gh release upload "${{ github.ref_name }}" out/make/**
+```
+
+This lacks release upload permission, does not authenticate `gh`, and infers the target release from the ref instead of the Release event payload.
+
+#### Also Wrong
+
+```yaml
+jobs:
+  build:
+    permissions:
+      contents: write
+
+    steps:
+      - name: Upload release assets
+        if: github.event_name == 'release' && github.event.action == 'published'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+        run: |
+          set -euo pipefail
+
+          assets=()
+          while IFS= read -r -d '' asset; do
+            assets+=("${asset}")
+          done < <(find out/make -type f -print0)
+
+          if [ "${#assets[@]}" -eq 0 ]; then
+            echo "No release assets found under out/make" >&2
+            exit 1
+          fi
+
+          gh release upload "${RELEASE_TAG}" "${assets[@]}" --clobber
+```
+
+This gives every matrix build write permission and lets multiple jobs upload to the same Release concurrently.
+
+#### Correct
+
+```yaml
+jobs:
+  build:
+    steps:
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: electron-forge-${{ matrix.artifact-name }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: out/make/**
+          if-no-files-found: error
+
+  release-assets:
+    needs: build
+    if: github.event_name == 'release' && github.event.action == 'published'
+    permissions:
+      actions: read
+      contents: write
+
+    steps:
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: electron-forge-*-${{ github.run_id }}-${{ github.run_attempt }}
+          path: release-assets
+
+      - name: Upload release assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+        run: |
+          set -euo pipefail
+          # Collect files, fail on duplicate basenames, then upload with gh release upload.
+```
+
+Grant write permission only to the release-only upload job, authenticate GitHub CLI with `GH_TOKEN`, target the exact published Release tag, and serialize release asset uploads after the matrix build finishes.
+
+---
+
 ## Scenario: Electron Forge App Icon Resources
 
 ### 1. Scope / Trigger
