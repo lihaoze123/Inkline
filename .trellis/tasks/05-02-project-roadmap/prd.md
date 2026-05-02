@@ -53,6 +53,7 @@ Define Inkline's next product roadmap from the current v0.1/v0.2 state so future
 - [x] Out-of-scope items are explicit for the next milestone.
 - [x] The user confirms the roadmap direction before implementation tasks are created.
 - [x] Confirmed roadmap is recorded in `.trellis/spec/product/roadmap.md`.
+- [x] First rewrite-check milestone is decomposed into worktree-friendly child tasks.
 
 ## Definition of Done
 
@@ -137,6 +138,15 @@ Define Inkline's next product roadmap from the current v0.1/v0.2 state so future
 - Persist check status/outcome/feedback and expose the latest check in rewrite-practice snapshots.
 - Update the submit UI to show checking, result, and retryable evaluation failure.
 - Keep task completion separate from learning success: `completed` task status does not imply `correct` outcome.
+
+#### Parallel Worktree Decomposition
+
+1. `05-02-rewrite-check-contract-persistence` — baseline task. Add `rewrite_checks`, migrations, shared result contracts, and minimal IPC/preload-facing contract shape. Merge this first.
+2. `05-02-rewrite-check-evaluator-service` — backend task. Branch from the contract baseline, implement evaluator prompt/service, submit-time persistence, failed-check state, and retry.
+3. `05-02-rewrite-check-feedback-ui` — frontend task. Branch from the contract baseline, render checking/result/retry states against the shared contract, and keep UI copy aligned with learning semantics.
+4. `05-02-rewrite-check-integration-hardening` — convergence task. Merge backend and frontend slices, resolve shared-contract drift, and run final quality/manual smoke checks.
+
+Recommended worktree order: land task 1 first, develop tasks 2 and 3 in parallel from task 1's commit, then finish with task 4.
 
 ### Milestone 2: Rewrite Task Lifecycle
 

@@ -1,0 +1,8 @@
+{"file":".trellis/spec/product/roadmap.md","reason":"Roadmap source for persisted feedback UI scope and deferrals."}
+{"file":".trellis/spec/product/learning-flow.md","reason":"UI copy must preserve learning outcome semantics."}
+{"file":".trellis/spec/frontend/components.md","reason":"Component conventions for the rewrite-practice UI."}
+{"file":".trellis/spec/frontend/state-management.md","reason":"Renderer state and React Query mutation handling conventions."}
+{"file":".trellis/spec/frontend/ipc-electron.md","reason":"Renderer/preload IPC usage conventions."}
+{"file":".trellis/spec/frontend/react-pitfalls.md","reason":"Avoid stale state and mutation-state pitfalls."}
+{"file":".trellis/spec/frontend/type-safety.md","reason":"Frontend prop and shared-contract type expectations."}
+{"file":".trellis/spec/product/privacy-security.md","reason":"UI should not leak provider diagnostics unnecessarily."}

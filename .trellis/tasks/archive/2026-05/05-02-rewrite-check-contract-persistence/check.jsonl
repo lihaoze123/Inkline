@@ -1,0 +1,7 @@
+{"file":".trellis/spec/product/roadmap.md","reason":"Verify implementation stays within rewrite-check-first milestone."}
+{"file":".trellis/spec/product/data-model-contract.md","reason":"Verify durable data model semantics for rewrite checks."}
+{"file":".trellis/spec/product/validation-and-testing.md","reason":"Verify tests cover contract and schema behavior."}
+{"file":".trellis/spec/backend/database.md","reason":"Verify database and migration conventions."}
+{"file":".trellis/spec/guides/db-schema-change-guide.md","reason":"Verify schema-change checklist was followed."}
+{"file":".trellis/spec/shared/typescript.md","reason":"Verify shared TypeScript contract quality."}
+{"file":".trellis/spec/shared/code-quality.md","reason":"General code quality review context."}

@@ -180,9 +180,36 @@ export const rewriteTasks = sqliteTable('rewrite_tasks', {
     .default(sql`(unixepoch() * 1000)`),
 });
 
+export const rewriteChecks = sqliteTable('rewrite_checks', {
+  id: text('id').primaryKey(),
+  rewriteTaskId: text('rewrite_task_id')
+    .notNull()
+    .references(() => rewriteTasks.id, { onDelete: 'cascade' }),
+  status: text('status', { enum: ['pending', 'in_progress', 'completed', 'failed', 'retryable'] })
+    .notNull()
+    .default('pending'),
+  outcome: text('outcome', { enum: ['correct', 'partly_correct', 'incorrect'] }),
+  feedback: text('feedback'),
+  provider: text('provider'),
+  model: text('model'),
+  validationErrorsJson: text('validation_errors_json'),
+  errorMessage: text('error_message'),
+  diagnosticsJson: text('diagnostics_json'),
+  createdAt: integer('created_at', { mode: 'timestamp_ms' })
+    .notNull()
+    .default(sql`(unixepoch() * 1000)`),
+  updatedAt: integer('updated_at', { mode: 'timestamp_ms' })
+    .notNull()
+    .default(sql`(unixepoch() * 1000)`)
+    .$onUpdate(() => new Date()),
+  completedAt: integer('completed_at', { mode: 'timestamp_ms' }),
+});
+
 export type WritingAttempt = typeof writingAttempts.$inferSelect;
 export type InsertWritingAttempt = typeof writingAttempts.$inferInsert;
 export type WritingRevision = typeof writingRevisions.$inferSelect;
 export type InsertWritingRevision = typeof writingRevisions.$inferInsert;
 export type ReviewRun = typeof reviewRuns.$inferSelect;
 export type InsertReviewRun = typeof reviewRuns.$inferInsert;
+export type RewriteCheck = typeof rewriteChecks.$inferSelect;
+export type InsertRewriteCheck = typeof rewriteChecks.$inferInsert;

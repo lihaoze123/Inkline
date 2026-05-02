@@ -10,6 +10,7 @@ export const IPC_CHANNELS = {
     ACKNOWLEDGE_STARTER_PROMPT_DISCLOSURE: 'practice:acknowledgeStarterPromptDisclosure',
     COMPLETE_REWRITE_PRACTICE: 'practice:completeRewritePractice',
     SKIP_REWRITE_PRACTICE: 'practice:skipRewritePractice',
+    RETRY_REWRITE_CHECK: 'practice:retryRewriteCheck',
   },
   SETTINGS: {
     GET: 'settings:get',

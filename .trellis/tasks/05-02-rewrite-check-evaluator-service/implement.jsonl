@@ -1,0 +1,10 @@
+{"file":".trellis/spec/product/roadmap.md","reason":"Roadmap source for rewrite-check evaluator scope and deferrals."}
+{"file":".trellis/spec/product/learning-flow.md","reason":"Learning outcome semantics for correct, partly correct, and incorrect checks."}
+{"file":".trellis/spec/product/review-agent-contract.md","reason":"Existing structured AI review contract patterns to mirror without overexpanding."}
+{"file":".trellis/spec/product/privacy-security.md","reason":"Provider diagnostics and raw output storage must respect local-first/privacy expectations."}
+{"file":".trellis/spec/backend/api-patterns.md","reason":"Main-process service and IPC conventions."}
+{"file":".trellis/spec/backend/error-handling.md","reason":"Provider/config/validation failures need consistent retryable handling."}
+{"file":".trellis/spec/backend/type-safety.md","reason":"Evaluator output and service result types must be validated."}
+{"file":".trellis/spec/backend/database.md","reason":"Persistence of check attempts must follow database conventions."}
+{"file":".trellis/spec/guides/transaction-consistency-guide.md","reason":"Saving submitted text and check attempts crosses persistence boundaries."}
+{"file":".trellis/spec/shared/typescript.md","reason":"TypeScript quality conventions for backend and shared contracts."}

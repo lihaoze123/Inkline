@@ -1,0 +1,8 @@
+{"file":".trellis/spec/product/roadmap.md","reason":"Verify final milestone implementation matches roadmap scope."}
+{"file":".trellis/spec/product/learning-flow.md","reason":"Verify task completion and learning success are not conflated."}
+{"file":".trellis/spec/product/validation-and-testing.md","reason":"Verify quality gates and manual validation coverage."}
+{"file":".trellis/spec/guides/cross-layer-thinking-guide.md","reason":"Verify cross-layer contract consistency."}
+{"file":".trellis/spec/guides/semantic-change-checklist.md","reason":"Verify no unintended semantic drift after merging slices."}
+{"file":".trellis/spec/backend/quality.md","reason":"Backend quality review context."}
+{"file":".trellis/spec/frontend/quality.md","reason":"Frontend quality review context."}
+{"file":".trellis/spec/shared/code-quality.md","reason":"General code quality review context."}

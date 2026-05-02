@@ -1,0 +1,98 @@
+import { describe, expect, it } from 'vitest';
+import {
+  retryRewriteCheckInputSchema,
+  retryRewriteCheckResultSchema,
+  rewriteCheckSnapshotSchema,
+  rewriteCheckStatusSchema,
+  rewritePracticeSnapshotSchema,
+} from '../src/shared/types/writing';
+
+const completedRewriteCheck = {
+  id: 'rewrite_check_1',
+  rewriteTaskId: 'rewrite_1',
+  status: 'completed',
+  outcome: 'partly_correct',
+  feedback: { message: 'The tense is repaired, but the article still needs attention.' },
+  provider: 'anthropic',
+  model: 'claude-sonnet-4-5',
+  validationErrors: null,
+  errorMessage: null,
+  diagnostics: { validationStatus: 'valid' },
+  createdAt: 1777410000000,
+  updatedAt: 1777410001000,
+  completedAt: 1777410001000,
+} as const;
+
+const rewritePractice = {
+  id: 'rewrite_1',
+  reviewRunId: 'review_1',
+  originalSentence: 'Yesterday I go home.',
+  focusPattern: 'Use past tense for completed actions.',
+  nativeModelSentence: 'Yesterday I went home.',
+  prompt: 'Rewrite the original sentence.',
+  practiceKind: 'rewrite_original',
+  spacedStage: 'D+1',
+  status: 'completed',
+  userRewriteText: 'Yesterday I went home.',
+  latestRewriteCheck: completedRewriteCheck,
+  dueAt: 1777496400000,
+  createdAt: 1777410000000,
+  isOlderThanSevenDays: false,
+} as const;
+
+describe('rewrite-check shared writing contracts', () => {
+  it('accepts all baseline rewrite-check status values', () => {
+    expect(rewriteCheckStatusSchema.options).toEqual(['pending', 'in_progress', 'completed', 'failed', 'retryable']);
+  });
+
+  it('accepts completed checks with a learning outcome and diagnostics metadata', () => {
+    expect(rewriteCheckSnapshotSchema.parse(completedRewriteCheck)).toMatchObject({
+      status: 'completed',
+      outcome: 'partly_correct',
+      feedback: { message: 'The tense is repaired, but the article still needs attention.' },
+      provider: 'anthropic',
+      model: 'claude-sonnet-4-5',
+    });
+  });
+
+  it('rejects non-completed checks that carry an outcome', () => {
+    const result = rewriteCheckSnapshotSchema.safeParse({
+      ...completedRewriteCheck,
+      status: 'retryable',
+      outcome: 'incorrect',
+      completedAt: null,
+    });
+
+    expect(result.success).toBe(false);
+  });
+
+  it('rejects completed checks without an outcome', () => {
+    const result = rewriteCheckSnapshotSchema.safeParse({
+      ...completedRewriteCheck,
+      outcome: null,
+    });
+
+    expect(result.success).toBe(false);
+  });
+
+  it('allows pending practice snapshots to expose nullable latest rewrite-check state', () => {
+    expect(rewritePracticeSnapshotSchema.parse({ ...rewritePractice, latestRewriteCheck: null })).toMatchObject({
+      latestRewriteCheck: null,
+    });
+    expect(rewritePracticeSnapshotSchema.parse(rewritePractice).latestRewriteCheck).toMatchObject({
+      id: 'rewrite_check_1',
+      outcome: 'partly_correct',
+    });
+  });
+
+  it('defines retry input and result payload shapes without requiring evaluator behavior', () => {
+    expect(retryRewriteCheckInputSchema.parse({ rewriteTaskId: 'rewrite_1' })).toEqual({ rewriteTaskId: 'rewrite_1' });
+    expect(
+      retryRewriteCheckResultSchema.parse({
+        success: false,
+        rewriteCheck: null,
+        error: 'Rewrite-check retry is not implemented yet.',
+      }),
+    ).toMatchObject({ success: false, rewriteCheck: null });
+  });
+});

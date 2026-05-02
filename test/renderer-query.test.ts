@@ -51,6 +51,7 @@ describe('renderer query configuration', () => {
       spacedStage: 'D+1',
       status: 'pending',
       userRewriteText: null,
+      latestRewriteCheck: null,
       dueAt: 1777546800000,
       createdAt: 1777460400000,
       isOlderThanSevenDays: false,

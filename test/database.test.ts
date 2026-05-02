@@ -43,4 +43,21 @@ describe('database foundation migration', () => {
     expect(migrationSql).toContain('FOREIGN KEY (`review_run_id`) REFERENCES `review_runs`(`id`)');
     expect(migrationSql).not.toContain('api_key');
   });
+
+  it('defines durable rewrite-check attempts linked to rewrite tasks', () => {
+    const migrationSql = readFileSync(path.resolve(process.cwd(), 'drizzle/0007_rewrite_checks.sql'), 'utf8');
+
+    expect(migrationSql).toContain('CREATE TABLE `rewrite_checks`');
+    expect(migrationSql).toContain('FOREIGN KEY (`rewrite_task_id`) REFERENCES `rewrite_tasks`(`id`)');
+    expect(migrationSql).toContain(
+      "CHECK (`status` IN ('pending', 'in_progress', 'completed', 'failed', 'retryable'))",
+    );
+    expect(migrationSql).toContain(
+      "CHECK (`outcome` IS NULL OR `outcome` IN ('correct', 'partly_correct', 'incorrect'))",
+    );
+    expect(migrationSql).toContain('`provider` text');
+    expect(migrationSql).toContain('`model` text');
+    expect(migrationSql).toContain('`validation_errors_json` text');
+    expect(migrationSql).toContain('`error_message` text');
+  });
 });

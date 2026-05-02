@@ -6,10 +6,12 @@ import {
   writingAttempts,
   writingRevisions,
   reviewRuns,
+  rewriteChecks,
   rewriteTasks,
   type WritingAttempt,
   type WritingRevision,
   type ReviewRun,
+  type rewriteChecks as rewriteChecksTable,
   type rewriteTasks as rewriteTasksTable,
 } from '../../db/schema';
 import { computeWritingContentHash, getLocalDateKey, normalizeWritingContent } from '../../../shared/writing/content';
@@ -22,8 +24,12 @@ import {
   type GetWritingAttemptInput,
   skipRewritePracticeInputSchema,
   type CompleteRewritePracticeInput,
+  type RewriteCheckSnapshot,
   type RewritePracticeSnapshot,
   type RewritePracticeUpdateResult,
+  retryRewriteCheckInputSchema,
+  type RetryRewriteCheckInput,
+  type RetryRewriteCheckResult,
   type SaveWritingAttemptInput,
   type SaveWritingAttemptResult,
   type StarterPromptSnapshot,
@@ -58,6 +64,7 @@ function revisionToSnapshot(revision: WritingRevision): WritingAttemptSnapshot['
 }
 
 type RewriteTaskRow = typeof rewriteTasksTable.$inferSelect;
+type RewriteCheckRow = typeof rewriteChecksTable.$inferSelect;
 
 const ONE_DAY_MS = 24 * 60 * 60 * 1000;
 const REWRITE_PRACTICE_MAX_AGE_MS = 7 * ONE_DAY_MS;
@@ -124,7 +131,66 @@ function staleReviewToSnapshot(reviewRun: ReviewRun | undefined): WritingAttempt
   };
 }
 
+function parseStringArrayJson(value: string | null): string[] | null {
+  if (!value) {
+    return null;
+  }
+
+  try {
+    const parsed = JSON.parse(value) as unknown;
+    return Array.isArray(parsed) && parsed.every((entry) => typeof entry === 'string') ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
+function parseDiagnosticsJson(value: string | null): Record<string, unknown> | null {
+  if (!value) {
+    return null;
+  }
+
+  try {
+    const parsed = JSON.parse(value) as unknown;
+    return typeof parsed === 'object' && parsed !== null && !Array.isArray(parsed)
+      ? (parsed as Record<string, unknown>)
+      : null;
+  } catch {
+    return null;
+  }
+}
+
+function getLatestRewriteCheck(rewriteTaskId: string): RewriteCheckRow | null {
+  return (
+    db
+      .select()
+      .from(rewriteChecks)
+      .where(eq(rewriteChecks.rewriteTaskId, rewriteTaskId))
+      .orderBy(desc(rewriteChecks.createdAt), desc(rewriteChecks.updatedAt))
+      .get() ?? null
+  );
+}
+
+function rewriteCheckToSnapshot(check: RewriteCheckRow): RewriteCheckSnapshot {
+  return {
+    id: check.id,
+    rewriteTaskId: check.rewriteTaskId,
+    status: check.status,
+    outcome: check.outcome,
+    feedback: check.feedback ? { message: check.feedback } : null,
+    provider: check.provider,
+    model: check.model,
+    validationErrors: parseStringArrayJson(check.validationErrorsJson),
+    errorMessage: check.errorMessage,
+    diagnostics: parseDiagnosticsJson(check.diagnosticsJson),
+    createdAt: check.createdAt.getTime(),
+    updatedAt: check.updatedAt.getTime(),
+    completedAt: toMillis(check.completedAt),
+  };
+}
+
 function rewriteTaskToSnapshot(task: RewriteTaskRow, nowMillis = Date.now()): RewritePracticeSnapshot {
+  const latestRewriteCheck = getLatestRewriteCheck(task.id);
+
   return {
     id: task.id,
     reviewRunId: task.reviewRunId,
@@ -136,6 +202,7 @@ function rewriteTaskToSnapshot(task: RewriteTaskRow, nowMillis = Date.now()): Re
     spacedStage: 'D+1',
     status: task.status,
     userRewriteText: task.userRewriteText,
+    latestRewriteCheck: latestRewriteCheck ? rewriteCheckToSnapshot(latestRewriteCheck) : null,
     dueAt: toMillis(task.dueAt),
     createdAt: task.createdAt.getTime(),
     isOlderThanSevenDays: nowMillis - task.createdAt.getTime() > REWRITE_PRACTICE_MAX_AGE_MS,
@@ -405,6 +472,18 @@ export function completeRewritePractice(input: CompleteRewritePracticeInput): Re
 
   const updatedWriting = entry ? buildSnapshot(entry) : getWritingAttempt();
   return { success: true, writing: updatedWriting, rewritePractice: rewriteTaskToSnapshot(updatedTask) };
+}
+
+export function retryRewriteCheck(input: RetryRewriteCheckInput): RetryRewriteCheckResult {
+  const parseResult = retryRewriteCheckInputSchema.safeParse(input);
+  if (!parseResult.success) {
+    return { success: false, error: parseResult.error.issues[0].message };
+  }
+
+  return {
+    success: false,
+    error: 'Rewrite-check retry is not implemented yet.',
+  };
 }
 
 export function skipRewritePractice(input: SkipRewritePracticeInput): RewritePracticeUpdateResult {

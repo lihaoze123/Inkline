@@ -13,6 +13,8 @@ import type {
   GenerateStarterPromptInput,
   GenerateStarterPromptResult,
   GetWritingAttemptInput,
+  RetryRewriteCheckInput,
+  RetryRewriteCheckResult,
   RewritePracticeUpdateResult,
   SaveWritingAttemptInput,
   SaveWritingAttemptResult,
@@ -58,6 +60,8 @@ const api = {
       ipcRenderer.invoke(IPC_CHANNELS.WRITING.COMPLETE_REWRITE_PRACTICE, input),
     skipRewritePractice: (input: SkipRewritePracticeInput): Promise<RewritePracticeUpdateResult> =>
       ipcRenderer.invoke(IPC_CHANNELS.WRITING.SKIP_REWRITE_PRACTICE, input),
+    retryRewriteCheck: (input: RetryRewriteCheckInput): Promise<RetryRewriteCheckResult> =>
+      ipcRenderer.invoke(IPC_CHANNELS.WRITING.RETRY_REWRITE_CHECK, input),
   },
   settings: {
     get: (): Promise<SettingsSnapshot> => ipcRenderer.invoke(IPC_CHANNELS.SETTINGS.GET),
