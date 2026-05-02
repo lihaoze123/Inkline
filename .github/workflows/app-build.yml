@@ -102,3 +102,55 @@ jobs:
           path: out/make/**
           if-no-files-found: error
           retention-days: 14
+
+  release-assets:
+    name: Upload release assets
+    needs: build
+    if: github.event_name == 'release' && github.event.action == 'published'
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: write
+
+    steps:
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: electron-forge-*-${{ github.run_id }}-${{ github.run_attempt }}
+          path: release-assets
+
+      - name: Upload release assets
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+        run: |
+          set -euo pipefail
+
+          assets=()
+          duplicate_asset_names=0
+          declare -A seen_asset_names=()
+
+          while IFS= read -r -d '' asset; do
+            asset_name="$(basename "${asset}")"
+
+            if [[ -n "${seen_asset_names[${asset_name}]:-}" ]]; then
+              echo "::error ::Duplicate release asset name '${asset_name}' from '${asset}' and '${seen_asset_names[${asset_name}]}'"
+              duplicate_asset_names=1
+            else
+              seen_asset_names["${asset_name}"]="${asset}"
+            fi
+
+            assets+=("${asset}")
+          done < <(find release-assets -type f -print0 | sort -z)
+
+          if [ "${#assets[@]}" -eq 0 ]; then
+            echo "No release assets found in downloaded build artifacts" >&2
+            exit 1
+          fi
+
+          if [ "${duplicate_asset_names}" -ne 0 ]; then
+            exit 1
+          fi
+
+          gh release upload "${RELEASE_TAG}" "${assets[@]}" --clobber
