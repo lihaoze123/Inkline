@@ -53,6 +53,16 @@ export function useSaveWritingAttempt(): UseMutationResult<SaveWritingAttemptRes
 export function updateRewritePracticeCache(queryClient: QueryClient, result: RewritePracticeUpdateResult): void {
   if (result.success && result.writing) {
     updateWritingAttemptCache(queryClient, result.writing);
+    queryClient.setQueriesData<WritingAttemptSnapshot>({ queryKey: queryKeys.writing.attempts }, (cachedWriting) => {
+      if (!cachedWriting) {
+        return cachedWriting;
+      }
+
+      return {
+        ...cachedWriting,
+        pendingRewritePractice: result.writing?.pendingRewritePractice ?? null,
+      };
+    });
   }
 }
 

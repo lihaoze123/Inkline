@@ -8,6 +8,7 @@ export const queryKeys = {
     snapshot: ['settings'] as const,
   },
   writing: {
+    attempts: ['writing', 'attempt'] as const,
     attempt: (templateId: WritingTemplateId) => ['writing', 'attempt', templateId] as const,
   },
   review: {

@@ -4,11 +4,12 @@ import { createRendererQueryClient } from '../src/renderer/query/client';
 import { queryKeys } from '../src/renderer/query/keys';
 import { setReviewPreviewCache } from '../src/renderer/query/review';
 import { updateSettingsCache } from '../src/renderer/query/settings';
-import { updateWritingAttemptCache } from '../src/renderer/query/writing';
+import { updateRewritePracticeCache, updateWritingAttemptCache } from '../src/renderer/query/writing';
 import type { SettingsSnapshot } from '../src/shared/types/settings';
 
 describe('renderer query configuration', () => {
   it('uses stable query keys for foundation data', () => {
+    expect(queryKeys.writing.attempts).toEqual(['writing', 'attempt']);
     expect(queryKeys.writing.attempt('journal')).toEqual(['writing', 'attempt', 'journal']);
     expect(queryKeys.settings.snapshot).toEqual(['settings']);
     expect(queryKeys.app.startupStatus).toEqual(['app', 'startup-status']);
@@ -35,6 +36,59 @@ describe('renderer query configuration', () => {
 
     expect(queryClient.getQueryData(queryKeys.writing.attempt('cet4'))).toEqual(savedWriting);
     expect(queryClient.getQueryData(queryKeys.writing.attempt('journal'))).toBeUndefined();
+  });
+
+  it('updates pending rewrite practice across cached writing attempts', () => {
+    const queryClient = createRendererQueryClient();
+    const pendingRewritePractice: NonNullable<WritingAttemptSnapshot['pendingRewritePractice']> = {
+      id: 'rewrite-1',
+      reviewRunId: 'review-run-1',
+      originalSentence: 'it can make people more confidence',
+      focusPattern: 'make + object + adjective',
+      nativeModelSentence: 'it can make people more confident',
+      prompt: 'Rewrite the sentence with the adjective form.',
+      practiceKind: 'rewrite_original',
+      spacedStage: 'D+1',
+      status: 'pending',
+      userRewriteText: null,
+      dueAt: 1777546800000,
+      createdAt: 1777460400000,
+      isOlderThanSevenDays: false,
+    };
+    const journalWriting: WritingAttemptSnapshot = {
+      ...makeWritingAttempt(),
+      attemptId: 'attempt-journal',
+      templateId: 'journal',
+      pendingRewritePractice,
+    };
+    const freeWriting: WritingAttemptSnapshot = {
+      ...makeWritingAttempt(),
+      attemptId: 'attempt-free',
+      templateId: 'free',
+      pendingRewritePractice,
+    };
+
+    queryClient.setQueryData(queryKeys.writing.attempt('journal'), journalWriting);
+    queryClient.setQueryData(queryKeys.writing.attempt('free'), freeWriting);
+
+    updateRewritePracticeCache(queryClient, {
+      success: true,
+      writing: { ...freeWriting, pendingRewritePractice: null },
+      rewritePractice: {
+        ...pendingRewritePractice,
+        status: 'completed',
+        userRewriteText: 'it can make people more confident',
+      },
+    });
+
+    expect(queryClient.getQueryData<WritingAttemptSnapshot>(queryKeys.writing.attempt('journal'))).toMatchObject({
+      attemptId: 'attempt-journal',
+      pendingRewritePractice: null,
+    });
+    expect(queryClient.getQueryData<WritingAttemptSnapshot>(queryKeys.writing.attempt('free'))).toMatchObject({
+      attemptId: 'attempt-free',
+      pendingRewritePractice: null,
+    });
   });
 
   it('writes successful settings mutations to the settings snapshot cache key', () => {
