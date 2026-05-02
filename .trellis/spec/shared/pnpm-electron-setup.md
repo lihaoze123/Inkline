@@ -261,6 +261,99 @@ const config: ForgeConfig = {
 export default config;
 ```
 
+## Scenario: pnpm 10.23 Build Script Approvals for Electron CI
+
+### 1. Scope / Trigger
+
+- Trigger: Any Electron CI workflow or package setup that runs `pnpm install` with this repo's pinned `pnpm@10.23.0` and dependencies that need install/build scripts for native modules or packaged tool binaries.
+- This applies to CI quality jobs and Electron Forge package/make jobs because ignored dependency scripts can leave native modules or maker helper binaries unusable.
+
+### 2. Signatures
+
+`pnpm-workspace.yaml`:
+
+```yaml
+onlyBuiltDependencies:
+  - better-sqlite3
+  - electron
+  - electron-winstaller
+  - esbuild
+  - keytar
+```
+
+GitHub Actions install shape:
+
+```yaml
+- name: Install dependencies
+  run: pnpm install --frozen-lockfile
+```
+
+### 3. Contracts
+
+| Field | Type | Constraint |
+| --- | --- | --- |
+| `onlyBuiltDependencies` | string array | For pnpm 10.23, must include every dependency whose install/build script is required for local or CI packaging. |
+| `better-sqlite3` | native module | Must be allowed so the SQLite native binding can be built or rebuilt for Electron. |
+| `keytar` | native module | Must be allowed when installed; Linux CI also needs `libsecret-1-dev` before `pnpm install`. |
+| `esbuild` | tool binary package | Must be allowed so the platform binary can be validated during install. |
+| `electron-winstaller` | maker helper package | Must be allowed for Windows Squirrel maker support because its install script selects bundled 7-Zip files. |
+| CI install command | shell command | Use the committed lockfile with `pnpm install --frozen-lockfile`; do not rely on interactive `pnpm approve-builds` in CI. |
+
+### 4. Validation & Error Matrix
+
+| Condition | Behavior |
+| --- | --- |
+| Required package is missing from `onlyBuiltDependencies` | pnpm reports ignored build scripts; later `electron-rebuild`, Vite, or Forge makers can fail. |
+| `keytar` is allowed on Linux but `libsecret-1-dev` is missing before install | Native rebuild can fail because `libsecret-1.pc` is unavailable. |
+| `electron-winstaller` install script is ignored | Windows Squirrel maker may be missing the selected `vendor/7z.exe` and `vendor/7z.dll` files. |
+| CI tries to run `pnpm approve-builds` | Workflow blocks or fails because approval is interactive state, not a reproducible CI contract. |
+| `pnpm install --frozen-lockfile` completes and postinstall rebuild passes | Dependencies are in the expected state for quality checks and Forge makers. |
+
+### 5. Good/Base/Bad Cases
+
+- Good: The explicit allowlist contains Electron, native runtime modules, Vite's binary helper, and maker install helpers; CI installs OS packages first, then runs `pnpm install --frozen-lockfile`.
+- Base: A workflow that only runs lint/typecheck still uses the same install contract because root `postinstall` runs `electron-rebuild`.
+- Bad: Adding a CI-only `--ignore-scripts` workaround; this can make lint run while leaving package/make jobs broken.
+- Bad: Relying on a developer's local approved-builds state instead of committing the package allowlist.
+
+### 6. Tests Required
+
+- Install smoke:
+  - Run `pnpm install --frozen-lockfile`.
+  - Assert root `postinstall` completes `electron-rebuild` without ignored required build scripts causing failure.
+  - Run `pnpm ignored-builds` after approving new build-script packages; expected output is `None`.
+- Quality gate:
+  - Run `pnpm lint`.
+  - Run `pnpm typecheck`.
+  - Run project tests/harness commands required by the active workflow.
+- Packaging smoke when packaging is in scope:
+  - Run `pnpm package` or `pnpm make` on the target platform after install.
+  - Assert expected Forge output exists under `out/`.
+
+### 7. Wrong vs Correct
+
+#### Wrong
+
+```yaml
+onlyBuiltDependencies:
+  - electron
+```
+
+This can ignore install scripts for native modules and maker helpers needed by Electron Forge builds.
+
+#### Correct
+
+```yaml
+onlyBuiltDependencies:
+  - better-sqlite3
+  - electron
+  - electron-winstaller
+  - esbuild
+  - keytar
+```
+
+Keep the allowlist explicit and commit it with the workflow that depends on reproducible installs.
+
 ### Vite 配置：外部化 Native Modules
 
 ```typescript
