@@ -660,26 +660,26 @@ function PracticePage({ initialWriting, settings, startup }: PracticePageProps):
     <main className="app-chrome min-h-screen overflow-hidden text-base-content">
       <div className="relative grid h-screen grid-cols-[19.5rem_minmax(0,1fr)]">
         <nav
-          className="quiet-sidebar relative z-10 flex flex-col overflow-hidden border-r border-base-300/45 px-9 py-10"
+          className="quiet-sidebar relative z-10 flex flex-col overflow-hidden border-r border-base-300/45 px-9 py-9"
           aria-label="App areas"
         >
-          <div className="relative z-10">
+          <div className="relative z-10 pl-4">
             <p className="editorial-heading text-[2rem] leading-none text-base-content">Inkline</p>
           </div>
-          <div className="relative z-10 mt-10 flex flex-1 flex-col gap-2">
+          <div className="quiet-sidebar__nav relative z-10 flex flex-1 flex-col">
             {APP_NAV_ITEMS.filter((item) => !item.isHidden).map((item) => {
               const isActive = activeArea === item.id || (item.id === 'write' && activeArea === 'feedback');
               return (
                 <button
                   key={item.id}
                   type="button"
-                  className={`flex items-center gap-4 px-4 py-3.5 text-left text-lg transition ${
+                  className={`quiet-sidebar__nav-item flex items-center text-left text-lg transition ${
                     isActive ? 'font-semibold text-primary' : 'text-base-content/62 hover:text-base-content'
                   }`}
                   aria-current={isActive ? 'page' : undefined}
                   onClick={() => setActiveArea(item.id)}
                 >
-                  <span className="nav-icon grid size-7 place-items-center" aria-hidden="true">
+                  <span className="nav-icon quiet-sidebar__nav-icon grid place-items-center" aria-hidden="true">
                     <NavIcon name={item.icon} />
                   </span>
                   <span>{item.label}</span>
