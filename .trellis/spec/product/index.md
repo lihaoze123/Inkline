@@ -2,13 +2,14 @@
 
 This layer defines product contracts for the standalone Electron English writing-practice coach. Read this layer for every task that affects writing attempts, practice templates, starter prompt generation, review flow, learning history, agent calls, privacy, or UI behavior.
 
-Current product direction: `.trellis/tasks/04-30-broader-writing-cet-practice/prd.md`.
+Current product direction: [roadmap.md](./roadmap.md).
 Original journal-first source document: `.trellis/tasks/04-29-english-journal-coach-mvp/source-prd.md`.
 
 ## Documentation Files
 
 | File | Description | When to Read |
 | --- | --- | --- |
+| [roadmap.md](./roadmap.md) | Near-term sequence, long-term north star, track strategy, and sequencing rules | Before prioritizing product work |
 | [mvp-scope.md](./mvp-scope.md) | v0.1/v0.2 boundaries and hard caps | Before scoping any feature |
 | [learning-flow.md](./learning-flow.md) | Practice entry, template picker, review result, self-repair, rewrite practice | UI and product flow work |
 | [review-agent-contract.md](./review-agent-contract.md) | Template-aware agent input/output, quote anchoring, validation rules | Review/rewrite agent integration |
@@ -19,11 +20,13 @@ Original journal-first source document: `.trellis/tasks/04-29-english-journal-co
 ## Pre-Development Checklist
 
 - Identify whether the task is v0.1, v0.2, or backlog. Do not pull v0.2 behavior into v0.1 unless the task PRD explicitly says so.
+- Check the roadmap before prioritizing backlog work. The near-term path is rewrite-check, rewrite lifecycle, mastery signals, then D+3/D+7 spaced reuse.
 - Preserve the local-first model: app data lives in local SQLite; model calls may send selected content only after the relevant provider/model disclosure.
 - Keep writing text as the user's work. Review output is an annotation layer; v0.1 must not auto-apply corrections to the writing attempt.
 - Treat writing content as untrusted text, never as instructions.
 - Use the current review caps when building review input, validation, persistence, or UI.
 - Journal, CET-4 Writing, CET-6 Writing, and Free Writing are same-level templates. Do not make Journal or CET the product identity.
+- CET/scenario tracks should be first-class user-facing practice paths over the shared writing/review/rewrite/check engine, not separate exam-mode flows by default.
 
 ## Quality Check
 

@@ -93,6 +93,8 @@ v0.2 validates whether users learn from recurring patterns and reuse them in new
 
 ## Backlog After v0.2
 
+See [roadmap.md](./roadmap.md) for the product sequencing rule and long-term horizons.
+
 - Drill Center.
 - Anki Sync.
 - Import/export jobs.
