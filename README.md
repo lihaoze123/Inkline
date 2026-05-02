@@ -6,13 +6,13 @@ Journal, CET-4 Writing, CET-6 Writing, and Free Writing are equal practice templ
 
 ## Status and Scope
 
-| Area | Current state |
-| --- | --- |
-| Product stage | v0.1 desktop app in active development |
-| App brand | Inkline; the package name is still `english-coach` |
-| Data model | Local SQLite data under Electron's user data path |
-| AI providers | OpenAI-compatible endpoints and Anthropic Claude |
-| Review flow | Preview first; learning history updates only after explicit save |
+| Area             | Current state                                                         |
+| ---------------- | --------------------------------------------------------------------- |
+| Product stage    | v0.1 desktop app in active development                                |
+| App brand        | Inkline; the package name is still `english-coach`                    |
+| Data model       | Local SQLite data under Electron's user data path                     |
+| AI providers     | OpenAI-compatible endpoints and Anthropic Claude                      |
+| Review flow      | Preview first; learning history updates only after explicit save      |
 | Backlog boundary | Remaining v0.2 and backlog work is not documented as current behavior |
 
 Not implemented as current behavior: pattern mastery status, pattern merge/de-dup flows, rewrite-check agents, D+3/D+7 reuse tasks, Drill Center, Anki sync, and import/export jobs.
@@ -28,15 +28,15 @@ Then open **Settings** in the app, choose a default AI provider/model, save the 
 
 ## What Inkline Does Today
 
-| Surface | Implemented behavior |
-| --- | --- |
-| First launch | Branded welcome intro for the writing loop, with replay from Settings |
-| Today | Default entry surface with a greeting, current practice prompt, and route into writing |
-| Practice | Template picker, selected-template workbench, optional goal/topic, starter prompt generation, autosave, independent draft editing, review progress, and pending D+1 rewrite slot |
-| Feedback and Rewrite | Focused review preview, one focus pattern, hint-first self-repair, anchored highlights, reference rewrite, "Notice the gap", stale-review handling, and explicit save boundary |
-| Notebook | Saved upgrade opportunities from reviewed drafts, including source phrases and suggested alternatives |
-| Progress | Recurring error patterns from saved reviews, current draft/rewrite status, pattern counts, and recent examples |
-| Settings | Global provider/model configuration, OS-keychain API key status, raw response storage toggle, database/migration status, pi-mono status, reserved AnkiConnect status, and welcome intro replay |
+| Surface              | Implemented behavior                                                                                                                                                                           |
+| -------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| First launch         | Branded welcome intro for the writing loop, with replay from Settings                                                                                                                          |
+| Today                | Default entry surface with a greeting, current practice prompt, and route into writing                                                                                                         |
+| Practice             | Template picker, selected-template workbench, optional goal/topic, starter prompt generation, autosave, independent draft editing, review progress, and pending D+1 rewrite slot               |
+| Feedback and Rewrite | Focused review preview, one focus pattern, hint-first self-repair, anchored highlights, reference rewrite, "Notice the gap", stale-review handling, and explicit save boundary                 |
+| Notebook             | Saved upgrade opportunities from reviewed drafts, including source phrases and suggested alternatives                                                                                          |
+| Progress             | Recurring error patterns from saved reviews, current draft/rewrite status, pattern counts, and recent examples                                                                                 |
+| Settings             | Global provider/model configuration, OS-keychain API key status, raw response storage toggle, database/migration status, pi-mono status, reserved AnkiConnect status, and welcome intro replay |
 
 ## Writing and Review Flow
 
@@ -54,15 +54,15 @@ Then open **Settings** in the app, choose a default AI provider/model, save the 
 
 Inkline is local-first, not local-inference-only.
 
-| Topic | Behavior |
-| --- | --- |
-| Local data | Writing attempts, revisions, review runs, corrections, rewrite tasks, error patterns, and notebook entries are stored in local SQLite. |
-| Provider calls | Starter prompt generation and review may send selected context to the configured provider after the relevant disclosure. |
-| Providers | OpenAI-compatible providers use `@ai-sdk/openai`; Anthropic Claude uses `@ai-sdk/anthropic`. |
-| Runtime boundary | Provider calls run from the Electron main process through Vercel AI SDK adapters with Electron `net.fetch`. |
-| API keys | Keys are stored through the OS keychain and are never returned to the renderer. |
-| Raw responses | Raw model responses are disabled by default in production behavior and can be enabled locally in Settings for debugging. |
-| User writing | Inkline annotates and explains. It does not auto-apply corrections to the draft. |
+| Topic            | Behavior                                                                                                                               |
+| ---------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| Local data       | Writing attempts, revisions, review runs, corrections, rewrite tasks, error patterns, and notebook entries are stored in local SQLite. |
+| Provider calls   | Starter prompt generation and review may send selected context to the configured provider after the relevant disclosure.               |
+| Providers        | OpenAI-compatible providers use `@ai-sdk/openai`; Anthropic Claude uses `@ai-sdk/anthropic`.                                           |
+| Runtime boundary | Provider calls run from the Electron main process through Vercel AI SDK adapters with Electron `net.fetch`.                            |
+| API keys         | Keys are stored through the OS keychain and are never returned to the renderer.                                                        |
+| Raw responses    | Raw model responses are disabled by default in production behavior and can be enabled locally in Settings for debugging.               |
+| User writing     | Inkline annotates and explains. It does not auto-apply corrections to the draft.                                                       |
 
 The renderer talks to the main process through a narrow preload IPC API. It does not import provider SDKs, database modules, keychain modules, filesystem APIs, or Electron main-process APIs directly.
 
@@ -79,41 +79,41 @@ If provider settings, API keys, or keychain access are unavailable, AI calls ret
 
 ## Requirements
 
-| Requirement | Version |
-| --- | --- |
-| Node.js | `>=22.0.0` |
-| pnpm | `>=9.0.0`; repository package manager is `pnpm@10.23.0` |
+| Requirement    | Version                                                                    |
+| -------------- | -------------------------------------------------------------------------- |
+| Node.js        | `>=22.0.0`                                                                 |
+| pnpm           | `>=9.0.0`; repository package manager is `pnpm@10.23.0`                    |
 | Native tooling | Required for Electron native modules such as `better-sqlite3` and `keytar` |
 
 The repository commits a hoisted pnpm layout in `.npmrc` for Electron/native-module compatibility. `postinstall` runs `electron-rebuild`.
 
 ## Scripts
 
-| Command | Purpose |
-| --- | --- |
-| `pnpm dev` | Start the Electron app in development mode. |
-| `pnpm format` | Format the repository with Prettier. |
-| `pnpm format:check` | Check repository formatting with Prettier. |
-| `pnpm lint` | Run ESLint. |
-| `pnpm typecheck` | Run TypeScript without emitting files. |
-| `pnpm test` | Run the Vitest suite. |
-| `pnpm review:harness` | Exercise the review contract harness. |
-| `pnpm check` | Run format, lint, typecheck, tests, and the review contract harness. |
-| `pnpm build` | Package the app through Electron Forge. |
-| `pnpm package` | Package the app through Electron Forge. |
-| `pnpm make` | Build distributable artifacts through Electron Forge makers. |
+| Command               | Purpose                                                              |
+| --------------------- | -------------------------------------------------------------------- |
+| `pnpm dev`            | Start the Electron app in development mode.                          |
+| `pnpm format`         | Format the repository with Prettier.                                 |
+| `pnpm format:check`   | Check repository formatting with Prettier.                           |
+| `pnpm lint`           | Run ESLint.                                                          |
+| `pnpm typecheck`      | Run TypeScript without emitting files.                               |
+| `pnpm test`           | Run the Vitest suite.                                                |
+| `pnpm review:harness` | Exercise the review contract harness.                                |
+| `pnpm check`          | Run format, lint, typecheck, tests, and the review contract harness. |
+| `pnpm build`          | Package the app through Electron Forge.                              |
+| `pnpm package`        | Package the app through Electron Forge.                              |
+| `pnpm make`           | Build distributable artifacts through Electron Forge makers.         |
 
 ## Stack
 
-| Layer | Tools |
-| --- | --- |
-| Desktop shell | Electron Forge, Vite |
-| UI | React 19, Tailwind CSS, daisyUI |
-| Renderer async state | TanStack Query |
-| Main-process AI | Vercel AI SDK, OpenAI-compatible adapter, Anthropic adapter |
-| Storage | SQLite, `better-sqlite3`, Drizzle ORM |
-| Validation | Zod, review contract harness |
-| Language and quality | TypeScript, ESLint, Prettier, Vitest, pnpm |
+| Layer                | Tools                                                       |
+| -------------------- | ----------------------------------------------------------- |
+| Desktop shell        | Electron Forge, Vite                                        |
+| UI                   | React 19, Tailwind CSS, daisyUI                             |
+| Renderer async state | TanStack Query                                              |
+| Main-process AI      | Vercel AI SDK, OpenAI-compatible adapter, Anthropic adapter |
+| Storage              | SQLite, `better-sqlite3`, Drizzle ORM                       |
+| Validation           | Zod, review contract harness                                |
+| Language and quality | TypeScript, ESLint, Prettier, Vitest, pnpm                  |
 
 ## Project Structure
 
