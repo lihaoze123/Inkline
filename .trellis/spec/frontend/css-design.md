@@ -242,7 +242,7 @@ Use **BEM naming convention** to prevent class name conflicts:
 // Correct: flat section hierarchy with dividers and warm coordinated sidebar
 <main className="app-chrome min-h-screen text-base-content">
   <div className="grid h-screen grid-cols-[19.5rem_minmax(0,1fr)]">
-    <nav className="quiet-sidebar border-r border-base-300/45 px-9 py-10">
+    <nav className="quiet-sidebar border-r border-base-300/45 px-9 py-9">
       <button className={isActive ? 'font-semibold text-primary' : 'text-base-content/62'}>
         Practice
       </button>
@@ -273,6 +273,7 @@ Use **BEM naming convention** to prevent class name conflicts:
 
 - Search for `quiet-card`, heavy `shadow-*`, and repeated `rounded-xl border bg-*` before finishing a writing-flow UI pass.
 - Confirm sidebar background visually coordinates with the main page background; it should not read as pink/gray/blue side panel against warm paper.
+- Confirm sidebar-specific icon refinements are scoped to sidebar elements (for example `.quiet-sidebar__nav-icon svg`), not generic icon classes that affect inline content icons.
 - Confirm reference images are used for mood only, not as a source of new product metadata.
 - Run `pnpm typecheck && pnpm lint` after UI refactors.
 - For frontend UI changes, smoke-test the golden path in the Electron app before calling the work complete when runtime access is available.
