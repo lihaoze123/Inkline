@@ -1,0 +1,6 @@
+{"_example": "Fill with {\"file\": \"<path>\", \"reason\": \"<why>\"}. Put spec/research files only — no code paths. Run `python3 .trellis/scripts/get_context.py --mode packages` to list available specs. Delete this line once real entries are added."}
+{"file": ".trellis/spec/shared/index.md", "reason": "Shared project conventions for config and build metadata changes"}
+{"file": ".trellis/spec/shared/pnpm-electron-setup.md", "reason": "Electron packaging metadata and CI setup constraints"}
+{"file": ".trellis/spec/big-question/native-module-packaging.md", "reason": "Packaging smoke and maker failure context"}
+{"file": ".trellis/tasks/05-02-app-build-workflow-failure/research/actions-run-25245022408.md", "reason": "Exact GitHub Actions failure log and root-cause interpretation"}
+{"file": ".trellis/tasks/05-02-app-build-workflow-failure/research/linux-appimage-maker.md", "reason": "Research on replacing Linux RPM with DEB plus AppImage maker and CI dependencies"}
