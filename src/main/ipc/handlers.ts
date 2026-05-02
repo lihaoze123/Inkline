@@ -10,6 +10,7 @@ import {
   setDefaultProviderInputSchema,
   setOnboardingIntroVersionSeenInputSchema,
   setProviderConfigInputSchema,
+  setReviewThinkingInputSchema,
   setRawResponseStorageInputSchema,
   settingsSnapshotSchema,
 } from '../../shared/types/settings';
@@ -64,6 +65,7 @@ import {
   setDefaultProvider,
   setOnboardingIntroVersionSeen,
   setProviderConfig,
+  setReviewThinking,
   setRawResponseStorage,
 } from '../services/settings/service';
 
@@ -122,6 +124,12 @@ export function registerIpcHandlers(migrationResult: MigrationResult): void {
   ipcMain.handle(IPC_CHANNELS.SETTINGS.SET_RAW_RESPONSE_STORAGE, (_event, input: unknown): boolean => {
     const parsedInput = setRawResponseStorageInputSchema.parse(input);
     return setRawResponseStorage(parsedInput);
+  });
+
+  ipcMain.handle(IPC_CHANNELS.SETTINGS.SET_REVIEW_THINKING, async (_event, input: unknown): Promise<unknown> => {
+    const parsedInput = setReviewThinkingInputSchema.parse(input);
+    setReviewThinking(parsedInput);
+    return settingsSnapshotSchema.parse(await getSettingsSnapshot());
   });
 
   ipcMain.handle(IPC_CHANNELS.SETTINGS.SET_PROVIDER_CONFIG, async (_event, input: unknown): Promise<unknown> => {

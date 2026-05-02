@@ -859,7 +859,7 @@ Refined Inkline sidebar spacing and alignment while preserving the original unde
 - None - task complete
 
 
-## Session 26: Update README progress
+## Session 27: Update README progress
 
 **Date**: 2026-05-02
 **Task**: Update README progress
@@ -868,6 +868,16 @@ Refined Inkline sidebar spacing and alignment while preserving the original unde
 ### Summary
 
 Updated README to match current Inkline progress with a restrained modern structure, documented implemented app surfaces, AI provider architecture, privacy behavior, quality scripts, packaging, and project layout; added and archived the Trellis task record.
+
+## Session 26: Review provider observability and CDP e2e
+
+**Date**: 2026-05-02
+**Task**: Review provider observability and CDP e2e
+**Branch**: `main`
+
+### Summary
+
+Improved review provider long-output diagnostics, added review thinking controls and fallback behavior, and verified live provider workflow through real Electron CDP e2e.
 
 ### Main Changes
 
@@ -879,6 +889,7 @@ Updated README to match current Inkline progress with a restrained modern struct
 |------|---------|
 | `0bcf1d7` | (see git log) |
 | `c813517` | (see git log) |
+| `cbe45cd` | (see git log) |
 
 ### Testing
 

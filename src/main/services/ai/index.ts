@@ -1,4 +1,4 @@
-export { generateStructuredObject } from './generate';
+export { generateStructuredObject, getAiProviderDiagnosticsFromError } from './generate';
 export { createAiProviderModel } from './provider';
 export type { AiGenerationRequest, AiGenerationResult, AiProviderId, AiProviderRuntimeConfig } from './types';
 export {

@@ -1,9 +1,13 @@
 import { reviewOutputSchema } from '../../../../shared/review-contract/schemas';
+import type { AiReasoningEffort } from '../../../../shared/types/ai';
+import type { ProviderOptions } from '@ai-sdk/provider-utils';
 import { generateStructuredObject, type AiProviderRuntimeConfig } from '../../ai';
 import { buildAiRuntimeConfigForFeature } from '../../ai/runtime-config';
 import { reviewAgentResponseSchema, type ReviewAgent, type ReviewAgentResponse } from '../types';
 
-const DEFAULT_REQUEST_TIMEOUT_MS = 60_000;
+const DEFAULT_REQUEST_TIMEOUT_MS = 240_000;
+const DEFAULT_MAX_OUTPUT_TOKENS = 16_000;
+const DEFAULT_REVIEW_REASONING_EFFORT: AiReasoningEffort = 'none';
 
 type OpenAiCompatibleRuntimeConfig = {
   provider: 'openai-compatible';
@@ -67,23 +71,38 @@ export function createOpenAiCompatibleReviewAgent(options: OpenAiCompatibleAgent
           }
         : await (options.getRuntimeConfig ?? loadDefaultRuntimeConfig)();
     const generation = options.generateStructured ?? generateStructuredObject;
+    const finalRuntimeConfig = buildRuntimeConfigFromOptions(options, runtimeConfig);
     const result = await generation({
-      runtimeConfig: buildRuntimeConfigFromOptions(options, runtimeConfig),
+      runtimeConfig: finalRuntimeConfig,
       systemPrompt: request.systemPrompt,
       userPrompt: request.userPrompt,
       schema: reviewOutputSchema,
       schemaName: 'review_output',
       schemaDescription: 'Structured English writing review output matching the app review contract.',
       temperature: 0.2,
-      maxOutputTokens: 2_500,
+      maxOutputTokens: DEFAULT_MAX_OUTPUT_TOKENS,
       timeoutMs: options.timeoutMs ?? DEFAULT_REQUEST_TIMEOUT_MS,
       maxRetries: 0,
+      providerOptions: request.providerOptions ?? defaultReviewProviderOptions(finalRuntimeConfig),
     });
 
     return reviewAgentResponseSchema.parse({
       output: result.output,
       rawOutput: result.rawOutput,
+      providerDiagnostics: result.providerDiagnostics ?? null,
     });
+  };
+}
+
+function defaultReviewProviderOptions(runtimeConfig: AiProviderRuntimeConfig): ProviderOptions | undefined {
+  if (runtimeConfig.provider !== 'openai-compatible') {
+    return undefined;
+  }
+
+  return {
+    openai: {
+      reasoningEffort: DEFAULT_REVIEW_REASONING_EFFORT,
+    },
   };
 }
 

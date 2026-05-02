@@ -28,6 +28,7 @@ import {
   useSetProviderApiKey,
   useSetProviderConfig,
   useSetRawResponseStorage,
+  useSetReviewThinking,
   useSettingsSnapshot,
 } from './query/settings';
 import {
@@ -129,6 +130,7 @@ function PracticePage({ initialWriting, settings, startup }: PracticePageProps):
   const { mutateAsync: setProviderApiKeyMutation } = useSetProviderApiKey();
   const { mutateAsync: deleteProviderApiKeyMutation } = useDeleteProviderApiKey();
   const { mutateAsync: setRawResponseStorageMutation } = useSetRawResponseStorage();
+  const { mutateAsync: setReviewThinkingMutation } = useSetReviewThinking();
   const writing = writingQuery.data ?? initialWriting;
   const [content, setContent] = useState(initialWriting.activeRevision?.content ?? '');
   const [userGoal, setUserGoal] = useState(initialWriting.userGoal ?? '');
@@ -621,6 +623,20 @@ function PracticePage({ initialWriting, settings, startup }: PracticePageProps):
     [setRawResponseStorageMutation],
   );
 
+  const toggleReviewThinking = useCallback(
+    async (enabled: boolean): Promise<void> => {
+      setSettingsError(null);
+      setSettingsMessage(null);
+      try {
+        await setReviewThinkingMutation({ enabled });
+        setSettingsMessage(enabled ? 'Review thinking enabled.' : 'Review thinking disabled.');
+      } catch (error) {
+        setSettingsError(getErrorMessage(error, 'Unable to update review thinking.'));
+      }
+    },
+    [setReviewThinkingMutation],
+  );
+
   const dismissWelcomeIntro = useCallback(async (): Promise<void> => {
     setWelcomeIntroError(null);
 
@@ -858,6 +874,9 @@ function PracticePage({ initialWriting, settings, startup }: PracticePageProps):
                 }}
                 onRawResponseStorageChange={(enabled) => {
                   void toggleRawResponseStorage(enabled);
+                }}
+                onReviewThinkingChange={(enabled) => {
+                  void toggleReviewThinking(enabled);
                 }}
                 onViewWelcomeIntro={viewWelcomeIntro}
               />

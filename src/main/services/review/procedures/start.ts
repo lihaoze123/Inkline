@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { eq } from 'drizzle-orm';
+import type { ProviderOptions } from '@ai-sdk/provider-utils';
 import { db } from '../../../db/client';
 import { writingAttempts, writingRevisions, reviewRuns } from '../../../db/schema';
 import { getWritingTemplate } from '../../../../shared/writing/templates';
@@ -17,9 +18,18 @@ import {
   type ReviewRunResultKind,
   type ReviewRunSummary,
 } from '../../../../shared/types/review';
+import {
+  aiProviderDiagnosticsSchema,
+  safeAiProviderDiagnosticErrorMessage,
+  sanitizeAiProviderDiagnosticText,
+  type AiReasoningEffort,
+  type AiProviderDiagnostics,
+  type AiProviderFailureKind,
+} from '../../../../shared/types/ai';
 import { getSettingsSnapshot, type ReviewSettingsSnapshot } from '../../settings/service';
 import { hasReviewDisclosureAcknowledgement } from '../lib/disclosure';
 import { buildReviewInput } from '../lib/input';
+import { getAiProviderDiagnosticsFromError } from '../../ai';
 import { getProviderSettingsForFeature } from '../../ai/runtime-config';
 import { callOpenAiCompatibleReviewAgent } from '../lib/openai-compatible-agent';
 import { buildReviewPersistenceDecision } from '../lib/persistence-decision';
@@ -40,6 +50,9 @@ type PhaseTimingState = {
   startedAt: number;
   timings: Record<ReviewProgressPhase, number | null>;
 };
+
+const DISABLED_REVIEW_REASONING_EFFORT: AiReasoningEffort = 'none';
+const ENABLED_REVIEW_REASONING_EFFORT: AiReasoningEffort = 'medium';
 
 function createId(prefix: string): string {
   return `${prefix}_${randomUUID()}`;
@@ -217,11 +230,13 @@ export async function startReview(
       systemPrompt: REVIEW_SYSTEM_PROMPT,
       userPrompt: buildReviewUserPrompt(reviewInput),
       input: reviewInput,
+      providerOptions: buildReviewProviderOptions(settings),
     };
     completeCurrentPhase(reviewRunId, timingState, options.onProgress);
 
     beginPhase(reviewRunId, timingState, 'waiting', options.onProgress);
     const agentResponse = await agent(agentRequest);
+    const providerDiagnostics = sanitizeProviderDiagnosticsForSummary(agentResponse.providerDiagnostics ?? null);
     completeCurrentPhase(reviewRunId, timingState, options.onProgress);
 
     beginPhase(reviewRunId, timingState, 'checking', options.onProgress);
@@ -240,6 +255,7 @@ export async function startReview(
         resultKind: 'failed',
         errorCategory: 'validation_failed',
         providerStatus: null,
+        providerDiagnostics: addFailureKindToProviderDiagnostics(providerDiagnostics, 'validation_failed'),
         rawSaved: Boolean(persistenceDecision.rawOutputJson),
       });
       const failedRun = db
@@ -280,6 +296,7 @@ export async function startReview(
       resultKind,
       errorCategory: isStaleAtCompletion ? 'stale_content' : null,
       providerStatus: null,
+      providerDiagnostics,
       rawSaved: Boolean(persistenceDecision.rawOutputJson),
     });
 
@@ -304,15 +321,21 @@ export async function startReview(
     };
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Review failed.';
-    const errorCategory = classifyReviewError(message);
+    const existingProviderDiagnostics = getAiProviderDiagnosticsFromError(error);
+    const errorCategory = classifyReviewError(message, existingProviderDiagnostics?.failureKind ?? null);
+    const providerStatus = providerStatusFromError(message);
+    const providerDiagnostics = buildProviderDiagnosticsForError(error, errorCategory, existingProviderDiagnostics);
     const recoverableMessage = errorCategory === 'missing_config' ? message : userFacingErrorFor(errorCategory);
+    const persistedErrorMessage =
+      errorCategory === 'missing_config' ? sanitizeAiProviderDiagnosticText(message) : recoverableMessage;
     failCurrentPhase(reviewRunId, timingState, options.onProgress, errorCategory);
     const summary = buildReviewRunSummary({
       timingState,
       validation: null,
       resultKind: 'failed',
       errorCategory,
-      providerStatus: providerStatusFromError(message),
+      providerStatus,
+      providerDiagnostics,
       rawSaved: false,
     });
     const failedRun = db
@@ -320,7 +343,7 @@ export async function startReview(
       .set({
         status: 'review_failed',
         validationStatus: 'invalid',
-        validationErrorsJson: JSON.stringify([message]),
+        validationErrorsJson: JSON.stringify([persistedErrorMessage]),
         summaryJson: JSON.stringify(summary),
       })
       .where(eq(reviewRuns.id, reviewingRun.id))
@@ -341,12 +364,28 @@ function getReviewProviderMetadata(
   };
 }
 
+function buildReviewProviderOptions(settings: ReviewSettingsSnapshot): ProviderOptions | undefined {
+  const providerSettings = getProviderSettingsForFeature(settings, 'review');
+  if (providerSettings.providerId !== 'openai-compatible') {
+    return undefined;
+  }
+
+  return {
+    openai: {
+      reasoningEffort: settings.reviewThinkingEnabled
+        ? ENABLED_REVIEW_REASONING_EFFORT
+        : DISABLED_REVIEW_REASONING_EFFORT,
+    },
+  };
+}
+
 function buildReviewRunSummary(params: {
   timingState: PhaseTimingState;
   validation: ReviewValidationResult | null;
   resultKind: ReviewRunResultKind;
   errorCategory: ReviewErrorCategory | null;
   providerStatus: string | null;
+  providerDiagnostics: AiProviderDiagnostics | null;
   rawSaved: boolean;
 }): ReviewRunSummary {
   const completedAt = Date.now();
@@ -358,6 +397,7 @@ function buildReviewRunSummary(params: {
     resultKind: params.resultKind,
     errorCategory: params.errorCategory,
     providerStatus: params.providerStatus,
+    providerDiagnostics: params.providerDiagnostics,
     reviewStats: statsFromOperations(params.validation?.operations ?? null),
     warningCount: params.validation?.issues.filter((issue) => issue.severity === 'warning').length ?? 0,
     rawSaved: params.rawSaved,
@@ -387,7 +427,66 @@ function statsFromOperations(operations: PreviewOperations | null): ReviewRunSum
   };
 }
 
-function classifyReviewError(message: string): ReviewErrorCategory {
+function buildProviderDiagnosticsForError(
+  error: unknown,
+  errorCategory: ReviewErrorCategory,
+  existingDiagnostics: AiProviderDiagnostics | null,
+): AiProviderDiagnostics {
+  const message = error instanceof Error ? error.message : 'Review failed.';
+  const errorName = error instanceof Error ? error.name : null;
+  const failureKind = existingDiagnostics?.failureKind ?? failureKindFromErrorCategory(errorCategory);
+  const sanitized = sanitizeProviderDiagnosticsForSummary({
+    finishReason: existingDiagnostics?.finishReason ?? null,
+    rawFinishReason: existingDiagnostics?.rawFinishReason ?? null,
+    usage: existingDiagnostics?.usage ?? null,
+    warningCount: existingDiagnostics?.warningCount ?? 0,
+    warnings: existingDiagnostics?.warnings ?? [],
+    responseId: existingDiagnostics?.responseId ?? null,
+    responseModelId: existingDiagnostics?.responseModelId ?? null,
+    providerMetadataKeys: existingDiagnostics?.providerMetadataKeys ?? [],
+    reasoningEnabled: existingDiagnostics?.reasoningEnabled ?? null,
+    reasoningEffort: existingDiagnostics?.reasoningEffort ?? null,
+    reasoningRequestedEffort: existingDiagnostics?.reasoningRequestedEffort ?? null,
+    reasoningEffectiveEffort: existingDiagnostics?.reasoningEffectiveEffort ?? null,
+    reasoningFallbackUsed: existingDiagnostics?.reasoningFallbackUsed ?? false,
+    reasoningFallbackReason: existingDiagnostics?.reasoningFallbackReason ?? null,
+    errorName: existingDiagnostics?.errorName ?? errorName,
+    errorMessage: existingDiagnostics?.errorMessage ?? message,
+    failureKind,
+  });
+  if (!sanitized) {
+    throw new Error('Provider diagnostics could not be built.');
+  }
+  return sanitized;
+}
+
+function addFailureKindToProviderDiagnostics(
+  diagnostics: AiProviderDiagnostics | null,
+  failureKind: AiProviderFailureKind,
+): AiProviderDiagnostics | null {
+  return sanitizeProviderDiagnosticsForSummary(diagnostics, failureKind);
+}
+
+function classifyReviewError(
+  message: string,
+  providerFailureKind: AiProviderFailureKind | null = null,
+): ReviewErrorCategory {
+  if (providerFailureKind === 'missing_config') {
+    return 'missing_config';
+  }
+
+  if (providerFailureKind === 'timeout') {
+    return 'timeout';
+  }
+
+  if (providerFailureKind === 'invalid_json') {
+    return 'invalid_json';
+  }
+
+  if (providerFailureKind === 'validation_failed') {
+    return 'validation_failed';
+  }
+
   const normalizedMessage = message.toLowerCase();
   if (
     normalizedMessage.includes('provider api key') ||
@@ -409,6 +508,58 @@ function classifyReviewError(message: string): ReviewErrorCategory {
   }
 
   return 'provider_error';
+}
+
+function failureKindFromErrorCategory(errorCategory: ReviewErrorCategory): AiProviderFailureKind | null {
+  switch (errorCategory) {
+    case 'missing_config':
+      return 'missing_config';
+    case 'timeout':
+      return 'timeout';
+    case 'invalid_json':
+      return 'invalid_json';
+    case 'validation_failed':
+      return 'validation_failed';
+    case 'provider_error':
+      return 'provider_error';
+    case 'stale_content':
+      return null;
+  }
+}
+
+function sanitizeProviderDiagnosticsForSummary(
+  diagnostics: AiProviderDiagnostics | null,
+  failureKindOverride?: AiProviderFailureKind,
+): AiProviderDiagnostics | null {
+  if (!diagnostics) {
+    return null;
+  }
+
+  const failureKind = failureKindOverride ?? diagnostics.failureKind;
+  return aiProviderDiagnosticsSchema.parse({
+    ...diagnostics,
+    failureKind,
+    warnings: diagnostics.warnings
+      .map((warning) => sanitizeProviderWarningForSummary(warning))
+      .filter((warning) => warning.length > 0),
+    errorMessage: diagnostics.errorMessage
+      ? safeAiProviderDiagnosticErrorMessage({ failureKind, message: diagnostics.errorMessage })
+      : null,
+  });
+}
+
+function sanitizeProviderWarningForSummary(warning: string): string {
+  const sanitized = sanitizeAiProviderDiagnosticText(warning);
+  if (sanitized.startsWith('Provider rejected reasoningEffort none;')) {
+    return sanitized;
+  }
+
+  const typePrefix = sanitized.split(':')[0]?.trim();
+  if (typePrefix && /^[A-Za-z0-9_-]+$/.test(typePrefix)) {
+    return typePrefix;
+  }
+
+  return 'Provider warning.';
 }
 
 function providerStatusFromError(message: string): string | null {

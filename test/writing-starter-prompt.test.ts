@@ -266,6 +266,7 @@ describe('starter prompt generation service boundary', () => {
       const values: Record<string, unknown> = {
         'writing-practice-starter-prompt-disclosure-acknowledged': true,
         rawResponseStorageEnabled: false,
+        reviewThinkingEnabled: false,
         openAiCompatibleBaseUrl: 'https://provider.example/v1',
         openAiCompatibleModel: 'starter-model',
         anthropicModel: 'claude-sonnet-4-5',

@@ -11,6 +11,7 @@ type Keytar = typeof keytar;
 
 const require = createRequire(import.meta.url);
 const SERVICE_NAME = 'english-coach';
+const SERVICE_NAME_ENV = 'ENGLISH_COACH_KEYCHAIN_SERVICE_NAME';
 const PROVIDER_ACCOUNT = 'provider-api-key';
 const ANTHROPIC_PROVIDER_ACCOUNT = 'provider-api-key:anthropic';
 
@@ -30,6 +31,11 @@ function getProviderAccount(providerId: AiProviderId): string {
 
 function getProviderErrorLabel(providerId: AiProviderId): string {
   return PROVIDER_ERROR_LABELS[providerId];
+}
+
+function getKeychainServiceName(): string {
+  const serviceName = process.env[SERVICE_NAME_ENV]?.trim();
+  return serviceName && serviceName.length > 0 ? serviceName : SERVICE_NAME;
 }
 
 function loadKeytar(): Keytar | null {
@@ -65,7 +71,7 @@ export async function getProviderKeyStatus(providerId: AiProviderId = 'openai-co
   }
 
   try {
-    const password = await loadedKeytar.getPassword(SERVICE_NAME, getProviderAccount(providerId));
+    const password = await loadedKeytar.getPassword(getKeychainServiceName(), getProviderAccount(providerId));
     return {
       providerId,
       status: password ? 'configured' : 'not-configured',
@@ -99,7 +105,7 @@ export async function getProviderCredentialStatuses(): Promise<ProviderCredentia
 
 export async function getProviderApiKey(providerId: AiProviderId = 'openai-compatible'): Promise<string | null> {
   try {
-    return await getRequiredKeytar(providerId).getPassword(SERVICE_NAME, getProviderAccount(providerId));
+    return await getRequiredKeytar(providerId).getPassword(getKeychainServiceName(), getProviderAccount(providerId));
   } catch {
     throw new Error(
       `${getProviderErrorLabel(providerId)} API key is unavailable. Check OS keychain access before reviewing.`,
@@ -108,9 +114,13 @@ export async function getProviderApiKey(providerId: AiProviderId = 'openai-compa
 }
 
 export async function setProviderApiKey(apiKey: string, providerId: AiProviderId = 'openai-compatible'): Promise<void> {
-  await getRequiredKeytar(providerId).setPassword(SERVICE_NAME, getProviderAccount(providerId), apiKey.trim());
+  await getRequiredKeytar(providerId).setPassword(
+    getKeychainServiceName(),
+    getProviderAccount(providerId),
+    apiKey.trim(),
+  );
 }
 
 export async function deleteProviderApiKey(providerId: AiProviderId = 'openai-compatible'): Promise<void> {
-  await getRequiredKeytar(providerId).deletePassword(SERVICE_NAME, getProviderAccount(providerId));
+  await getRequiredKeytar(providerId).deletePassword(getKeychainServiceName(), getProviderAccount(providerId));
 }

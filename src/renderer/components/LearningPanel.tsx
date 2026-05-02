@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import type { WritingAttemptSnapshot } from '@shared/types/writing';
+import type { AiProviderDiagnostics } from '@shared/types/ai';
 import type {
   ReviewErrorCategory,
   ReviewProgressPhase,
@@ -393,6 +394,7 @@ function ReviewDetails({
         <DetailRow label="Warnings" value={`${summary?.warningCount ?? reviewRun.validationErrors.length}`} />
         <DetailRow label="Raw saved" value={summary?.rawSaved ? 'yes' : 'no'} />
       </dl>
+      {summary?.providerDiagnostics ? <ProviderDiagnosticsDetails diagnostics={summary.providerDiagnostics} /> : null}
       {summary ? <ReviewStatsDetails summary={summary} /> : null}
       {summary ? <PhaseTimingList summary={summary} /> : null}
     </details>
@@ -426,6 +428,54 @@ function ReviewStatsDetails({ summary }: { summary: ReviewRunSummary }): React.J
         <DetailRow label="Rewrite tasks" value={`${summary.reviewStats.generatedRewriteTasks}`} />
         <DetailRow label="Self-repair" value={`${summary.reviewStats.generatedSelfRepairAttempts}`} />
         <DetailRow label="References" value={`${summary.reviewStats.generatedReferenceRewrites}`} />
+      </dl>
+    </div>
+  );
+}
+
+function ProviderDiagnosticsDetails({ diagnostics }: { diagnostics: AiProviderDiagnostics }): React.JSX.Element {
+  const usage = diagnostics.usage;
+  const warnings =
+    diagnostics.warnings.length > 0
+      ? diagnostics.warnings.join(' | ')
+      : diagnostics.warningCount > 0
+        ? `${diagnostics.warningCount} provider warning(s)`
+        : 'none';
+
+  return (
+    <div className="mt-4">
+      <p className="font-semibold">Provider diagnostics</p>
+      <dl className="mt-3 grid gap-2 text-sm text-base-content/65">
+        <DetailRow label="Failure" value={diagnostics.failureKind ?? 'none'} />
+        <DetailRow label="Finish" value={diagnostics.finishReason ?? 'not available'} />
+        <DetailRow label="Raw finish" value={diagnostics.rawFinishReason ?? 'not available'} />
+        <DetailRow label="Input tokens" value={formatTokenCount(usage?.inputTokens)} />
+        <DetailRow label="Output tokens" value={formatTokenCount(usage?.outputTokens)} />
+        <DetailRow label="Reasoning" value={formatTokenCount(usage?.reasoningTokens)} />
+        <DetailRow label="Text tokens" value={formatTokenCount(usage?.textTokens)} />
+        <DetailRow label="Cached input" value={formatTokenCount(usage?.cachedInputTokens)} />
+        <DetailRow label="Response id" value={diagnostics.responseId ?? 'not available'} mono />
+        <DetailRow label="Response model" value={diagnostics.responseModelId ?? 'not available'} />
+        <DetailRow
+          label="Metadata"
+          value={diagnostics.providerMetadataKeys.length > 0 ? diagnostics.providerMetadataKeys.join(', ') : 'none'}
+        />
+        <DetailRow
+          label="Thinking"
+          value={
+            diagnostics.reasoningEnabled === null ? 'not available' : diagnostics.reasoningEnabled ? 'enabled' : 'off'
+          }
+        />
+        <DetailRow label="Effort" value={diagnostics.reasoningEffort ?? 'not available'} />
+        <DetailRow label="Requested effort" value={diagnostics.reasoningRequestedEffort ?? 'not available'} />
+        <DetailRow label="Effective effort" value={diagnostics.reasoningEffectiveEffort ?? 'provider default'} />
+        <DetailRow label="Fallback" value={diagnostics.reasoningFallbackUsed ? 'used' : 'none'} />
+        {diagnostics.reasoningFallbackReason ? (
+          <DetailRow label="Fallback reason" value={diagnostics.reasoningFallbackReason} />
+        ) : null}
+        <DetailRow label="Warnings" value={warnings} />
+        <DetailRow label="Error name" value={diagnostics.errorName ?? 'none'} />
+        <DetailRow label="Error" value={diagnostics.errorMessage ?? 'none'} />
       </dl>
     </div>
   );
@@ -541,4 +591,8 @@ function formatDuration(milliseconds: number): string {
   const minutes = Math.floor(totalSeconds / 60);
   const seconds = totalSeconds % 60;
   return `${minutes}m ${seconds}s`;
+}
+
+function formatTokenCount(value: number | null | undefined): string {
+  return value === null || value === undefined ? 'not available' : value.toLocaleString('en-US');
 }

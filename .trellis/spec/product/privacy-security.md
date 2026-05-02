@@ -78,6 +78,7 @@ Settings must continue to display provider, model, database location, pi-mono au
 | Review provider config/key missing | Return configuration error; do not send writing content. |
 | Raw response storage disabled | Do not persist raw provider response JSON. |
 | Raw response storage enabled | Persist raw response locally only; Settings must warn it may contain writing content. |
+| Provider diagnostics persisted | Persist only bounded, secret-redacted metadata; do not include raw provider bodies, request bodies, Authorization headers, API keys, or model content. |
 | Renderer tries to access keychain/database/provider SDK directly | Contract violation; use narrow preload IPC only. |
 
 ### 5. Good/Base/Bad Cases
@@ -125,6 +126,8 @@ The main process builds the provider request from template metadata and optional
 - Prefer OS keychain for provider credentials.
 - Renderer code must not directly access secrets.
 - Main process owns credential access and exposes only narrow IPC operations.
+- Live e2e runs may override the OS keychain service with `ENGLISH_COACH_KEYCHAIN_SERVICE_NAME`; production/default runtime must continue using the `english-coach` service name.
+- Live e2e runs that launch real Electron/CDP may add runtime-only native library paths required by the OS keychain backend, such as detected Nix `libsecret` directories, but must still set credentials through renderer `window.api` and main IPC rather than bypassing the keychain path.
 
 ## Agent Tool Boundary
 
@@ -156,6 +159,14 @@ Rules:
 - `raw_output_json` is local-only and not uploaded automatically.
 - Debug export excludes `raw_output_json` by default.
 - Debug export includes raw output only after explicit user opt-in.
+
+## Provider Diagnostics
+
+- `review_runs.summary_json.providerDiagnostics` is allowed even when raw response storage is off.
+- Diagnostics must be metadata-only: finish reason, token usage, warning count/sanitized warning summaries, response id/model id, provider metadata keys, requested/effective reasoning effort, fallback status, error name, safe error message, and failure kind.
+- Diagnostic strings must be length-bounded and secret-redacted before persistence or renderer display.
+- Non-configuration provider failures should persist generic safe messages such as `Provider request failed.` instead of raw provider body text.
+- Raw model content, user writing content copied from provider bodies, request JSON, headers, API keys, and complete provider responses belong only in `raw_output_json`, and only when the user has enabled raw response storage.
 
 ## Preview Before Side Effects
 

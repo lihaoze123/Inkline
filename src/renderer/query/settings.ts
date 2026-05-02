@@ -12,6 +12,7 @@ import type {
   SetDefaultProviderInput,
   SetOnboardingIntroVersionSeenInput,
   SetProviderConfigInput,
+  SetReviewThinkingInput,
   SetRawResponseStorageInput,
 } from '@shared/types/settings';
 import { queryKeys } from './keys';
@@ -105,5 +106,14 @@ export function useSetRawResponseStorage(): UseMutationResult<boolean, Error, Se
     onSuccess: async () => {
       await invalidateSettingsCache(queryClient);
     },
+  });
+}
+
+export function useSetReviewThinking(): UseMutationResult<SettingsSnapshot, Error, SetReviewThinkingInput> {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (input: SetReviewThinkingInput) => window.api.settings.setReviewThinking(input),
+    onSuccess: (settings) => updateSettingsCache(queryClient, settings),
   });
 }

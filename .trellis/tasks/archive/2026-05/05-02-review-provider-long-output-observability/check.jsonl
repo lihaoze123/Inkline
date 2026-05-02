@@ -1,0 +1,11 @@
+{"file": ".trellis/spec/product/index.md", "reason": "Product review flow quality check"}
+{"file": ".trellis/spec/backend/error-handling.md", "reason": "Provider error classification verification"}
+{"file": ".trellis/spec/product/review-agent-contract.md", "reason": "Review output contract verification"}
+{"file": ".trellis/spec/product/privacy-security.md", "reason": "Raw response/privacy verification"}
+{"file": ".trellis/spec/product/validation-and-testing.md", "reason": "Review harness/testing verification"}
+{"file": ".trellis/spec/shared/code-quality.md", "reason": "Code quality verification"}
+{"file": ".trellis/spec/backend/type-safety.md", "reason": "Zod diagnostic schema verification"}
+{"file": ".trellis/spec/shared/typescript.md", "reason": "TypeScript verification"}
+{"file": ".trellis/spec/frontend/index.md", "reason": "Settings UI and renderer diagnostics verification"}
+{"file": ".trellis/spec/frontend/components.md", "reason": "Settings toggle/details UI verification"}
+{"file": ".trellis/spec/frontend/quality.md", "reason": "Frontend quality verification"}

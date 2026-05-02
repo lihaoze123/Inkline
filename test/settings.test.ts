@@ -14,6 +14,7 @@ import {
   setDefaultProviderInputSchema,
   setOnboardingIntroVersionSeenInputSchema,
   setProviderConfigInputSchema,
+  setReviewThinkingInputSchema,
   settingsSnapshotSchema,
 } from '../src/shared/types/settings';
 
@@ -27,6 +28,7 @@ describe('settings defaults contract', () => {
       isLocalModel: false,
       reviewContextDescription: 'Current entry and selected learning history will be sent when Review is clicked.',
       rawResponseStorageEnabled: false,
+      reviewThinkingEnabled: false,
       onboardingIntroVersionSeen: 0,
       databaseLocation: '/tmp/english-coach.sqlite',
       piMonoAuthStatus: 'not-configured',
@@ -60,6 +62,7 @@ describe('settings defaults contract', () => {
     });
 
     expect(parsed.rawResponseStorageEnabled).toBe(false);
+    expect(parsed.reviewThinkingEnabled).toBe(false);
     expect(parsed.onboardingIntroVersionSeen).toBe(0);
   });
 
@@ -164,6 +167,8 @@ describe('settings defaults contract', () => {
     expect(anthropicInput).toEqual({ providerId: 'anthropic', model: 'claude-sonnet-4-5' });
     expect(setDefaultProviderInputSchema.parse({ providerId: 'anthropic' })).toEqual({ providerId: 'anthropic' });
     expect(IPC_CHANNELS.SETTINGS.SET_DEFAULT_PROVIDER).toBe('settings:setDefaultProvider');
+    expect(setReviewThinkingInputSchema.parse({ enabled: true })).toEqual({ enabled: true });
+    expect(IPC_CHANNELS.SETTINGS.SET_REVIEW_THINKING).toBe('settings:setReviewThinking');
     expect(() => setDefaultProviderInputSchema.parse({ providerId: 'other-provider' })).toThrow();
   });
 
@@ -206,12 +211,17 @@ describe('settings defaults contract', () => {
       }),
     }));
 
-    const { getSettingsSnapshot, setOnboardingIntroVersionSeen } =
+    const { getSettingsSnapshot, setOnboardingIntroVersionSeen, setReviewThinking } =
       await import('../src/main/services/settings/service');
 
     expect(setOnboardingIntroVersionSeen({ version: 3 })).toBe(3);
     expect(setOnboardingIntroVersionSeen({ version: 2 })).toBe(3);
-    await expect(getSettingsSnapshot()).resolves.toMatchObject({ onboardingIntroVersionSeen: 3 });
+    await expect(getSettingsSnapshot()).resolves.toMatchObject({
+      onboardingIntroVersionSeen: 3,
+      reviewThinkingEnabled: false,
+    });
+    expect(setReviewThinking({ enabled: true })).toBe(true);
+    await expect(getSettingsSnapshot()).resolves.toMatchObject({ reviewThinkingEnabled: true });
 
     vi.doUnmock('electron-store');
     vi.doUnmock('../src/main/db/client');

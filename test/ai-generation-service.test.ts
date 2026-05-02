@@ -99,6 +99,23 @@ describe('AI generation service', () => {
       provider: 'openai-compatible',
       model: 'review-model',
       output: { prompt: 'Write about a memorable walk.' },
+      providerDiagnostics: {
+        finishReason: 'stop',
+        usage: {
+          inputTokens: 10,
+          outputTokens: 8,
+          totalTokens: 18,
+        },
+        responseId: 'response_1',
+        responseModelId: 'model_1',
+        failureKind: null,
+      },
+    });
+    expect(result.rawOutput).toMatchObject({
+      providerDiagnostics: {
+        finishReason: 'stop',
+        responseId: 'response_1',
+      },
     });
   });
 
@@ -132,5 +149,226 @@ describe('AI generation service', () => {
         maxRetries: 1,
       }),
     );
+  });
+
+  it('passes provider options through to generateText and records reasoning diagnostics', async () => {
+    const schema = z.object({ prompt: z.string().min(1) });
+
+    const result = await generateStructuredObject({
+      runtimeConfig: {
+        provider: 'openai-compatible',
+        apiKey: 'test-key',
+        baseUrl: 'https://provider.example/v1',
+        model: 'review-model',
+      },
+      systemPrompt: 'Return one prompt.',
+      userPrompt: 'Create a prompt.',
+      schema,
+      schemaName: 'starter_prompt',
+      providerOptions: {
+        openai: {
+          reasoningEffort: 'none',
+        },
+      },
+    });
+
+    expect(mocks.generateText).toHaveBeenCalledWith(
+      expect.objectContaining({
+        providerOptions: {
+          openai: {
+            reasoningEffort: 'none',
+          },
+        },
+      }),
+    );
+    expect(result.providerDiagnostics).toMatchObject({
+      reasoningEnabled: false,
+      reasoningEffort: 'none',
+      reasoningRequestedEffort: 'none',
+      reasoningEffectiveEffort: 'none',
+      reasoningFallbackUsed: false,
+    });
+  });
+
+  it('retries once without reasoningEffort when OpenAI-compatible provider rejects none', async () => {
+    const schema = z.object({ prompt: z.string().min(1) });
+    const compatibilityError = new Error(
+      'Failed to deserialize the JSON body into the target type: reasoning_effort: unknown variant `none`, expected one of high, low, medium, max, xhigh',
+    );
+    compatibilityError.name = 'AI_APICallError';
+    mocks.generateText.mockRejectedValueOnce(compatibilityError);
+
+    const result = await generateStructuredObject({
+      runtimeConfig: {
+        provider: 'openai-compatible',
+        apiKey: 'test-key',
+        baseUrl: 'https://provider.example/v1',
+        model: 'review-model',
+      },
+      systemPrompt: 'Return one prompt.',
+      userPrompt: 'Create a prompt.',
+      schema,
+      schemaName: 'starter_prompt',
+      providerOptions: {
+        openai: {
+          reasoningEffort: 'none',
+        },
+      },
+    });
+
+    expect(mocks.generateText).toHaveBeenCalledTimes(2);
+    expect(mocks.generateText.mock.calls[0]?.[0]).toEqual(
+      expect.objectContaining({
+        providerOptions: {
+          openai: {
+            reasoningEffort: 'none',
+          },
+        },
+      }),
+    );
+    expect(mocks.generateText.mock.calls[1]?.[0]).toEqual(
+      expect.objectContaining({
+        providerOptions: undefined,
+      }),
+    );
+    expect(result.providerDiagnostics).toMatchObject({
+      reasoningEnabled: null,
+      reasoningEffort: null,
+      reasoningRequestedEffort: 'none',
+      reasoningEffectiveEffort: null,
+      reasoningFallbackUsed: true,
+      reasoningFallbackReason: 'Provider rejected reasoningEffort none; retried without reasoningEffort.',
+      warnings: ['Provider rejected reasoningEffort none; retried without reasoningEffort.'],
+      failureKind: null,
+    });
+    expect(result.output).toEqual({ prompt: 'Write about a memorable walk.' });
+  });
+
+  it('classifies schema validation errors after provider completion', async () => {
+    const schema = z.object({ prompt: z.string().min(1) });
+    mocks.generateText.mockResolvedValueOnce({
+      output: { prompt: '' },
+      finishReason: 'stop',
+      rawFinishReason: 'stop',
+      usage: {
+        inputTokens: 10,
+        outputTokens: 8,
+        totalTokens: 18,
+        outputTokenDetails: { reasoningTokens: 6, textTokens: 2 },
+      },
+      warnings: undefined,
+      request: {},
+      response: { id: 'response_schema', modelId: 'review-model' },
+      providerMetadata: undefined,
+    });
+
+    await expect(
+      generateStructuredObject({
+        runtimeConfig: {
+          provider: 'openai-compatible',
+          apiKey: 'test-key',
+          baseUrl: 'https://provider.example/v1',
+          model: 'review-model',
+        },
+        systemPrompt: 'Return one prompt.',
+        userPrompt: 'Create a prompt.',
+        schema,
+        schemaName: 'starter_prompt',
+        providerOptions: {
+          openai: {
+            reasoningEffort: 'medium',
+          },
+        },
+      }),
+    ).rejects.toMatchObject({
+      providerDiagnostics: {
+        finishReason: 'stop',
+        responseId: 'response_schema',
+        reasoningEnabled: true,
+        reasoningEffort: 'medium',
+        errorMessage: 'Provider output failed app validation.',
+        failureKind: 'validation_failed',
+      },
+    });
+  });
+
+  it('attaches provider diagnostics when long reasoning exhausts output before JSON exists', async () => {
+    const schema = z.object({ prompt: z.string().min(1) });
+    const stepEvent = {
+      finishReason: 'length',
+      rawFinishReason: 'length',
+      usage: {
+        inputTokens: 123,
+        outputTokens: 16_000,
+        totalTokens: 16_123,
+        outputTokenDetails: { reasoningTokens: 15_000, textTokens: 1_000 },
+        inputTokenDetails: { cacheReadTokens: 12 },
+      },
+      warnings: [
+        {
+          type: 'provider-warning',
+          message: 'Raw body included user writing Today I go home and api_key=sk-secret123456789.',
+        },
+      ],
+      request: {},
+      response: { id: 'response_length', modelId: 'deepseek-v4-flash' },
+      providerMetadata: { deepseek: { finish: 'length' } },
+    };
+    mocks.generateText.mockImplementationOnce(async (options: { onStepFinish?: (event: typeof stepEvent) => void }) => {
+      options.onStepFinish?.(stepEvent);
+      const noOutputError = new Error('No output generated.');
+      noOutputError.name = 'AI_NoOutputGeneratedError';
+
+      return {
+        ...stepEvent,
+        get output(): unknown {
+          throw noOutputError;
+        },
+      };
+    });
+
+    await expect(
+      generateStructuredObject({
+        runtimeConfig: {
+          provider: 'openai-compatible',
+          apiKey: 'test-key',
+          baseUrl: 'https://api.deepseek.com/v1',
+          model: 'deepseek-v4-flash',
+        },
+        systemPrompt: 'Return one prompt.',
+        userPrompt: 'Create a prompt.',
+        schema,
+        schemaName: 'starter_prompt',
+        maxOutputTokens: 16_000,
+        timeoutMs: 240_000,
+        providerOptions: {
+          openai: {
+            reasoningEffort: 'medium',
+          },
+        },
+      }),
+    ).rejects.toMatchObject({
+      providerDiagnostics: {
+        finishReason: 'length',
+        rawFinishReason: 'length',
+        usage: {
+          inputTokens: 123,
+          outputTokens: 16_000,
+          totalTokens: 16_123,
+          reasoningTokens: 15_000,
+          textTokens: 1_000,
+          cachedInputTokens: 12,
+        },
+        responseId: 'response_length',
+        responseModelId: 'deepseek-v4-flash',
+        providerMetadataKeys: ['deepseek'],
+        warnings: ['provider-warning'],
+        reasoningEnabled: true,
+        reasoningEffort: 'medium',
+        errorName: 'AI_NoOutputGeneratedError',
+        errorMessage: 'Provider returned no usable output.',
+        failureKind: 'no_output',
+      },
+    });
   });
 });
