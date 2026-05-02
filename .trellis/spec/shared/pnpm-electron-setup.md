@@ -899,7 +899,7 @@ release-assets:
           exit 1
         fi
 
-        gh release upload "${RELEASE_TAG}" "${assets[@]}" --clobber
+        gh release upload "${RELEASE_TAG}" "${assets[@]}" --repo "${GITHUB_REPOSITORY}" --clobber
 ```
 
 ### 3. Contracts
@@ -908,6 +908,7 @@ release-assets:
 | --- | --- |
 | Release upload trigger | Gate release asset upload on `github.event_name == 'release' && github.event.action == 'published'`. |
 | Release tag | Use `github.event.release.tag_name`; do not infer the release from branch or ref names. |
+| Repository | Pass `--repo "${GITHUB_REPOSITORY}"` to `gh release upload` when the release upload job does not checkout the repository. |
 | Token env var | Set `GH_TOKEN: ${{ github.token }}` for GitHub CLI commands. |
 | Permissions | Keep repository-level default as `contents: read`; grant `contents: write` only to a release-only upload job. If that job downloads build artifacts, also grant `actions: read`. |
 | Actions artifacts | Keep `actions/upload-artifact` for all build triggers so manual and debug downloads still work. |
@@ -920,6 +921,7 @@ release-assets:
 | --- | --- |
 | Release upload runs without `contents: write` | `gh release upload` fails with insufficient permissions. |
 | `GH_TOKEN` is omitted | GitHub CLI cannot authenticate in the runner. |
+| `gh release upload` runs without checkout and without `--repo` | GitHub CLI can fail with `fatal: not a git repository` while trying to infer the repository. |
 | Release tag is inferred from `github.ref_name` | Release event behavior can diverge from tag push behavior; use `github.event.release.tag_name`. |
 | Actions artifact upload is replaced by release upload | Manual workflow dispatch and debugging lose temporary downloadable artifacts. |
 | Matrix jobs upload release assets directly | Concurrent uploads can race, and duplicate basenames can clobber each other. Use one release-only upload job. |
@@ -981,7 +983,7 @@ jobs:
             exit 1
           fi
 
-          gh release upload "${RELEASE_TAG}" "${assets[@]}" --clobber
+          gh release upload "${RELEASE_TAG}" "${assets[@]}" --repo "${GITHUB_REPOSITORY}" --clobber
 ```
 
 This gives every matrix build write permission and lets multiple jobs upload to the same Release concurrently.
@@ -1022,7 +1024,7 @@ jobs:
           # Collect files, fail on duplicate basenames, then upload with gh release upload.
 ```
 
-Grant write permission only to the release-only upload job, authenticate GitHub CLI with `GH_TOKEN`, target the exact published Release tag, and serialize release asset uploads after the matrix build finishes.
+Grant write permission only to the release-only upload job, authenticate GitHub CLI with `GH_TOKEN`, target the exact published Release tag, pass the repository explicitly, and serialize release asset uploads after the matrix build finishes.
 
 ---
 
