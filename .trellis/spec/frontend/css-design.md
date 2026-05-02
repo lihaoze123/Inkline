@@ -222,6 +222,7 @@ Use **BEM naming convention** to prevent class name conflicts:
 | Area | Required contract |
 | ---- | ----------------- |
 | App background | Use one coordinated warm paper background across shell and sidebar. |
+| Window chrome | When native titlebar/menu chrome is hidden or blended, keep the renderer shell background matched to the main-process `BrowserWindow.backgroundColor`, add a top drag region, and mark controls/scroll containers with `-webkit-app-region: no-drag`. |
 | Sidebar | Do not make the sidebar look like an independent color block; use the same warm paper token plus a very subtle divider. |
 | Active navigation | Prefer text weight/color only; do not use left rails, colored bars, or large active pills. |
 | Page sections | Prefer natural whitespace, typography, and aligned rhythm over repeated horizontal rules; use borders sparingly only for major boundaries or meaningful warning/error/state accents. |

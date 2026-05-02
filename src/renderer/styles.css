@@ -48,6 +48,8 @@
   --coach-line: rgba(36, 41, 54, 0.08);
   --coach-blue: #164765;
   --coach-soft-shadow: 0 14px 36px rgba(72, 60, 42, 0.035);
+  --app-window-drag-height: 2.5rem;
+  --app-window-content-top-padding: 2.5rem;
 }
 
 * {
@@ -123,8 +125,45 @@ textarea:hover::-webkit-scrollbar-thumb {
   background: var(--coach-paper);
 }
 
+.app-window-drag-strip {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 20;
+  width: 100%;
+  height: var(--app-window-drag-height);
+  -webkit-app-region: drag;
+}
+
+@supports (top: env(titlebar-area-y)) {
+  .app-window-drag-strip {
+    top: env(titlebar-area-y, 0);
+    left: env(titlebar-area-x, 0);
+    width: env(titlebar-area-width, 100%);
+    height: env(titlebar-area-height, var(--app-window-drag-height));
+  }
+}
+
 .quiet-sidebar {
+  padding-top: var(--app-window-content-top-padding);
   background: var(--coach-paper);
+  -webkit-app-region: drag;
+}
+
+.app-content-shell {
+  padding-top: var(--app-window-content-top-padding);
+}
+
+button,
+input,
+textarea,
+select,
+a,
+[role='button'],
+[contenteditable='true'],
+.scrollable,
+.quiet-sidebar__nav {
+  -webkit-app-region: no-drag;
 }
 
 .quiet-sidebar__nav {
