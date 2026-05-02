@@ -968,3 +968,38 @@ Implemented and checked the rewrite-check contract/persistence baseline: durable
 ### Next Steps
 
 - None - task complete
+
+
+## Session 29: Rewrite-check feedback UI
+
+**Date**: 2026-05-02
+**Task**: Rewrite-check feedback UI
+**Branch**: `rewrite-check-feedback-ui`
+
+### Summary
+
+Implemented renderer rewrite-check feedback states, retry cache handling, tests, and documented the UI contract.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `221f58f` | (see git log) |
+| `1506c73` | (see git log) |
+| `05f239b` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
