@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { writingAttempts, writingRevisions, reviewRuns, rewriteChecks, rewriteTasks } from '../src/main/db/schema';
 import type {
   writingAttempts as writingAttemptsTable,
@@ -8,8 +8,10 @@ import type {
   rewriteTasks as rewriteTasksTable,
 } from '../src/main/db/schema';
 import type { db as appDatabase } from '../src/main/db/client';
+import type * as AiRuntimeConfigModule from '../src/main/services/ai/runtime-config';
 import type {
   completeRewritePractice as completeRewritePracticeFunction,
+  retryRewriteCheck as retryRewriteCheckFunction,
   skipRewritePractice as skipRewritePracticeFunction,
 } from '../src/main/services/writing/service';
 
@@ -21,6 +23,13 @@ type RewriteCheckRow = typeof rewriteChecksTable.$inferSelect;
 type RewriteTaskRow = typeof rewriteTasksTable.$inferSelect;
 type StoredRow = WritingAttemptRow | WritingRevisionRow | ReviewRunRow | RewriteCheckRow | RewriteTaskRow;
 type TableName = 'writingAttempts' | 'writingRevisions' | 'reviewRuns' | 'rewriteChecks' | 'rewriteTasks';
+
+const mocks = vi.hoisted(() => ({
+  generateStructuredObject: vi.fn(),
+  getAiProviderDiagnosticsFromError: vi.fn(() => null),
+  getSettingsSnapshot: vi.fn(),
+  buildAiRuntimeConfigForFeature: vi.fn(),
+}));
 
 type RowStore = {
   writingAttempts: WritingAttemptRow[];
@@ -34,6 +43,23 @@ vi.mock('../src/main/db/client', () => ({
   db: fakeDatabase.asAppDatabase(),
   getDatabasePath: () => ':memory:',
   sqlite: {},
+}));
+
+vi.mock('../src/main/services/ai', () => ({
+  generateStructuredObject: mocks.generateStructuredObject,
+  getAiProviderDiagnosticsFromError: mocks.getAiProviderDiagnosticsFromError,
+}));
+
+vi.mock('../src/main/services/ai/runtime-config', async (importOriginal) => {
+  const actual = await importOriginal<typeof AiRuntimeConfigModule>();
+  return {
+    ...actual,
+    buildAiRuntimeConfigForFeature: mocks.buildAiRuntimeConfigForFeature,
+  };
+});
+
+vi.mock('../src/main/services/settings/service', () => ({
+  getSettingsSnapshot: mocks.getSettingsSnapshot,
 }));
 
 const now = new Date('2026-04-30T12:00:00.000Z');
@@ -68,6 +94,24 @@ class FakeWritingDatabase {
           get: () => rows[0],
           all: () => [...rows],
         };
+      },
+    };
+  }
+
+  insert(table: unknown): {
+    values: (value: unknown) => { returning: () => { get: () => StoredRow } };
+  } {
+    return {
+      values: (value: unknown) => {
+        const tableNameValue = tableName(table);
+        const row = {
+          ...(value as Record<string, unknown>),
+          createdAt: now,
+          updatedAt: now,
+          completedAt: (value as { completedAt?: unknown }).completedAt ?? null,
+        } as StoredRow;
+        this.rowsFor(tableNameValue).push(row);
+        return { returning: () => ({ get: () => row }) };
       },
     };
   }
@@ -157,6 +201,10 @@ class FakeWritingDatabase {
     return this.store.rewriteTasks.find((task) => task.id === id);
   }
 
+  rewriteChecks(): RewriteCheckRow[] {
+    return [...this.store.rewriteChecks];
+  }
+
   asAppDatabase(): AppDatabase {
     return this as unknown as AppDatabase;
   }
@@ -229,13 +277,50 @@ async function loadSkipRewritePractice(): Promise<typeof skipRewritePracticeFunc
   return module.skipRewritePractice;
 }
 
+async function loadRetryRewriteCheck(): Promise<typeof retryRewriteCheckFunction> {
+  const module = await import('../src/main/services/writing/service');
+  return module.retryRewriteCheck;
+}
+
 describe('rewrite practice service updates', () => {
-  it('returns the completed rewrite practice even after it is no longer pending for Today', async () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mocks.getSettingsSnapshot.mockResolvedValue(createSettingsSnapshot());
+    mocks.buildAiRuntimeConfigForFeature.mockResolvedValue({
+      provider: 'openai-compatible',
+      apiKey: 'test-key',
+      baseUrl: 'https://example.test/v1',
+      model: 'test-model',
+    });
+    mocks.generateStructuredObject.mockResolvedValue({
+      output: { outcome: 'correct', feedback: 'Good repair.' },
+      rawOutput: {},
+      providerDiagnostics: null,
+      provider: 'openai-compatible',
+      model: 'test-model',
+    });
+    mocks.getAiProviderDiagnosticsFromError.mockReturnValue(null);
+  });
+
+  it('saves the submitted rewrite before evaluator execution and returns the completed practice', async () => {
     fakeDatabase.reset();
     fakeDatabase.seedPracticeWithPendingRewrite();
+    mocks.generateStructuredObject.mockImplementationOnce(() => {
+      expect(fakeDatabase.rewriteTask('rewrite_1')).toMatchObject({
+        status: 'completed',
+        userRewriteText: 'I went home.',
+      });
+      return Promise.resolve({
+        output: { outcome: 'correct', feedback: 'Good repair.' },
+        rawOutput: {},
+        providerDiagnostics: null,
+        provider: 'openai-compatible',
+        model: 'test-model',
+      });
+    });
     const completeRewritePractice = await loadCompleteRewritePractice();
 
-    const result = completeRewritePractice({ rewriteTaskId: 'rewrite_1', userRewriteText: ' I went home. ' });
+    const result = await completeRewritePractice({ rewriteTaskId: 'rewrite_1', userRewriteText: ' I went home. ' });
 
     expect(result.success).toBe(true);
     expect(result.writing?.pendingRewritePractice).toBeNull();
@@ -252,13 +337,13 @@ describe('rewrite practice service updates', () => {
     });
   });
 
-  it('exposes the latest rewrite check snapshot when present', async () => {
+  it('exposes the latest rewrite check snapshot when a rewrite task is returned', async () => {
     fakeDatabase.reset();
     fakeDatabase.seedPracticeWithPendingRewrite();
     fakeDatabase.seedCompletedRewriteCheck();
-    const completeRewritePractice = await loadCompleteRewritePractice();
+    const skipRewritePractice = await loadSkipRewritePractice();
 
-    const result = completeRewritePractice({ rewriteTaskId: 'rewrite_1', userRewriteText: 'I went home.' });
+    const result = skipRewritePractice({ rewriteTaskId: 'rewrite_1' });
 
     expect(result.success).toBe(true);
     expect(result.rewritePractice?.latestRewriteCheck).toMatchObject({
@@ -269,6 +354,111 @@ describe('rewrite practice service updates', () => {
       provider: 'test-provider',
       model: 'test-model',
     });
+  });
+
+  it.each(['correct', 'partly_correct', 'incorrect'] as const)(
+    'persists a completed rewrite check for %s evaluator output',
+    async (outcome) => {
+      fakeDatabase.reset();
+      fakeDatabase.seedPracticeWithPendingRewrite();
+      mocks.generateStructuredObject.mockResolvedValueOnce({
+        output: { outcome, feedback: `${outcome} feedback.` },
+        rawOutput: {},
+        providerDiagnostics: null,
+        provider: 'openai-compatible',
+        model: 'test-model',
+      });
+      const completeRewritePractice = await loadCompleteRewritePractice();
+
+      const result = await completeRewritePractice({ rewriteTaskId: 'rewrite_1', userRewriteText: 'I went home.' });
+
+      expect(result.success).toBe(true);
+      expect(result.rewritePractice?.latestRewriteCheck).toMatchObject({
+        status: 'completed',
+        outcome,
+        feedback: { message: `${outcome} feedback.` },
+      });
+      expect(fakeDatabase.rewriteChecks()).toHaveLength(1);
+      expect(fakeDatabase.rewriteChecks()[0]).toMatchObject({
+        status: 'completed',
+        outcome,
+        feedback: `${outcome} feedback.`,
+      });
+    },
+  );
+
+  it('persists a retryable check when the provider call fails without losing submitted text', async () => {
+    fakeDatabase.reset();
+    fakeDatabase.seedPracticeWithPendingRewrite();
+    mocks.generateStructuredObject.mockRejectedValueOnce(new Error('network down with sk-testsecret123456789'));
+    const completeRewritePractice = await loadCompleteRewritePractice();
+
+    const result = await completeRewritePractice({ rewriteTaskId: 'rewrite_1', userRewriteText: 'I went home.' });
+
+    expect(result.success).toBe(true);
+    expect(fakeDatabase.rewriteTask('rewrite_1')).toMatchObject({
+      status: 'completed',
+      userRewriteText: 'I went home.',
+    });
+    expect(result.rewritePractice?.latestRewriteCheck).toMatchObject({
+      status: 'retryable',
+      outcome: null,
+      errorMessage: 'AI service connection failed while checking this rewrite. Try again or check Settings.',
+    });
+    expect(fakeDatabase.rewriteChecks()[0]?.diagnosticsJson).not.toContain('sk-testsecret123456789');
+  });
+
+  it('persists a retryable check when evaluator output is invalid', async () => {
+    fakeDatabase.reset();
+    fakeDatabase.seedPracticeWithPendingRewrite();
+    mocks.generateStructuredObject.mockResolvedValueOnce({
+      output: { outcome: 'almost', feedback: '' },
+      rawOutput: {},
+      providerDiagnostics: null,
+      provider: 'openai-compatible',
+      model: 'test-model',
+    });
+    const completeRewritePractice = await loadCompleteRewritePractice();
+
+    const result = await completeRewritePractice({ rewriteTaskId: 'rewrite_1', userRewriteText: 'I went home.' });
+
+    expect(result.success).toBe(true);
+    expect(result.rewritePractice?.latestRewriteCheck).toMatchObject({
+      status: 'retryable',
+      outcome: null,
+      errorMessage: 'AI response could not be used to check this rewrite. Try again.',
+    });
+  });
+
+  it('retries a failed rewrite check using the saved rewrite text', async () => {
+    fakeDatabase.reset();
+    fakeDatabase.seedPracticeWithPendingRewrite();
+    mocks.generateStructuredObject.mockRejectedValueOnce(new Error('temporary network failure'));
+    const completeRewritePractice = await loadCompleteRewritePractice();
+    await completeRewritePractice({ rewriteTaskId: 'rewrite_1', userRewriteText: 'I went home.' });
+    expect(fakeDatabase.rewriteChecks()).toHaveLength(1);
+    expect(fakeDatabase.rewriteChecks()[0]).toMatchObject({ status: 'retryable' });
+
+    mocks.generateStructuredObject.mockClear();
+    mocks.generateStructuredObject.mockResolvedValueOnce({
+      output: { outcome: 'partly_correct', feedback: 'Better, but still needs the target tense.' },
+      rawOutput: {},
+      providerDiagnostics: null,
+      provider: 'openai-compatible',
+      model: 'test-model',
+    });
+    const retryRewriteCheck = await loadRetryRewriteCheck();
+
+    const result = await retryRewriteCheck({ rewriteTaskId: 'rewrite_1' });
+
+    expect(result.success).toBe(true);
+    expect(result.rewriteCheck).toMatchObject({
+      status: 'completed',
+      outcome: 'partly_correct',
+    });
+    expect(fakeDatabase.rewriteChecks()).toHaveLength(2);
+    expect(mocks.generateStructuredObject).toHaveBeenCalledTimes(1);
+    expect(mocks.generateStructuredObject.mock.calls[0]?.[0].userPrompt).toContain('I went home.');
   });
 
   it('removes skipped rewrite practice from the pending practice slot', async () => {
@@ -301,6 +491,66 @@ function createPendingRewriteTask(id: string): RewriteTaskRow {
     completedAt: null,
     skippedAt: null,
     createdAt: new Date(now.getTime() - 24 * 60 * 60 * 1000),
+  };
+}
+
+function createSettingsSnapshot(): {
+  provider: string;
+  baseUrl: string;
+  model: string;
+  providerApiKeyStatus: 'configured';
+  rawResponseStorageEnabled: boolean;
+  reviewThinkingEnabled: boolean;
+  aiModelSettings: {
+    defaultProviderId: 'openai-compatible';
+    providers: {
+      'openai-compatible': {
+        providerId: 'openai-compatible';
+        provider: string;
+        baseUrl: string;
+        model: string;
+        isLocalModel: boolean;
+        apiKeyStatus: { providerId: 'openai-compatible'; status: 'configured'; storage: 'os-keychain' };
+      };
+      anthropic: {
+        providerId: 'anthropic';
+        provider: string;
+        model: string;
+        isLocalModel: boolean;
+        apiKeyStatus: { providerId: 'anthropic'; status: 'not-configured'; storage: 'os-keychain' };
+      };
+    };
+    featureOverrides: Record<string, never>;
+  };
+} {
+  return {
+    provider: 'OpenAI-compatible',
+    baseUrl: 'https://example.test/v1',
+    model: 'test-model',
+    providerApiKeyStatus: 'configured',
+    rawResponseStorageEnabled: false,
+    reviewThinkingEnabled: false,
+    aiModelSettings: {
+      defaultProviderId: 'openai-compatible',
+      providers: {
+        'openai-compatible': {
+          providerId: 'openai-compatible',
+          provider: 'OpenAI-compatible',
+          baseUrl: 'https://example.test/v1',
+          model: 'test-model',
+          isLocalModel: false,
+          apiKeyStatus: { providerId: 'openai-compatible', status: 'configured', storage: 'os-keychain' },
+        },
+        anthropic: {
+          providerId: 'anthropic',
+          provider: 'Anthropic Claude',
+          model: 'claude-sonnet-4-5',
+          isLocalModel: false,
+          apiKeyStatus: { providerId: 'anthropic', status: 'not-configured', storage: 'os-keychain' },
+        },
+      },
+      featureOverrides: {},
+    },
   };
 }
 

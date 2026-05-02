@@ -110,9 +110,9 @@ export function registerIpcHandlers(migrationResult: MigrationResult): void {
     return saveWritingAttemptResultSchema.parse(saveWritingAttempt(parsedInput));
   });
 
-  ipcMain.handle(IPC_CHANNELS.WRITING.COMPLETE_REWRITE_PRACTICE, (_event, input: unknown): unknown => {
+  ipcMain.handle(IPC_CHANNELS.WRITING.COMPLETE_REWRITE_PRACTICE, async (_event, input: unknown): Promise<unknown> => {
     const parsedInput = completeRewritePracticeInputSchema.parse(input);
-    return rewritePracticeUpdateResultSchema.parse(completeRewritePractice(parsedInput));
+    return rewritePracticeUpdateResultSchema.parse(await completeRewritePractice(parsedInput));
   });
 
   ipcMain.handle(IPC_CHANNELS.WRITING.SKIP_REWRITE_PRACTICE, (_event, input: unknown): unknown => {
@@ -120,9 +120,9 @@ export function registerIpcHandlers(migrationResult: MigrationResult): void {
     return rewritePracticeUpdateResultSchema.parse(skipRewritePractice(parsedInput));
   });
 
-  ipcMain.handle(IPC_CHANNELS.WRITING.RETRY_REWRITE_CHECK, (_event, input: unknown): unknown => {
+  ipcMain.handle(IPC_CHANNELS.WRITING.RETRY_REWRITE_CHECK, async (_event, input: unknown): Promise<unknown> => {
     const parsedInput = retryRewriteCheckInputSchema.parse(input);
-    return retryRewriteCheckResultSchema.parse(retryRewriteCheck(parsedInput));
+    return retryRewriteCheckResultSchema.parse(await retryRewriteCheck(parsedInput));
   });
 
   ipcMain.handle(IPC_CHANNELS.SETTINGS.GET, async (): Promise<unknown> => {

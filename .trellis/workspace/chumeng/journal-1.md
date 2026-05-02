@@ -970,7 +970,41 @@ Implemented and checked the rewrite-check contract/persistence baseline: durable
 - None - task complete
 
 
-## Session 29: Rewrite-check feedback UI
+## Session 29: Rewrite-check evaluator service
+
+**Date**: 2026-05-02
+**Task**: Rewrite-check evaluator service
+**Branch**: `rewrite-check-evaluator-service`
+
+### Summary
+
+Implemented synchronous rewrite-check evaluation with durable completed/retryable attempts, retry from saved rewrite text, tests, and updated code-spec contracts.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `1c59a0b` | (see git log) |
+| `f406204` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
+
+
+## Session 30: Rewrite-check feedback UI
 
 **Date**: 2026-05-02
 **Task**: Rewrite-check feedback UI

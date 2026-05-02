@@ -222,16 +222,17 @@ A rewrite practice includes:
 
 v0.1 does not require the full rewrite queue or rewrite-check agent unless the task PRD says so.
 
-## Scenario: Rewrite-Check Feedback UI
+## Scenario: Rewrite-Check Evaluator, Retry, and Feedback UI
 
 ### 1. Scope / Trigger
 
-- Trigger: Any task that changes D+1 rewrite-practice submit, persisted rewrite-check result display, retry behavior, or renderer cache handling for rewrite-check responses.
+- Trigger: Any task that changes D+1 rewrite submit, rewrite-check retry, `rewrite_checks` persistence, shared writing IPC/types, persisted rewrite-check result display, or renderer cache handling for rewrite-check responses.
+- This scenario applies once a task PRD enables rewrite-check for the milestone; it does not imply the full rewrite queue, mastery transitions, or D+3/D+7 reuse.
 - Rewrite-check UI is a learning feedback surface, not a correction-application flow. The user's submitted rewrite remains their text.
 
 ### 2. Signatures
 
-Renderer IPC calls:
+Renderer/main API:
 
 ```ts
 window.api.writing.completeRewritePractice(input: {
@@ -253,8 +254,55 @@ updateRewritePracticeCache(
 ): void;
 ```
 
+Shared snapshots:
+
+```ts
+type RewriteCheckStatus = 'pending' | 'in_progress' | 'completed' | 'failed' | 'retryable';
+type RewriteCheckOutcome = 'correct' | 'partly_correct' | 'incorrect';
+
+type RewriteCheckSnapshot = {
+  id: string;
+  rewriteTaskId: string;
+  status: RewriteCheckStatus;
+  outcome: RewriteCheckOutcome | null;
+  feedback: { message: string; nextStep?: string } | null;
+  provider: string | null;
+  model: string | null;
+  validationErrors: string[] | null;
+  errorMessage: string | null;
+  diagnostics: Record<string, unknown> | null;
+  createdAt: number;
+  updatedAt: number;
+  completedAt: number | null;
+};
+```
+
+Database fields:
+
+```text
+rewrite_tasks.user_rewrite_text     saved user submission
+rewrite_tasks.status                completed after submit, independent of check outcome
+rewrite_checks.status               pending | in_progress | completed | failed | retryable
+rewrite_checks.outcome              correct | partly_correct | incorrect | null
+rewrite_checks.feedback             concise user-facing feedback
+rewrite_checks.provider/model       provider metadata when available
+rewrite_checks.validation_errors_json bounded validation/error details
+rewrite_checks.error_message        safe user-facing retry/failure copy
+rewrite_checks.diagnostics_json     redacted provider diagnostics only
+rewrite_checks.created_at/updated_at/completed_at Unix milliseconds
+```
+
 ### 3. Contracts
 
+- `completeRewritePractice` trims and validates non-empty `userRewriteText`.
+- Submit must persist `rewrite_tasks.user_rewrite_text` and set the task status to `completed` before the evaluator call starts.
+- The evaluator prompt includes the original sentence, focus pattern, native model sentence, practice prompt, and submitted rewrite. Treat all task/user text as delimited untrusted content and require structured JSON output.
+- A successful evaluator attempt writes one `rewrite_checks` row with `status: 'completed'`, non-null `outcome`, feedback, provider/model metadata when available, and no validation errors.
+- Provider configuration, network, timeout, or invalid model-output failures must still create/update a `rewrite_checks` row with `status: 'retryable'`, `outcome: null`, a safe `errorMessage`, and bounded redacted diagnostics.
+- `RewritePracticeSnapshot.latestRewriteCheck` exposes the newest check state needed by the renderer after submit, skip, retry, or refresh.
+- `retryRewriteCheck` must reuse saved `rewrite_tasks.user_rewrite_text`; it must not ask the renderer to resubmit text. Each retry creates a new `rewrite_checks` attempt.
+- `incorrect` completes the D+1 task but records unsuccessful learning. `partly_correct` is visible progress, not mastery success. Only `correct` is the strong success signal for future mastery/reuse logic.
+- First-version submit is synchronous: save rewrite, run evaluator, persist completed/retryable attempt, then return the updated snapshot. Do not add workers or polling unless a future PRD changes the contract.
 - While submit or retry is pending, disable rewrite input, submit, skip, and retry controls for that card.
 - A saved submitted rewrite may have `status: 'completed'` even when `latestRewriteCheck.outcome` is `partly_correct`, `incorrect`, or unavailable after evaluator failure.
 - The native model sentence remains hidden before a saved submit, then becomes visible once `status === 'completed'` and `userRewriteText` exists.
@@ -269,31 +317,77 @@ updateRewritePracticeCache(
 
 | Condition | Behavior |
 | --- | --- |
+| `userRewriteText` is empty after trim | Return `{ success: false, error }`; do not create a check attempt. |
+| `rewriteTaskId` is unknown | Return `{ success: false, error: 'Rewrite practice was not found.' }`. |
+| Submit receives a pending/in-progress task | Save trimmed rewrite text, mark task `completed`, then run evaluator synchronously. |
+| Submit receives an already terminal task | Return current writing/practice snapshot; do not create another check attempt. |
 | Submit mutation is pending | Disable rewrite input and actions; show checking copy. |
 | Persisted check status is `pending` or `in_progress` | Treat the card as checking even after renderer reload. |
+| Evaluator returns `correct`, `partly_correct`, or `incorrect` with feedback | Persist `rewrite_checks.status = 'completed'`, outcome, and feedback; expose it as `latestRewriteCheck`. |
 | Completed check outcome is `correct` | Show concise positive feedback without changing user rewrite text. |
 | Completed check outcome is `partly_correct` | Show progress feedback without presenting it as mastery success. |
 | Completed check outcome is `incorrect` | Show actionable feedback while keeping the attempt completed. |
+| Provider config/key, network, or timeout failure | Preserve saved rewrite, persist `status = 'retryable'`, and expose retryable latest-check failure copy. |
+| Evaluator output fails schema validation | Preserve saved rewrite, persist `status = 'retryable'` with validation errors and safe retry copy. |
 | Check status is `failed` or `retryable` | Say the rewrite was saved, show safe error/fallback copy, and offer retry. |
+| Retry runs before any rewrite text is saved | Return `{ success: false, error }`; do not call the evaluator. |
+| Retry evaluator succeeds/fails | Create a new `rewrite_checks` row and return that row plus the updated practice snapshot. |
 | Retry succeeds with only `rewriteCheck` | Update the matching cached rewrite task's `latestRewriteCheck`; do not show a false retry error. |
 | Retry/submit returns `success: false` | Keep existing rewrite state visible and show the returned safe error. |
 
 ### 5. Good/Base/Bad Cases
 
 - Good: User submits a D+1 rewrite, sees `Checking rewrite...`, then sees native model plus `correct` feedback while their rewrite text remains unchanged.
+- Good: User submits `I went home.`; the app saves that text, evaluator returns `correct`, `latestRewriteCheck.outcome` is `correct`, and future mastery logic can treat it as a strong success signal.
+- Base: User submits a partially repaired rewrite; the task is completed, `latestRewriteCheck.outcome` is `partly_correct`, and UI can show progress without counting mastery.
+- Base: Provider times out after the rewrite is saved; `latestRewriteCheck.status` is `retryable`, the user text remains visible, and retry uses the saved text.
 - Base: Retry returns only a fresh `rewriteCheck`; the renderer patches the existing rewrite card by `rewriteTaskId` and updates feedback.
-- Base: `partly_correct` shows progress language but does not imply the pattern is mastered.
-- Bad: `incorrect` reopens the task, clears the user's submitted rewrite, or hides the native model after save.
+- Bad: The service calls the evaluator before saving `userRewriteText`, so a provider failure loses the user's answer.
+- Bad: `incorrect` leaves the task pending, reopens the task, clears the user's submitted rewrite, or hides the native model after save.
+- Bad: Retry requires the renderer to send the rewrite text again, allowing UI/server state drift.
 - Bad: Retry succeeds but the UI shows `Unable to retry rewrite check` because the response omitted a full writing snapshot.
 
 ### 6. Tests Required
 
+- Service test: submit persists trimmed `userRewriteText` before the evaluator mock executes.
+- Service tests: `correct`, `partly_correct`, and `incorrect` each persist a completed `rewrite_checks` row and expose `latestRewriteCheck`.
+- Failure tests: provider/config/network/timeout failure preserves the rewrite and persists a retryable check with redacted diagnostics.
+- Validation test: invalid evaluator output persists a retryable check with validation errors and no outcome.
+- Retry test: retry after failure reuses saved `userRewriteText`, creates a second check attempt, and returns the latest check.
+- Contract test: shared schemas reject completed checks without outcomes and non-completed checks with outcomes.
 - Renderer query/cache tests assert completion results write persisted `latestRewriteCheck` feedback into the template-scoped cache.
 - Renderer query/cache tests assert retry results update cached rewrite feedback when the response includes `writing` and `rewritePractice`.
 - Renderer query/cache tests assert retry results update cached rewrite feedback when the response includes only `rewriteCheck`.
+- Regression tests: existing review save and rewrite practice tests still pass.
 - UI/manual smoke should cover checking, `correct`, `partly_correct`, `incorrect`, retryable failure, and native-model reveal after submit.
 
 ### 7. Wrong vs Correct
+
+#### Wrong
+
+```ts
+const check = await evaluateRewriteCheck(task, input.userRewriteText);
+await db.update(rewriteTasks).set({ userRewriteText: input.userRewriteText }).where(eq(rewriteTasks.id, task.id));
+return { success: true, rewriteCheck: check };
+```
+
+This can lose the user's answer when the provider fails and makes retry depend on renderer state.
+
+#### Correct
+
+```ts
+const updatedTask = db
+  .update(rewriteTasks)
+  .set({ status: 'completed', userRewriteText: input.userRewriteText.trim(), completedAt: new Date() })
+  .where(eq(rewriteTasks.id, task.id))
+  .returning()
+  .get();
+
+await evaluateRewriteCheck(updatedTask, updatedTask.userRewriteText ?? input.userRewriteText.trim());
+return { success: true, rewritePractice: rewriteTaskToSnapshot(updatedTask) };
+```
+
+The saved rewrite is durable before evaluation, and `rewriteTaskToSnapshot` exposes the persisted latest-check state.
 
 #### Wrong
 
