@@ -819,6 +819,104 @@ Keep Linux maker outputs aligned with the product requirement: DEB plus AppImage
 
 ---
 
+## Scenario: Electron Forge macOS DMG Maker
+
+### 1. Scope / Trigger
+
+- Trigger: Any task that changes macOS Electron Forge maker output or release asset expectations for `pnpm make`.
+- This app's macOS distributable is a DMG installer. Do not use the Darwin ZIP maker for release assets unless product requirements explicitly change.
+
+### 2. Signatures
+
+Dependencies:
+
+```json
+{
+  "dependencies": {
+    "@electron-forge/maker-dmg": "^7.10.2"
+  }
+}
+```
+
+Forge makers:
+
+```typescript
+import { MakerDMG } from '@electron-forge/maker-dmg';
+
+makers: [
+  new MakerDMG({
+    format: 'ULFO',
+  }),
+];
+```
+
+### 3. Contracts
+
+| Item | Constraint |
+| --- | --- |
+| macOS maker set | Configure `MakerDMG` for macOS release distributables. Do not configure `MakerZIP` for `darwin` when the Release should contain an installer. |
+| `@electron-forge/maker-dmg` | Must be present in `package.json` and `pnpm-lock.yaml` so CI can run `pnpm install --frozen-lockfile` before `pnpm make`. |
+| DMG platform | DMG creation is supported only on macOS runners; validate actual `.dmg` output in the macOS CI job. |
+| `MakerDMG` icon option | Omit `icon` unless it points to a real icon file path accepted by `electron-installer-dmg`. Do not pass the extensionless `packagerConfig.icon` base path. |
+| `packagerConfig.icon` | May remain the extensionless base path for Electron Packager, which resolves platform-specific app icons separately from DMG maker options. |
+
+### 4. Validation & Error Matrix
+
+| Condition | Behavior |
+| --- | --- |
+| `MakerZIP({}, ['darwin'])` remains configured | macOS release assets are ZIP archives instead of DMG installers. |
+| `@electron-forge/maker-dmg` is missing from dependencies or lockfile | CI install or `pnpm make` cannot load the DMG maker reproducibly. |
+| `MakerDMG` runs on Linux or Windows | The maker is unsupported on the current platform; use the macOS matrix job for full validation. |
+| `MakerDMG({ icon: iconBasePath })` uses an extensionless base path such as `resources/icon` | DMG creation can fail because `electron-installer-dmg` resolves `icon` as a direct file path. |
+| `resources/icon.icns` does not exist | Keep app icon handling in `packagerConfig.icon` and omit the DMG icon override until a real `.icns` file is committed. |
+
+### 5. Good/Base/Bad Cases
+
+- Good: `forge.config.ts` imports `MakerDMG`, configures `new MakerDMG({ format: 'ULFO' })`, removes Darwin ZIP maker usage, and the macOS CI job emits a `.dmg` under `out/make`.
+- Base: Local Linux verification runs quality checks and `pnpm package`; actual DMG creation is left to macOS CI because the maker is platform-specific.
+- Bad: Keeping both Darwin ZIP and DMG makers without a product requirement, because release upload will attach both formats and obscure the expected macOS installer.
+- Bad: Reusing `iconBasePath` for the DMG maker icon option. Extensionless paths are for Electron Packager, not for `electron-installer-dmg`.
+
+### 6. Tests Required
+
+- Static config check: search active config/package/workflow files for `MakerZIP`, `maker-zip`, and `darwin` ZIP maker usage before finishing a DMG-only task.
+- Dependency check: verify `package.json` and `pnpm-lock.yaml` include `@electron-forge/maker-dmg` and no longer include `@electron-forge/maker-zip` unless another platform needs it.
+- Quality checks: run `pnpm format:check`, `pnpm lint`, `pnpm typecheck`, and project tests.
+- Packaging smoke: run `pnpm package` on the current platform when available; rely on the macOS CI `pnpm make` job to assert a `.dmg` appears under `out/make`.
+
+### 7. Wrong vs Correct
+
+#### Wrong
+
+```typescript
+import { MakerZIP } from '@electron-forge/maker-zip';
+
+const iconBasePath = path.resolve(projectRoot, 'resources', 'icon');
+
+makers: [
+  new MakerZIP({}, ['darwin']),
+  new MakerDMG({ icon: iconBasePath }),
+];
+```
+
+This keeps ZIP release output and passes an extensionless packager icon path to the DMG maker.
+
+#### Correct
+
+```typescript
+import { MakerDMG } from '@electron-forge/maker-dmg';
+
+makers: [
+  new MakerDMG({
+    format: 'ULFO',
+  }),
+];
+```
+
+Use Electron Packager's extensionless `packagerConfig.icon` for app bundle icon selection, and configure the DMG maker only with options backed by real files.
+
+---
+
 ## Scenario: Release-Triggered Electron Forge Asset Uploads
 
 ### 1. Scope / Trigger
