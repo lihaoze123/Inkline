@@ -4,17 +4,37 @@ import type * as AiModule from 'ai';
 
 const mocks = vi.hoisted(() => {
   const generateText = vi.fn();
-  const openAiChat = vi.fn((model: string) => ({ provider: 'openai-compatible', model }));
+  const openAiModel = vi.fn((model: string) => ({ provider: 'openai', model }));
+  const deepSeekModel = vi.fn((model: string) => ({ provider: 'deepseek', model }));
+  const openAiCompatibleChatModel = vi.fn((model: string) => ({ provider: 'openai-compatible', model }));
   const anthropicModel = vi.fn((model: string) => ({ provider: 'anthropic', model }));
-  const createOpenAI = vi.fn(() => ({ chat: openAiChat }));
+  const googleModel = vi.fn((model: string) => ({ provider: 'google', model }));
+  const xaiModel = vi.fn((model: string) => ({ provider: 'xai', model }));
+  const openRouterChat = vi.fn((model: string) => ({ provider: 'openrouter', model }));
+  const createOpenAI = vi.fn(() => openAiModel);
+  const createDeepSeek = vi.fn(() => deepSeekModel);
+  const createOpenAICompatible = vi.fn(() => ({ chatModel: openAiCompatibleChatModel }));
   const createAnthropic = vi.fn(() => anthropicModel);
+  const createGoogleGenerativeAI = vi.fn(() => googleModel);
+  const createXai = vi.fn(() => xaiModel);
+  const createOpenRouter = vi.fn(() => ({ chat: openRouterChat }));
 
   return {
     anthropicModel,
     createAnthropic,
+    createDeepSeek,
+    createGoogleGenerativeAI,
     createOpenAI,
+    createOpenAICompatible,
+    createOpenRouter,
+    createXai,
+    deepSeekModel,
     generateText,
-    openAiChat,
+    googleModel,
+    openAiCompatibleChatModel,
+    openAiModel,
+    openRouterChat,
+    xaiModel,
   };
 });
 
@@ -36,8 +56,28 @@ vi.mock('@ai-sdk/openai', () => ({
   createOpenAI: mocks.createOpenAI,
 }));
 
+vi.mock('@ai-sdk/deepseek', () => ({
+  createDeepSeek: mocks.createDeepSeek,
+}));
+
+vi.mock('@ai-sdk/openai-compatible', () => ({
+  createOpenAICompatible: mocks.createOpenAICompatible,
+}));
+
 vi.mock('@ai-sdk/anthropic', () => ({
   createAnthropic: mocks.createAnthropic,
+}));
+
+vi.mock('@ai-sdk/google', () => ({
+  createGoogleGenerativeAI: mocks.createGoogleGenerativeAI,
+}));
+
+vi.mock('@ai-sdk/xai', () => ({
+  createXai: mocks.createXai,
+}));
+
+vi.mock('@openrouter/ai-sdk-provider', () => ({
+  createOpenRouter: mocks.createOpenRouter,
 }));
 
 import { generateStructuredObject } from '../src/main/services/ai';
@@ -75,14 +115,14 @@ describe('AI generation service', () => {
       timeoutMs: 1_000,
     });
 
-    expect(mocks.createOpenAI).toHaveBeenCalledWith(
+    expect(mocks.createOpenAICompatible).toHaveBeenCalledWith(
       expect.objectContaining({
         apiKey: 'test-key',
         baseURL: 'https://provider.example/v1',
         name: 'openai-compatible',
       }),
     );
-    expect(mocks.openAiChat).toHaveBeenCalledWith('review-model');
+    expect(mocks.openAiCompatibleChatModel).toHaveBeenCalledWith('review-model');
     expect(mocks.generateText).toHaveBeenCalledWith(
       expect.objectContaining({
         model: { provider: 'openai-compatible', model: 'review-model' },
@@ -166,7 +206,7 @@ describe('AI generation service', () => {
       schema,
       schemaName: 'starter_prompt',
       providerOptions: {
-        openai: {
+        openaiCompatible: {
           reasoningEffort: 'none',
         },
       },
@@ -175,7 +215,7 @@ describe('AI generation service', () => {
     expect(mocks.generateText).toHaveBeenCalledWith(
       expect.objectContaining({
         providerOptions: {
-          openai: {
+          openaiCompatible: {
             reasoningEffort: 'none',
           },
         },
@@ -210,7 +250,7 @@ describe('AI generation service', () => {
       schema,
       schemaName: 'starter_prompt',
       providerOptions: {
-        openai: {
+        openaiCompatible: {
           reasoningEffort: 'none',
         },
       },
@@ -220,7 +260,7 @@ describe('AI generation service', () => {
     expect(mocks.generateText.mock.calls[0]?.[0]).toEqual(
       expect.objectContaining({
         providerOptions: {
-          openai: {
+          openaiCompatible: {
             reasoningEffort: 'none',
           },
         },
@@ -275,7 +315,7 @@ describe('AI generation service', () => {
         schema,
         schemaName: 'starter_prompt',
         providerOptions: {
-          openai: {
+          openaiCompatible: {
             reasoningEffort: 'medium',
           },
         },
@@ -342,7 +382,7 @@ describe('AI generation service', () => {
         maxOutputTokens: 16_000,
         timeoutMs: 240_000,
         providerOptions: {
-          openai: {
+          openaiCompatible: {
             reasoningEffort: 'medium',
           },
         },

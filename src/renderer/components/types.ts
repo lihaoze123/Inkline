@@ -32,19 +32,16 @@ export type AutosaveStatusProps = {
 export type SettingsPageProps = {
   settings: SettingsSnapshot;
   startup: StartupStatus;
-  openAiBaseUrlInput: string;
-  openAiModelInput: string;
-  anthropicModelInput: string;
+  openAiCompatibleBaseUrlInput: string;
+  providerModelInputs: Record<AiProviderId, string>;
   apiKeyInputs: Record<AiProviderId, string>;
   message: string | null;
   error: string | null;
   onDefaultProviderChange: (providerId: AiProviderId) => void;
-  onOpenAiBaseUrlChange: (value: string) => void;
-  onOpenAiModelChange: (value: string) => void;
-  onAnthropicModelChange: (value: string) => void;
+  onOpenAiCompatibleBaseUrlChange: (value: string) => void;
+  onProviderModelChange: (providerId: AiProviderId, value: string) => void;
   onApiKeyChange: (providerId: AiProviderId, value: string) => void;
-  onSaveOpenAiConfig: () => void;
-  onSaveAnthropicConfig: () => void;
+  onSaveProviderConfig: (providerId: AiProviderId) => void;
   onSaveApiKey: (providerId: AiProviderId) => void;
   onDeleteApiKey: (providerId: AiProviderId) => void;
   onRawResponseStorageChange: (enabled: boolean) => void;

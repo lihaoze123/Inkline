@@ -3,10 +3,8 @@ import type { FlexibleSchema } from 'ai';
 import type { ProviderOptions } from '@ai-sdk/provider-utils';
 import {
   aiProviderDiagnosticsSchema,
-  aiReasoningEffortSchema,
   safeAiProviderDiagnosticErrorMessage,
   sanitizeAiProviderDiagnosticText,
-  type AiReasoningEffort,
   type AiProviderDiagnostics,
   type AiProviderFailureKind,
   type AiProviderTokenUsage,
@@ -15,6 +13,7 @@ import { aiGenerationRequestSchema, aiGenerationResultSchema, aiProviderRuntimeC
 import type { AiGenerationRequest, AiGenerationResult, AiProviderRuntimeConfig } from './types';
 import { createAiProviderModel } from './provider';
 import { getE2eMockStructuredOutput } from './e2e-mock';
+import { extractReasoningDiagnosticsHint } from './reasoning-options';
 
 type AiGenerationMetadataSource = {
   finishReason?: unknown;
@@ -113,7 +112,7 @@ export async function generateStructuredObject<OutputObject>(
         used: true,
         reason: 'Provider rejected reasoningEffort none; retried without reasoningEffort.',
       };
-      result = await generateWithProviderOptions(removeOpenAiReasoningEffort(parsedRequest.providerOptions));
+      result = await generateWithProviderOptions(removeReasoningEffortOptions(parsedRequest.providerOptions));
     }
 
     providerDiagnostics = addReasoningDiagnostics(
@@ -368,8 +367,8 @@ function addReasoningDiagnostics(
   providerOptions: ProviderOptions | undefined,
   reasoningFallback: AiGenerationReasoningFallback,
 ): AiProviderDiagnostics {
-  const reasoningEffort = extractOpenAiReasoningEffort(providerOptions);
-  if (!reasoningEffort) {
+  const reasoningHint = extractReasoningDiagnosticsHint(providerOptions);
+  if (!reasoningHint) {
     return diagnostics;
   }
 
@@ -383,7 +382,7 @@ function addReasoningDiagnostics(
       warnings: [fallbackReason, ...diagnostics.warnings].slice(0, 5),
       reasoningEnabled: null,
       reasoningEffort: null,
-      reasoningRequestedEffort: reasoningEffort,
+      reasoningRequestedEffort: reasoningHint.reasoningEffort,
       reasoningEffectiveEffort: null,
       reasoningFallbackUsed: true,
       reasoningFallbackReason: fallbackReason,
@@ -392,23 +391,17 @@ function addReasoningDiagnostics(
 
   return aiProviderDiagnosticsSchema.parse({
     ...diagnostics,
-    reasoningEnabled: reasoningEffort !== 'none',
-    reasoningEffort,
-    reasoningRequestedEffort: reasoningEffort,
-    reasoningEffectiveEffort: reasoningEffort,
+    reasoningEnabled: reasoningHint.reasoningEnabled,
+    reasoningEffort: reasoningHint.reasoningEffort,
+    reasoningRequestedEffort: reasoningHint.reasoningEffort,
+    reasoningEffectiveEffort: reasoningHint.reasoningEffort,
     reasoningFallbackUsed: false,
     reasoningFallbackReason: null,
   });
 }
 
-function extractOpenAiReasoningEffort(providerOptions: ProviderOptions | undefined): AiReasoningEffort | null {
-  const openAiOptions = toRecord(providerOptions?.openai);
-  const parseResult = aiReasoningEffortSchema.safeParse(openAiOptions?.reasoningEffort);
-  return parseResult.success ? parseResult.data : null;
-}
-
 function shouldRetryWithoutReasoningEffortNone(error: unknown, providerOptions: ProviderOptions | undefined): boolean {
-  if (extractOpenAiReasoningEffort(providerOptions) !== 'none') {
+  if (!hasRemovableReasoningEffortNone(providerOptions)) {
     return false;
   }
 
@@ -421,24 +414,33 @@ function shouldRetryWithoutReasoningEffortNone(error: unknown, providerOptions: 
   );
 }
 
-function removeOpenAiReasoningEffort(providerOptions: ProviderOptions | undefined): ProviderOptions | undefined {
+function hasRemovableReasoningEffortNone(providerOptions: ProviderOptions | undefined): boolean {
+  return ['openai', 'openaiCompatible', 'openai-compatible'].some((key) => {
+    const options = toRecord(providerOptions?.[key]);
+    return options?.reasoningEffort === 'none';
+  });
+}
+
+function removeReasoningEffortOptions(providerOptions: ProviderOptions | undefined): ProviderOptions | undefined {
   const optionsRecord = toRecord(providerOptions);
   if (!optionsRecord) {
     return undefined;
   }
 
   const nextOptions: Record<string, unknown> = { ...optionsRecord };
-  const openAiOptions = toRecord(nextOptions.openai);
-  if (!openAiOptions) {
-    return providerOptions;
-  }
+  for (const key of ['openai', 'openaiCompatible', 'openai-compatible']) {
+    const providerSpecificOptions = toRecord(nextOptions[key]);
+    if (!providerSpecificOptions || providerSpecificOptions.reasoningEffort !== 'none') {
+      continue;
+    }
 
-  const nextOpenAiOptions: Record<string, unknown> = { ...openAiOptions };
-  delete nextOpenAiOptions.reasoningEffort;
-  if (Object.keys(nextOpenAiOptions).length > 0) {
-    nextOptions.openai = nextOpenAiOptions;
-  } else {
-    delete nextOptions.openai;
+    const nextProviderSpecificOptions: Record<string, unknown> = { ...providerSpecificOptions };
+    delete nextProviderSpecificOptions.reasoningEffort;
+    if (Object.keys(nextProviderSpecificOptions).length > 0) {
+      nextOptions[key] = nextProviderSpecificOptions;
+    } else {
+      delete nextOptions[key];
+    }
   }
 
   return Object.keys(nextOptions).length > 0 ? (nextOptions as ProviderOptions) : undefined;

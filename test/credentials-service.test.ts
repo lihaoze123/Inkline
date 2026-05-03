@@ -23,8 +23,13 @@ describe('credentials service', () => {
       storage: 'os-keychain',
     });
     await expect(getProviderCredentialStatuses()).resolves.toEqual({
+      openai: { providerId: 'openai', status: 'unavailable', storage: 'os-keychain' },
+      deepseek: { providerId: 'deepseek', status: 'unavailable', storage: 'os-keychain' },
       'openai-compatible': { providerId: 'openai-compatible', status: 'unavailable', storage: 'os-keychain' },
       anthropic: { providerId: 'anthropic', status: 'unavailable', storage: 'os-keychain' },
+      google: { providerId: 'google', status: 'unavailable', storage: 'os-keychain' },
+      xai: { providerId: 'xai', status: 'unavailable', storage: 'os-keychain' },
+      openrouter: { providerId: 'openrouter', status: 'unavailable', storage: 'os-keychain' },
     });
   });
 

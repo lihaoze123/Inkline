@@ -14,7 +14,8 @@ const mocks = vi.hoisted(() => ({
   getProviderApiKey: vi.fn(),
   generateText: vi.fn(),
   createOpenAI: vi.fn(),
-  openAiChat: vi.fn((model: string) => ({ provider: 'openai-compatible', model })),
+  createOpenAICompatible: vi.fn(),
+  openAiCompatibleChatModel: vi.fn((model: string) => ({ provider: 'openai-compatible', model })),
   storeGet: vi.fn(),
   storeSet: vi.fn(),
 }));
@@ -43,8 +44,13 @@ vi.mock('../src/main/db/client', () => ({
 vi.mock('../src/main/services/credentials/service', () => ({
   getProviderApiKey: mocks.getProviderApiKey,
   getProviderCredentialStatuses: async () => ({
+    openai: { providerId: 'openai', status: 'not-configured', storage: 'os-keychain' },
+    deepseek: { providerId: 'deepseek', status: 'not-configured', storage: 'os-keychain' },
     'openai-compatible': { providerId: 'openai-compatible', status: 'configured', storage: 'os-keychain' },
     anthropic: { providerId: 'anthropic', status: 'not-configured', storage: 'os-keychain' },
+    google: { providerId: 'google', status: 'not-configured', storage: 'os-keychain' },
+    xai: { providerId: 'xai', status: 'not-configured', storage: 'os-keychain' },
+    openrouter: { providerId: 'openrouter', status: 'not-configured', storage: 'os-keychain' },
   }),
 }));
 
@@ -73,6 +79,10 @@ vi.mock('ai', async (importOriginal) => {
 
 vi.mock('@ai-sdk/openai', () => ({
   createOpenAI: mocks.createOpenAI,
+}));
+
+vi.mock('@ai-sdk/openai-compatible', () => ({
+  createOpenAICompatible: mocks.createOpenAICompatible,
 }));
 
 vi.mock('@ai-sdk/anthropic', () => ({
@@ -259,17 +269,22 @@ describe('starter prompt generation service boundary', () => {
   beforeEach((): void => {
     fakeDatabase.reset();
     vi.clearAllMocks();
-    mocks.openAiChat.mockImplementation((model: string) => ({ provider: 'openai-compatible', model }));
-    mocks.createOpenAI.mockReturnValue({ chat: mocks.openAiChat });
+    mocks.openAiCompatibleChatModel.mockImplementation((model: string) => ({ provider: 'openai-compatible', model }));
+    mocks.createOpenAICompatible.mockReturnValue({ chatModel: mocks.openAiCompatibleChatModel });
     mocks.getProviderApiKey.mockResolvedValue('test-key');
     mocks.storeGet.mockImplementation((key: string) => {
       const values: Record<string, unknown> = {
         'writing-practice-starter-prompt-disclosure-acknowledged': true,
         rawResponseStorageEnabled: false,
         reviewThinkingEnabled: false,
+        openAiModel: 'gpt-4o-mini',
+        deepSeekModel: 'deepseek-chat',
         openAiCompatibleBaseUrl: 'https://provider.example/v1',
         openAiCompatibleModel: 'starter-model',
         anthropicModel: 'claude-sonnet-4-5',
+        googleModel: 'gemini-2.5-flash',
+        xaiModel: 'grok-4-fast-non-reasoning',
+        openRouterModel: 'openai/gpt-4o-mini',
         defaultProviderId: 'openai-compatible',
       };
       return values[key];
@@ -319,7 +334,7 @@ describe('starter prompt generation service boundary', () => {
 
     expect(result.success).toBe(false);
     expect(result.error).toBe(
-      'OpenAI-compatible provider API key is not configured. Add it in Settings before continuing.',
+      'Custom OpenAI-compatible provider API key is not configured. Add it in Settings before continuing.',
     );
     expect(mocks.generateText).not.toHaveBeenCalled();
   });

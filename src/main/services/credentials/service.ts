@@ -1,5 +1,6 @@
 import type keytar from 'keytar';
 import { createRequire } from 'node:module';
+import { AI_PROVIDER_IDS, providerCredentialStatusesSchema } from '../../../shared/types/credentials';
 import type {
   AiProviderId,
   ProviderCredentialStatuses,
@@ -13,16 +14,31 @@ const require = createRequire(import.meta.url);
 const SERVICE_NAME = 'Inkline';
 const SERVICE_NAME_ENV = 'INKLINE_KEYCHAIN_SERVICE_NAME';
 const PROVIDER_ACCOUNT = 'provider-api-key';
+const OPENAI_PROVIDER_ACCOUNT = 'provider-api-key:openai';
+const DEEPSEEK_PROVIDER_ACCOUNT = 'provider-api-key:deepseek';
 const ANTHROPIC_PROVIDER_ACCOUNT = 'provider-api-key:anthropic';
+const GOOGLE_PROVIDER_ACCOUNT = 'provider-api-key:google';
+const XAI_PROVIDER_ACCOUNT = 'provider-api-key:xai';
+const OPENROUTER_PROVIDER_ACCOUNT = 'provider-api-key:openrouter';
 
 const PROVIDER_KEY_ACCOUNTS: Record<AiProviderId, string> = {
+  openai: OPENAI_PROVIDER_ACCOUNT,
+  deepseek: DEEPSEEK_PROVIDER_ACCOUNT,
   'openai-compatible': PROVIDER_ACCOUNT,
   anthropic: ANTHROPIC_PROVIDER_ACCOUNT,
+  google: GOOGLE_PROVIDER_ACCOUNT,
+  xai: XAI_PROVIDER_ACCOUNT,
+  openrouter: OPENROUTER_PROVIDER_ACCOUNT,
 };
 
 const PROVIDER_ERROR_LABELS: Record<AiProviderId, string> = {
-  'openai-compatible': 'OpenAI-compatible provider',
+  openai: 'OpenAI provider',
+  deepseek: 'DeepSeek provider',
+  'openai-compatible': 'Custom OpenAI-compatible provider',
   anthropic: 'Anthropic Claude provider',
+  google: 'Google Gemini provider',
+  xai: 'xAI Grok provider',
+  openrouter: 'OpenRouter provider',
 };
 
 function getProviderAccount(providerId: AiProviderId): string {
@@ -94,13 +110,11 @@ async function getRequiredProviderKeyStatus<TProviderId extends AiProviderId>(
 }
 
 export async function getProviderCredentialStatuses(): Promise<ProviderCredentialStatuses> {
-  const openAiCompatibleStatus = await getRequiredProviderKeyStatus('openai-compatible');
-  const anthropicStatus = await getRequiredProviderKeyStatus('anthropic');
+  const statuses = await Promise.all(
+    AI_PROVIDER_IDS.map(async (providerId) => [providerId, await getRequiredProviderKeyStatus(providerId)] as const),
+  );
 
-  return {
-    'openai-compatible': openAiCompatibleStatus,
-    anthropic: anthropicStatus,
-  };
+  return providerCredentialStatusesSchema.parse(Object.fromEntries(statuses));
 }
 
 export async function getProviderApiKey(providerId: AiProviderId = 'openai-compatible'): Promise<string | null> {

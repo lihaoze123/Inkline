@@ -381,6 +381,16 @@ function makeSettingsSnapshot(): SettingsSnapshot {
     piMonoAuthStatus: 'not-configured',
     providerApiKeyStatus: 'configured',
     providerCredentialStatuses: {
+      openai: {
+        providerId: 'openai',
+        status: 'not-configured',
+        storage: 'os-keychain',
+      },
+      deepseek: {
+        providerId: 'deepseek',
+        status: 'not-configured',
+        storage: 'os-keychain',
+      },
       'openai-compatible': {
         providerId: 'openai-compatible',
         status: 'configured',
@@ -391,13 +401,50 @@ function makeSettingsSnapshot(): SettingsSnapshot {
         status: 'not-configured',
         storage: 'os-keychain',
       },
+      google: {
+        providerId: 'google',
+        status: 'not-configured',
+        storage: 'os-keychain',
+      },
+      xai: {
+        providerId: 'xai',
+        status: 'not-configured',
+        storage: 'os-keychain',
+      },
+      openrouter: {
+        providerId: 'openrouter',
+        status: 'not-configured',
+        storage: 'os-keychain',
+      },
     },
     aiModelSettings: {
       defaultProviderId: 'openai-compatible',
       providers: {
+        openai: {
+          providerId: 'openai',
+          provider: 'OpenAI',
+          model: 'gpt-4o-mini',
+          isLocalModel: false,
+          apiKeyStatus: {
+            providerId: 'openai',
+            status: 'not-configured',
+            storage: 'os-keychain',
+          },
+        },
+        deepseek: {
+          providerId: 'deepseek',
+          provider: 'DeepSeek',
+          model: 'deepseek-chat',
+          isLocalModel: false,
+          apiKeyStatus: {
+            providerId: 'deepseek',
+            status: 'not-configured',
+            storage: 'os-keychain',
+          },
+        },
         'openai-compatible': {
           providerId: 'openai-compatible',
-          provider: 'OpenAI-compatible',
+          provider: 'Custom OpenAI-compatible',
           baseUrl: 'https://api.openai.com/v1',
           model: 'gpt-4o-mini',
           isLocalModel: false,
@@ -414,6 +461,39 @@ function makeSettingsSnapshot(): SettingsSnapshot {
           isLocalModel: false,
           apiKeyStatus: {
             providerId: 'anthropic',
+            status: 'not-configured',
+            storage: 'os-keychain',
+          },
+        },
+        google: {
+          providerId: 'google',
+          provider: 'Google Gemini',
+          model: 'gemini-2.5-flash',
+          isLocalModel: false,
+          apiKeyStatus: {
+            providerId: 'google',
+            status: 'not-configured',
+            storage: 'os-keychain',
+          },
+        },
+        xai: {
+          providerId: 'xai',
+          provider: 'xAI Grok',
+          model: 'grok-4-fast-non-reasoning',
+          isLocalModel: false,
+          apiKeyStatus: {
+            providerId: 'xai',
+            status: 'not-configured',
+            storage: 'os-keychain',
+          },
+        },
+        openrouter: {
+          providerId: 'openrouter',
+          provider: 'OpenRouter',
+          model: 'openai/gpt-4o-mini',
+          isLocalModel: false,
+          apiKeyStatus: {
+            providerId: 'openrouter',
             status: 'not-configured',
             storage: 'os-keychain',
           },

@@ -163,7 +163,7 @@ describe('review agent integration contracts', () => {
     expect(observedMaxOutputTokens).toBe(16_000);
     expect(observedTimeoutMs).toBe(1_000);
     expect(observedProviderOptions).toEqual({
-      openai: {
+      openaiCompatible: {
         reasoningEffort: 'none',
       },
     });
@@ -204,14 +204,14 @@ describe('review agent integration contracts', () => {
         existingPatterns: [],
       }),
       providerOptions: {
-        openai: {
+        openaiCompatible: {
           reasoningEffort: 'medium',
         },
       },
     });
 
     expect(observedProviderOptions).toEqual({
-      openai: {
+      openaiCompatible: {
         reasoningEffort: 'medium',
       },
     });

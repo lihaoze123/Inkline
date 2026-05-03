@@ -38,13 +38,13 @@ import {
 } from '../../../shared/types/writing';
 import { generateStructuredObject, getAiProviderDiagnosticsFromError } from '../ai';
 import { buildAiRuntimeConfigForFeature, getProviderSettingsForFeature } from '../ai/runtime-config';
+import { buildProviderReasoningOptions } from '../ai/reasoning-options';
 import {
   aiProviderDiagnosticsSchema,
   safeAiProviderDiagnosticErrorMessage,
   sanitizeAiProviderDiagnosticText,
   type AiProviderDiagnostics,
   type AiProviderFailureKind,
-  type AiReasoningEffort,
 } from '../../../shared/types/ai';
 
 const starterPromptGenerationSchema = z.object({
@@ -86,7 +86,6 @@ const STARTER_PROMPT_DISCLOSURE_KEY = 'writing-practice-starter-prompt-disclosur
 const STARTER_PROMPT_TIMEOUT_MS = 45_000;
 const REWRITE_CHECK_TIMEOUT_MS = 120_000;
 const REWRITE_CHECK_MAX_OUTPUT_TOKENS = 1_000;
-const DISABLED_REWRITE_CHECK_REASONING_EFFORT: AiReasoningEffort = 'none';
 
 type StarterPromptDisclosureStore = {
   get: (key: string) => boolean | undefined;
@@ -647,10 +646,12 @@ async function evaluateRewriteCheck(task: RewriteTaskRow, userRewriteText: strin
       maxOutputTokens: REWRITE_CHECK_MAX_OUTPUT_TOKENS,
       timeoutMs: REWRITE_CHECK_TIMEOUT_MS,
       maxRetries: 0,
-      providerOptions:
-        runtimeConfig.provider === 'openai-compatible'
-          ? { openai: { reasoningEffort: DISABLED_REWRITE_CHECK_REASONING_EFFORT } }
-          : undefined,
+      providerOptions: buildProviderReasoningOptions({
+        providerId: runtimeConfig.provider,
+        model: runtimeConfig.model,
+        thinkingEnabled: false,
+        baseUrl: runtimeConfig.provider === 'openai-compatible' ? runtimeConfig.baseUrl : undefined,
+      }),
     });
     const parsed = rewriteCheckEvaluationSchema.safeParse(generation.output);
     const providerDiagnostics = sanitizeRewriteCheckDiagnostics(generation.providerDiagnostics ?? null);
