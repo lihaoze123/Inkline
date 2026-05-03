@@ -50,8 +50,11 @@ export function WritingEditorCard({
             </div>
           </div>
 
-          <details className="group text-sm text-base-content/58">
-            <summary className="cursor-pointer select-none text-xs text-base-content/45 transition hover:text-base-content/70">
+          <details className="group text-sm text-base-content/58" data-e2e="starter-goal-details">
+            <summary
+              className="cursor-pointer select-none text-xs text-base-content/45 transition hover:text-base-content/70"
+              data-e2e="starter-goal-summary"
+            >
               Starter prompt and optional goal
             </summary>
             <div className="mt-4 grid gap-4">
@@ -71,6 +74,7 @@ export function WritingEditorCard({
                   value={userGoal}
                   onChange={(event) => onUserGoalChange(event.target.value)}
                   placeholder="Example: practice giving reasons, describing a memory, or responding to a CET topic."
+                  data-e2e="writing-goal-input"
                 />
               </label>
             </div>
@@ -130,6 +134,7 @@ export function WritingEditorCard({
         onChange={(event) => onContentChange(event.target.value)}
         placeholder="Write in English. No corrections while you write."
         aria-label={`${template.title} writing practice editor`}
+        data-e2e="writing-editor"
         spellCheck={false}
       />
       <p className="mt-3 py-1 text-right text-xs text-base-content/35">Write first. Feedback later.</p>

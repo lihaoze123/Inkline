@@ -47,7 +47,12 @@ export function ReviewDisclosureDialog({
           <button type="button" className="btn btn-ghost rounded-2xl" onClick={onCancel}>
             Cancel
           </button>
-          <button type="button" className="btn btn-primary rounded-2xl" onClick={onAcknowledge}>
+          <button
+            type="button"
+            className="btn btn-primary rounded-2xl"
+            data-e2e={isStarter ? 'starter-disclosure-acknowledge' : 'review-disclosure-acknowledge'}
+            onClick={onAcknowledge}
+          >
             {isStarter ? 'I understand, generate prompt' : 'I understand, review now'}
           </button>
         </div>

@@ -40,7 +40,7 @@ type E2ECheck = {
   expectedReasoningEffort: 'none' | 'medium';
 };
 
-type ElectronSession = {
+export type ElectronSession = {
   child: ChildProcess;
   cdpPort: number;
   tempRoot: string;
@@ -234,7 +234,7 @@ async function launchElectronSession(config: E2EConfig, cdpPort: number): Promis
   };
 }
 
-async function waitForRendererTarget(port: number, recentOutput: () => string[]): Promise<Required<CdpTarget>> {
+export async function waitForRendererTarget(port: number, recentOutput: () => string[]): Promise<Required<CdpTarget>> {
   const startedAt = Date.now();
   let lastError = 'CDP target list is not available yet.';
 
@@ -282,7 +282,7 @@ function isAppRendererTarget(url: string): boolean {
   return url.startsWith('http://') || url.startsWith('https://') || url.startsWith('file://');
 }
 
-async function waitForRendererApi(cdp: CdpClient): Promise<void> {
+export async function waitForRendererApi(cdp: CdpClient): Promise<void> {
   const startedAt = Date.now();
   while (Date.now() - startedAt < CDP_WAIT_TIMEOUT_MS) {
     const result = await cdp.evaluate('Boolean(window.api?.settings && window.api?.review && window.api?.writing)');
@@ -431,7 +431,7 @@ async function bestEffortRendererCredentialCleanup(cdp: CdpClient): Promise<void
   }
 }
 
-async function bestEffortCloseBrowser(cdp: CdpClient): Promise<void> {
+export async function bestEffortCloseBrowser(cdp: CdpClient): Promise<void> {
   try {
     await cdp.send('Browser.close', undefined, 10_000);
   } catch {
@@ -439,7 +439,7 @@ async function bestEffortCloseBrowser(cdp: CdpClient): Promise<void> {
   }
 }
 
-async function cleanupElectronSession(session: ElectronSession): Promise<void> {
+export async function cleanupElectronSession(session: ElectronSession): Promise<void> {
   await stopChildProcess(session.child);
   await bestEffortKillCdpProcesses(session.cdpProcessIds, 'SIGTERM');
   await sleep(1_000);
@@ -447,7 +447,7 @@ async function cleanupElectronSession(session: ElectronSession): Promise<void> {
   await bestEffortRemoveTempDir(session.tempRoot);
 }
 
-async function captureCdpProcessIds(cdp: CdpClient, session: ElectronSession): Promise<void> {
+export async function captureCdpProcessIds(cdp: CdpClient, session: ElectronSession): Promise<void> {
   try {
     const response = (await cdp.send('SystemInfo.getProcessInfo', undefined, 10_000)) as {
       result?: { processInfo?: Array<{ id?: unknown }> };
@@ -523,7 +523,7 @@ async function stopChildProcess(child: ChildProcess): Promise<void> {
   }
 }
 
-class CdpClient {
+export class CdpClient {
   private nextId = 1;
   private readonly pending = new Map<
     number,
@@ -636,7 +636,7 @@ class CdpClient {
   }
 }
 
-async function getFreePort(): Promise<number> {
+export async function getFreePort(): Promise<number> {
   return new Promise((resolvePromise, reject) => {
     const server = createServer();
     server.listen(0, '127.0.0.1', () => {
@@ -905,7 +905,7 @@ function booleanEnvValue(name: string): boolean {
   return ['1', 'true', 'yes', 'on'].includes(value.toLowerCase());
 }
 
-function safeErrorMessage(error: unknown): string {
+export function safeErrorMessage(error: unknown): string {
   if (!(error instanceof Error)) {
     return 'E2E review provider check failed.';
   }
@@ -913,7 +913,7 @@ function safeErrorMessage(error: unknown): string {
   return error.message.replace(/sk-[A-Za-z0-9_-]+/g, '[redacted-api-key]');
 }
 
-function errorName(error: unknown): string {
+export function errorName(error: unknown): string {
   return error instanceof Error ? error.name : 'UnknownError';
 }
 
@@ -924,7 +924,7 @@ function sanitizeLogText(text: string, config: E2EConfig): string {
     .replace(/Authorization:\s*Bearer\s+[^\s]+/gi, 'Authorization: Bearer [redacted]');
 }
 
-function sleep(ms: number): Promise<void> {
+export function sleep(ms: number): Promise<void> {
   return new Promise((resolvePromise) => setTimeout(resolvePromise, ms));
 }
 

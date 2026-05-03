@@ -14,6 +14,7 @@ import {
 import { aiGenerationRequestSchema, aiGenerationResultSchema, aiProviderRuntimeConfigSchema } from './types';
 import type { AiGenerationRequest, AiGenerationResult, AiProviderRuntimeConfig } from './types';
 import { createAiProviderModel } from './provider';
+import { getE2eMockStructuredOutput } from './e2e-mock';
 
 type AiGenerationMetadataSource = {
   finishReason?: unknown;
@@ -43,6 +44,24 @@ export async function generateStructuredObject<OutputObject>(
 ): Promise<AiGenerationResult & { output: OutputObject }> {
   const parsedRequest = aiGenerationRequestSchema.parse(input);
   const runtimeConfig = aiProviderRuntimeConfigSchema.parse(input.runtimeConfig);
+  const e2eMockOutput = await getE2eMockStructuredOutput(input.schemaName);
+
+  if (e2eMockOutput.enabled) {
+    const output = await validateStructuredOutput(e2eMockOutput.output, input.schema);
+    const generationResult = aiGenerationResultSchema.parse({
+      output,
+      rawOutput: e2eMockOutput.rawOutput,
+      providerDiagnostics: null,
+      provider: runtimeConfig.provider,
+      model: runtimeConfig.model,
+    });
+
+    return {
+      ...generationResult,
+      output,
+    };
+  }
+
   const providerModel = createAiProviderModel(runtimeConfig);
   const useJsonObjectMode = providerModel.provider === 'openai-compatible';
   let providerDiagnostics: AiProviderDiagnostics | null = null;
