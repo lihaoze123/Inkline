@@ -177,6 +177,91 @@ pnpm test passed, so the template picker and starter prompt UI are verified.
 pnpm typecheck, pnpm lint, pnpm test, and pnpm review:harness passed. Electron dev launched with --remote-debugging-port=9222. Full manual interaction was not possible in this headless session, so UI golden path still needs human verification.
 ```
 
+## Scenario: Deterministic Mock UI E2E
+
+### 1. Scope / Trigger
+
+- Trigger: Any task that adds or changes the headless UI e2e path for the review -> feedback save -> D+1 rewrite practice flow.
+- This e2e validates the real Electron renderer and React UI through CDP-driven DOM interaction, not direct service calls.
+- This e2e is deterministic and uses an e2e-only mock AI provider; live provider compatibility belongs in the separate live-provider e2e command.
+
+### 2. Signatures
+
+Commands:
+
+```bash
+pnpm test:e2e
+pnpm test:e2e:live
+```
+
+Environment:
+
+```text
+INKLINE_E2E_AI_MOCK=1
+INKLINE_KEYCHAIN_SERVICE_NAME=<random e2e service name>
+XDG_CONFIG_HOME=<temporary e2e config root>
+E2E_CDP_PORT=<optional fixed CDP port>
+E2E_OPENAI_COMPATIBLE_API_KEY=<live-provider command only>
+E2E_OPENAI_COMPATIBLE_BASE_URL=<live-provider command only>
+E2E_OPENAI_COMPATIBLE_MODEL=<live-provider command only>
+```
+
+### 3. Contracts
+
+- `pnpm test:e2e` runs the deterministic mock UI full-chain and must not require real provider credentials.
+- `pnpm test:e2e:live` preserves the live-provider CDP workflow and must skip cleanly when `E2E_OPENAI_COMPATIBLE_*` variables are missing.
+- The mock AI provider is hidden behind an e2e-only runtime flag and must not appear in public provider schemas, Settings options, or normal user-facing provider UI.
+- The mock AI provider must only return output when the e2e flag is set and the runtime is not production/packaged.
+- Deterministic fixtures belong under `test/fixtures/`; they are test assets, not product contracts.
+- The UI e2e must use a fresh temporary app config/data root and an isolated e2e keychain service on every run.
+- E2E-only Electron/Chromium flags such as remote debugging, fixed window size, `--disable-gpu`, or Linux-only `--no-sandbox` must be set by the e2e launcher, not by the normal `pnpm dev` script.
+- Failure artifacts for mock UI e2e may include screenshots and bounded DOM summaries; live-provider e2e must not capture screenshots by default because real writing content may be visible.
+
+### 4. Validation & Error Matrix
+
+| Condition | Required Response |
+| --- | --- |
+| Mock e2e flag is absent | Use normal provider behavior; do not return fixture output. |
+| Runtime is production/packaged | Do not enable mock provider, even if the e2e flag is present. |
+| Live-provider env vars are absent | `pnpm test:e2e:live` reports a clean skipped status with missing env names only. |
+| Deterministic UI e2e cannot launch Electron/CDP | Fail with the `launch-cdp` phase and recent sanitized Electron output. |
+| Renderer API never becomes ready | Fail with the `renderer-api-readiness` phase. |
+| A UI element is missing or disabled | Fail with the current phase plus bounded screenshot/DOM summary. |
+| Review fixture fails schema or app validation | Fail the e2e and fix the fixture or contract; do not silently accept invalid output. |
+| Rewrite-check fixture fails schema validation | Fail the e2e and fix the fixture or contract. |
+| Failure output contains API keys, password values, raw model JSON, or non-fixture writing content | Treat as a privacy regression. |
+
+### 5. Good/Base/Bad Cases
+
+- Good: `pnpm test:e2e` starts from empty temp app data, dismisses onboarding through the UI, configures provider state through the UI, enters fixed writing, reviews with mock output, opens feedback, saves review, returns to Practice, submits D+1 rewrite practice, and observes deterministic rewrite-check completion.
+- Base: The live-provider command remains available and cleanly skips without credentials; it is not part of the deterministic UI e2e's pass/fail.
+- Bad: The default e2e depends on a real API key or model behavior.
+- Bad: A `mock` provider is added to the public Settings provider list.
+- Bad: The e2e calls `window.api.review.start` directly for the core user flow instead of interacting with the UI.
+
+### 6. Tests Required
+
+- Unit test: e2e mock provider guard returns fixture output only with the explicit e2e flag and non-production runtime.
+- Unit test: production/packaged-like runtime does not enable mock output even when the e2e flag is present.
+- Unit test: deterministic review fixture validates against the review contract for the fixed sample writing.
+- Unit test: deterministic rewrite-check fixture validates against the rewrite-check schema.
+- E2E helper test: DOM driver escaping, redaction, phase summary, failure artifact path, and live no-env skip behavior.
+- E2E command: `pnpm test:e2e` passes through named phases for setup, launch/CDP, renderer readiness, provider setup, review generation, feedback save, rewrite practice, and cleanup.
+
+### 7. Wrong vs Correct
+
+#### Wrong
+
+```text
+pnpm test:e2e uses a saved developer database and a real API key, then sometimes fails because the provider judged the rewrite differently.
+```
+
+#### Correct
+
+```text
+pnpm test:e2e uses fresh temp app data, an isolated e2e keychain service, and deterministic mock AI fixtures; live-provider compatibility is checked separately with pnpm test:e2e:live.
+```
+
 ## Required Review Harness Cases
 
 The harness must include cases for:
