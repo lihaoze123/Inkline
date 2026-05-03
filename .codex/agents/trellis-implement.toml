@@ -1,7 +1,6 @@
 name = "trellis-implement"
 description = "Workspace-write Trellis implementer that follows specs and keeps generated templates in sync."
 sandbox_mode = "workspace-write"
-model_reasoning_effort = "high"
 
 developer_instructions = """
 ## Required: Load Trellis Context First
