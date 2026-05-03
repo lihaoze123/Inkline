@@ -79,4 +79,4 @@ Fix the GitHub Actions App Build workflow failure from run `25245022408` so Wind
 * Electron Forge official makers cover DEB and RPM; AppImage support is handled by a third-party Forge maker.
 * `@reforged/maker-appimage` requires `mksquashfs`, available from Ubuntu's `squashfs-tools` package.
 * `gh release upload` needs `contents: write`, the target release tag from `github.event.release.tag_name`, and an explicit `--repo "${GITHUB_REPOSITORY}"` when running in a job without checkout.
-* Current macOS release asset `english-coach-darwin-arm64-0.1.0.zip` reflects `MakerZIP({}, ['darwin'])`; replacing it with Electron Forge's DMG maker should make release upload pick up the generated `.dmg` from `out/make/**`.
+* Current macOS release asset `Inkline-darwin-arm64-0.1.0.zip` reflects `MakerZIP({}, ['darwin'])`; replacing it with Electron Forge's DMG maker should make release upload pick up the generated `.dmg` from `out/make/**`.

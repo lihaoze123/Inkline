@@ -6,7 +6,7 @@ import path from 'node:path';
 import * as schema from './schema';
 
 export function getDatabasePath(): string {
-  return path.join(app.getPath('userData'), 'english-coach.sqlite');
+  return path.join(app.getPath('userData'), 'Inkline.sqlite');
 }
 
 const databasePath = getDatabasePath();

@@ -73,7 +73,7 @@ describe('database client startup', () => {
     sqliteMockState.openedPath = '';
     sqliteMockState.parentExistedOnOpen = false;
     sqliteMockState.pragmas = [];
-    tempRoot = mkdtempSync(path.join(tmpdir(), 'english-coach-db-'));
+    tempRoot = mkdtempSync(path.join(tmpdir(), 'Inkline-db-'));
   });
 
   afterEach(() => {
@@ -100,8 +100,8 @@ describe('database client startup', () => {
 
     dbClient = await import('../src/main/db/client');
 
-    expect(dbClient.getDatabasePath()).toBe(path.join(userDataPath, 'english-coach.sqlite'));
-    expect(sqliteMockState.openedPath).toBe(path.join(userDataPath, 'english-coach.sqlite'));
+    expect(dbClient.getDatabasePath()).toBe(path.join(userDataPath, 'Inkline.sqlite'));
+    expect(sqliteMockState.openedPath).toBe(path.join(userDataPath, 'Inkline.sqlite'));
     expect(sqliteMockState.parentExistedOnOpen).toBe(true);
     expect(existsSync(userDataPath)).toBe(true);
     expect(sqliteMockState.pragmas).toEqual(['journal_mode = WAL', 'foreign_keys = ON']);

@@ -4,8 +4,8 @@ The rename is intentionally split between user-facing product identity and stabl
 
 Keep unchanged:
 
-* `package.json` package name `english-coach`
-* SQLite filename `english-coach.sqlite`
-* keytar service name `english-coach`
+* `package.json` package name `Inkline`
+* SQLite filename `Inkline.sqlite`
+* keytar service name `Inkline`
 
 Reason: changing these would require app data and credential migration, which is outside a visual/product naming pass.

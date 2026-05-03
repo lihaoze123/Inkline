@@ -300,7 +300,7 @@ type ReviewStructuredGenerationRequest = {
 - Live-provider task only: add a manual smoke or e2e fixture proving the selected provider adapter returns one structured review result that passes `validateReviewResult`.
 - Live-provider e2e scripts must stay outside `pnpm test`, load project-root `.env` when present, and use project-scoped env names: `E2E_OPENAI_COMPATIBLE_API_KEY`, `E2E_OPENAI_COMPATIBLE_BASE_URL`, `E2E_OPENAI_COMPATIBLE_MODEL`, optional `E2E_OPENAI_COMPATIBLE_INCLUDE_THINKING` for enabled `reasoningEffort: 'medium'` checks, and optional `E2E_CDP_PORT` when a fixed debugging port is needed.
 - Live-provider e2e must launch or attach to a real Electron renderer through CDP, connect to `/json/list`, evaluate through `window.api`, and cover provider config, default provider, keychain credential save, review thinking setting, disclosure acknowledgement, writing save, review start, preview fetch, and sanitized diagnostic summary.
-- Live-provider e2e must isolate app config/data where practical and set `ENGLISH_COACH_KEYCHAIN_SERVICE_NAME` to a test-specific service name before launching Electron so e2e credential writes never target the production `english-coach` keychain service.
+- Live-provider e2e must isolate app config/data where practical and set `INKLINE_KEYCHAIN_SERVICE_NAME` to a test-specific service name before launching Electron so e2e credential writes never target the production `Inkline` keychain service.
 - Live-provider e2e logs must not print API keys, Authorization headers, raw provider response bodies, raw model output JSON, or writing content beyond the fixed fixture sample.
 
 ### 7. Wrong vs Correct

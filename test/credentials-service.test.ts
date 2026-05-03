@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 describe('credentials service', () => {
   afterEach(() => {
-    delete process.env.ENGLISH_COACH_KEYCHAIN_SERVICE_NAME;
+    delete process.env.INKLINE_KEYCHAIN_SERVICE_NAME;
     vi.resetModules();
     vi.doUnmock('node:module');
   });
@@ -32,7 +32,7 @@ describe('credentials service', () => {
     const getPassword = vi.fn(async () => 'configured-key');
     const setPassword = vi.fn(async () => undefined);
     const deletePassword = vi.fn(async () => true);
-    process.env.ENGLISH_COACH_KEYCHAIN_SERVICE_NAME = 'english-coach-e2e-test';
+    process.env.INKLINE_KEYCHAIN_SERVICE_NAME = 'Inkline-e2e-test';
 
     vi.doMock('node:module', () => ({
       createRequire: () => () => ({
@@ -49,8 +49,8 @@ describe('credentials service', () => {
     await setProviderApiKey(' test-key ', 'openai-compatible');
     await deleteProviderApiKey('openai-compatible');
 
-    expect(getPassword).toHaveBeenCalledWith('english-coach-e2e-test', 'provider-api-key');
-    expect(setPassword).toHaveBeenCalledWith('english-coach-e2e-test', 'provider-api-key', 'test-key');
-    expect(deletePassword).toHaveBeenCalledWith('english-coach-e2e-test', 'provider-api-key');
+    expect(getPassword).toHaveBeenCalledWith('Inkline-e2e-test', 'provider-api-key');
+    expect(setPassword).toHaveBeenCalledWith('Inkline-e2e-test', 'provider-api-key', 'test-key');
+    expect(deletePassword).toHaveBeenCalledWith('Inkline-e2e-test', 'provider-api-key');
   });
 });

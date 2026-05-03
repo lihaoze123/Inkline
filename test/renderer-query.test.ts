@@ -377,7 +377,7 @@ function makeSettingsSnapshot(): SettingsSnapshot {
     rawResponseStorageEnabled: false,
     reviewThinkingEnabled: false,
     onboardingIntroVersionSeen: 1,
-    databaseLocation: '/tmp/english-coach.db',
+    databaseLocation: '/tmp/Inkline.db',
     piMonoAuthStatus: 'not-configured',
     providerApiKeyStatus: 'configured',
     providerCredentialStatuses: {

@@ -27,27 +27,27 @@ Keep pi-mono as a v0.2+ optional runtime adapter if the product later needs mult
 
 | File Path | Description |
 |---|---|
-| `/home/chumeng/Documents/Frontend/english-coach/package.json` | App manifest; no pi-mono dependency or pi-related script. |
-| `/home/chumeng/Documents/Frontend/english-coach/pnpm-lock.yaml` | Lockfile; no `pi-mono`, `@mariozechner/pi-coding-agent`, `@mariozechner/pi-agent-core`, or `@mariozechner/pi-ai` dependency found by text search. |
-| `/home/chumeng/Documents/Frontend/english-coach/src/main/services/review/lib/pi-mono-agent.ts` | Current local integration seam; `callPiMonoReviewAgent` is a stub that throws, and `parseReviewAgentJson` only parses raw JSON into the local response shape. |
-| `/home/chumeng/Documents/Frontend/english-coach/src/main/services/review/types.ts` | Local review-agent service contract: `ReviewAgentRequest` has `systemPrompt`, `userPrompt`, and validated `input`; `ReviewAgentResponse` has `output: unknown` and `rawOutput: unknown`. |
-| `/home/chumeng/Documents/Frontend/english-coach/src/main/services/review/procedures/start.ts` | Main-process review flow calls `options.agent ?? callPiMonoReviewAgent`, validates `agentResponse.output`, and stores `agentResponse.rawOutput` depending on settings. |
-| `/home/chumeng/Documents/Frontend/english-coach/test/review-integration.test.ts` | Contract tests cover bounded input and prompt delimiting; no live provider adapter yet. |
-| `/home/chumeng/Documents/Frontend/english-coach/src/shared/types/settings.ts` | Settings type includes display-only `piMonoAuthStatus`. |
-| `/home/chumeng/Documents/Frontend/english-coach/src/main/services/settings/service.ts` | Settings service currently reports `piMonoAuthStatus: 'not-configured'`. |
-| `/home/chumeng/Documents/Frontend/english-coach/.trellis/tasks/04-29-v0-1-review-agent-integration/prd.md` | Active task PRD requires main-process pi-mono call, bounded context, structured JSON, raw-output setting, and validation. |
-| `/home/chumeng/Documents/Frontend/english-coach/.trellis/spec/product/review-agent-contract.md` | Product-level agent input/output, prompt-safety, quote anchoring, and validation contract. |
-| `/home/chumeng/Documents/Frontend/english-coach/.trellis/spec/product/privacy-security.md` | Product-level privacy, provider disclosure, secret handling, and main/renderer boundary contract. |
-| `/home/chumeng/Documents/Frontend/english-coach/.trellis/spec/product/validation-and-testing.md` | Requires shared `validateReviewResult` harness as the only boundary from raw agent JSON to preview operations. |
-| `/home/chumeng/Documents/Frontend/english-coach/.trellis/spec/frontend/ipc-electron.md` | Settings IPC contract lists `piMonoAuthStatus` as display-only foundation status. |
-| `/home/chumeng/Documents/Frontend/english-coach/.trellis/tasks/archive/2026-04/04-29-english-journal-coach-mvp/source-prd.md` | Original PRD says pi-mono is the agent runtime and Electron main process invokes it, but does not define a command/API/env contract. |
+| `/home/chumeng/Documents/Frontend/Inkline/package.json` | App manifest; no pi-mono dependency or pi-related script. |
+| `/home/chumeng/Documents/Frontend/Inkline/pnpm-lock.yaml` | Lockfile; no `pi-mono`, `@mariozechner/pi-coding-agent`, `@mariozechner/pi-agent-core`, or `@mariozechner/pi-ai` dependency found by text search. |
+| `/home/chumeng/Documents/Frontend/Inkline/src/main/services/review/lib/pi-mono-agent.ts` | Current local integration seam; `callPiMonoReviewAgent` is a stub that throws, and `parseReviewAgentJson` only parses raw JSON into the local response shape. |
+| `/home/chumeng/Documents/Frontend/Inkline/src/main/services/review/types.ts` | Local review-agent service contract: `ReviewAgentRequest` has `systemPrompt`, `userPrompt`, and validated `input`; `ReviewAgentResponse` has `output: unknown` and `rawOutput: unknown`. |
+| `/home/chumeng/Documents/Frontend/Inkline/src/main/services/review/procedures/start.ts` | Main-process review flow calls `options.agent ?? callPiMonoReviewAgent`, validates `agentResponse.output`, and stores `agentResponse.rawOutput` depending on settings. |
+| `/home/chumeng/Documents/Frontend/Inkline/test/review-integration.test.ts` | Contract tests cover bounded input and prompt delimiting; no live provider adapter yet. |
+| `/home/chumeng/Documents/Frontend/Inkline/src/shared/types/settings.ts` | Settings type includes display-only `piMonoAuthStatus`. |
+| `/home/chumeng/Documents/Frontend/Inkline/src/main/services/settings/service.ts` | Settings service currently reports `piMonoAuthStatus: 'not-configured'`. |
+| `/home/chumeng/Documents/Frontend/Inkline/.trellis/tasks/04-29-v0-1-review-agent-integration/prd.md` | Active task PRD requires main-process pi-mono call, bounded context, structured JSON, raw-output setting, and validation. |
+| `/home/chumeng/Documents/Frontend/Inkline/.trellis/spec/product/review-agent-contract.md` | Product-level agent input/output, prompt-safety, quote anchoring, and validation contract. |
+| `/home/chumeng/Documents/Frontend/Inkline/.trellis/spec/product/privacy-security.md` | Product-level privacy, provider disclosure, secret handling, and main/renderer boundary contract. |
+| `/home/chumeng/Documents/Frontend/Inkline/.trellis/spec/product/validation-and-testing.md` | Requires shared `validateReviewResult` harness as the only boundary from raw agent JSON to preview operations. |
+| `/home/chumeng/Documents/Frontend/Inkline/.trellis/spec/frontend/ipc-electron.md` | Settings IPC contract lists `piMonoAuthStatus` as display-only foundation status. |
+| `/home/chumeng/Documents/Frontend/Inkline/.trellis/tasks/archive/2026-04/04-29-english-journal-coach-mvp/source-prd.md` | Original PRD says pi-mono is the agent runtime and Electron main process invokes it, but does not define a command/API/env contract. |
 
 ### Code Patterns
 
 Local app-side seam already exists, but it is explicitly unimplemented:
 
 ```ts
-// /home/chumeng/Documents/Frontend/english-coach/src/main/services/review/lib/pi-mono-agent.ts:3-5
+// /home/chumeng/Documents/Frontend/Inkline/src/main/services/review/lib/pi-mono-agent.ts:3-5
 export const callPiMonoReviewAgent: ReviewAgent = async () => {
   throw new Error('pi-mono review agent is not configured.');
 };
@@ -56,7 +56,7 @@ export const callPiMonoReviewAgent: ReviewAgent = async () => {
 The local service interface expected by the rest of the app is narrow and testable:
 
 ```ts
-// /home/chumeng/Documents/Frontend/english-coach/src/main/services/review/types.ts:15-28
+// /home/chumeng/Documents/Frontend/Inkline/src/main/services/review/types.ts:15-28
 export const reviewAgentRequestSchema = z.object({
   systemPrompt: z.string().min(1),
   userPrompt: z.string().min(1),
@@ -74,7 +74,7 @@ export type ReviewAgent = (request: ReviewAgentRequest) => Promise<ReviewAgentRe
 The main process review flow already consumes this seam and validates the unknown output through the shared harness:
 
 ```ts
-// /home/chumeng/Documents/Frontend/english-coach/src/main/services/review/procedures/start.ts:82-93
+// /home/chumeng/Documents/Frontend/Inkline/src/main/services/review/procedures/start.ts:82-93
 const agent = options.agent ?? callPiMonoReviewAgent;
 const agentResponse = await agent({
   systemPrompt: REVIEW_SYSTEM_PROMPT,
@@ -91,7 +91,7 @@ const persistenceDecision = buildReviewPersistenceDecision({
 The local helper `parseReviewAgentJson` accepts plain JSON text, parses it as the agent `output`, and preserves the original string as `rawOutput`:
 
 ```ts
-// /home/chumeng/Documents/Frontend/english-coach/src/main/services/review/lib/pi-mono-agent.ts:7-12
+// /home/chumeng/Documents/Frontend/Inkline/src/main/services/review/lib/pi-mono-agent.ts:7-12
 export function parseReviewAgentJson(rawOutput: string): ReturnType<typeof reviewAgentResponseSchema.parse> {
   return reviewAgentResponseSchema.parse({
     output: JSON.parse(rawOutput) as unknown,
@@ -108,12 +108,12 @@ The repo defines what a review agent must receive and return, but not how pi-mon
 
 Internal contracts found:
 
-- `/home/chumeng/Documents/Frontend/english-coach/.trellis/spec/product/review-agent-contract.md:3-7`: agent does language judgment only; Electron app owns state, permissions, validation, persistence, pattern reuse, and database writes.
-- `/home/chumeng/Documents/Frontend/english-coach/.trellis/spec/product/review-agent-contract.md:9-24`: journal content must be wrapped in `<journal_content>` and the system prompt must require JSON matching the schema.
-- `/home/chumeng/Documents/Frontend/english-coach/.trellis/spec/product/review-agent-contract.md:26-44`: `ReviewInput` fields and v0.1 caps.
-- `/home/chumeng/Documents/Frontend/english-coach/.trellis/spec/product/review-agent-contract.md:111-124`: validate JSON with Zod, locate anchors, check matched pattern IDs, and store validation errors; validation failure must not write long-term statistics.
-- `/home/chumeng/Documents/Frontend/english-coach/.trellis/spec/product/privacy-security.md:72-76`: main process owns agent calls and secrets; renderer must use narrow IPC and must not access Node/Electron APIs directly.
-- `/home/chumeng/Documents/Frontend/english-coach/.trellis/spec/product/validation-and-testing.md:30-32`: live pi-mono integration must use shared contract functions and not create a second validation path.
+- `/home/chumeng/Documents/Frontend/Inkline/.trellis/spec/product/review-agent-contract.md:3-7`: agent does language judgment only; Electron app owns state, permissions, validation, persistence, pattern reuse, and database writes.
+- `/home/chumeng/Documents/Frontend/Inkline/.trellis/spec/product/review-agent-contract.md:9-24`: journal content must be wrapped in `<journal_content>` and the system prompt must require JSON matching the schema.
+- `/home/chumeng/Documents/Frontend/Inkline/.trellis/spec/product/review-agent-contract.md:26-44`: `ReviewInput` fields and v0.1 caps.
+- `/home/chumeng/Documents/Frontend/Inkline/.trellis/spec/product/review-agent-contract.md:111-124`: validate JSON with Zod, locate anchors, check matched pattern IDs, and store validation errors; validation failure must not write long-term statistics.
+- `/home/chumeng/Documents/Frontend/Inkline/.trellis/spec/product/privacy-security.md:72-76`: main process owns agent calls and secrets; renderer must use narrow IPC and must not access Node/Electron APIs directly.
+- `/home/chumeng/Documents/Frontend/Inkline/.trellis/spec/product/validation-and-testing.md:30-32`: live pi-mono integration must use shared contract functions and not create a second validation path.
 
 No local contract found for:
 
@@ -124,16 +124,16 @@ No local contract found for:
 - pi-mono config file path or agent definition for a journal review agent.
 - a project-local `.pi` package/extension/prompt-template contract.
 
-Sibling search scope `/home/chumeng/Documents/Frontend` found no additional local pi-mono integration contract outside `english-coach`.
+Sibling search scope `/home/chumeng/Documents/Frontend` found no additional local pi-mono integration contract outside `Inkline`.
 
 ### Package / Dependency Findings
 
-`/home/chumeng/Documents/Frontend/english-coach/package.json` has no pi-mono dependency. Current dependencies are Electron, SQLite/Drizzle, settings/keychain, React, and Zod. Relevant lines:
+`/home/chumeng/Documents/Frontend/Inkline/package.json` has no pi-mono dependency. Current dependencies are Electron, SQLite/Drizzle, settings/keychain, React, and Zod. Relevant lines:
 
-- `/home/chumeng/Documents/Frontend/english-coach/package.json:19-35` lists runtime dependencies and does not include pi-mono packages.
-- `/home/chumeng/Documents/Frontend/english-coach/package.json:36-50` lists dev dependencies and does not include pi-mono packages.
+- `/home/chumeng/Documents/Frontend/Inkline/package.json:19-35` lists runtime dependencies and does not include pi-mono packages.
+- `/home/chumeng/Documents/Frontend/Inkline/package.json:36-50` lists dev dependencies and does not include pi-mono packages.
 
-Text search found no pi-mono package in `/home/chumeng/Documents/Frontend/english-coach/pnpm-lock.yaml`.
+Text search found no pi-mono package in `/home/chumeng/Documents/Frontend/Inkline/pnpm-lock.yaml`.
 
 Local PATH checks found no `pi-mono` or `pimono` executable. `npm view pi-mono --json` returned npm 404: package `pi-mono` does not exist on npm under that exact name.
 
@@ -241,18 +241,18 @@ No local contract maps Electron settings/keychain/provider selection to pi's aut
 
 ### Related Specs
 
-- `/home/chumeng/Documents/Frontend/english-coach/.trellis/spec/product/review-agent-contract.md` — review input/output, prompt safety, quote anchoring, validation rules.
-- `/home/chumeng/Documents/Frontend/english-coach/.trellis/spec/product/privacy-security.md` — provider disclosure, secret handling, raw response storage, main-process agent-call ownership.
-- `/home/chumeng/Documents/Frontend/english-coach/.trellis/spec/product/validation-and-testing.md` — validation harness must be shared by live pi-mono integration and mocks.
-- `/home/chumeng/Documents/Frontend/english-coach/.trellis/spec/product/data-model-contract.md` — v0.1 limit: do not send all patterns to the review agent; limit is 30.
-- `/home/chumeng/Documents/Frontend/english-coach/.trellis/spec/frontend/ipc-electron.md` — renderer/main IPC boundary and display-only pi-mono status.
+- `/home/chumeng/Documents/Frontend/Inkline/.trellis/spec/product/review-agent-contract.md` — review input/output, prompt safety, quote anchoring, validation rules.
+- `/home/chumeng/Documents/Frontend/Inkline/.trellis/spec/product/privacy-security.md` — provider disclosure, secret handling, raw response storage, main-process agent-call ownership.
+- `/home/chumeng/Documents/Frontend/Inkline/.trellis/spec/product/validation-and-testing.md` — validation harness must be shared by live pi-mono integration and mocks.
+- `/home/chumeng/Documents/Frontend/Inkline/.trellis/spec/product/data-model-contract.md` — v0.1 limit: do not send all patterns to the review agent; limit is 30.
+- `/home/chumeng/Documents/Frontend/Inkline/.trellis/spec/frontend/ipc-electron.md` — renderer/main IPC boundary and display-only pi-mono status.
 
 ## Caveats / Not Found
 
 - No concrete local pi-mono invocation command/API exists for this app.
 - No installed dependency or lockfile entry exists for `@mariozechner/pi-coding-agent` or a pi-mono SDK/runtime package.
 - No executable named `pi`, `pi-mono`, or `pimono` was verified as locally installed for this project; PATH checks for `pi-mono` and `pimono` were empty. The public package exposes `pi`, but this repo does not depend on it.
-- Public pi docs describe generic integration surfaces (CLI JSON events, RPC JSONL, SDK, structured-output extension), not the concrete review-agent schema, provider/auth handoff, or exact extraction of one structured JSON review result for `english-coach`.
+- Public pi docs describe generic integration surfaces (CLI JSON events, RPC JSONL, SDK, structured-output extension), not the concrete review-agent schema, provider/auth handoff, or exact extraction of one structured JSON review result for `Inkline`.
 - Implementing a live call now would require choosing and adding a contract not currently present in repo/specs: SDK vs subprocess/RPC, package version, auth/config source, model/provider settings, no-tools behavior, and structured-output extraction method.
 
 ## Concise Recommendation

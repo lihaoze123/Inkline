@@ -9,7 +9,7 @@ Journal, CET-4 Writing, CET-6 Writing, and Free Writing are equal practice templ
 | Area             | Current state                                                         |
 | ---------------- | --------------------------------------------------------------------- |
 | Product stage    | v0.1 desktop app in active development                                |
-| App brand        | Inkline; the package name is still `english-coach`                    |
+| App brand        | Inkline; the package name is `inkline`                                |
 | Data model       | Local SQLite data under Electron's user data path                     |
 | AI providers     | OpenAI-compatible endpoints and Anthropic Claude                      |
 | Review flow      | Preview first; learning history updates only after explicit save      |
@@ -156,7 +156,7 @@ pnpm package
 pnpm make
 ```
 
-`pnpm package` creates a packaged app through Electron Forge. `pnpm make` creates platform maker artifacts configured in the Forge setup, including ZIP, DEB, RPM, and Squirrel makers.
+`pnpm package` creates a packaged app through Electron Forge. `pnpm make` creates platform maker artifacts configured in the Forge setup, including the Windows NSIS installer plus platform package makers.
 
 Packaged builds include Drizzle migration resources, app resources, native module copies for `better-sqlite3`, `bindings`, `file-uri-to-path`, and `keytar`, plus app icon resources from `resources/icon.png` and `resources/icon.ico`.
 

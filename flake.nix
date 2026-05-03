@@ -1,5 +1,5 @@
 {
-  description = "Development environment for english-coach";
+  description = "Development environment for Inkline";
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
