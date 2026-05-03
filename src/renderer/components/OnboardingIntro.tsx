@@ -146,6 +146,7 @@ export function OnboardingIntro({ isDismissPending, error, onDismiss }: Onboardi
             <button
               type="button"
               className="btn btn-outline mt-9 rounded-[0.7rem] px-8"
+              data-e2e="onboarding-continue"
               onClick={() => setStage('slides')}
             >
               Continue
@@ -201,6 +202,7 @@ export function OnboardingIntro({ isDismissPending, error, onDismiss }: Onboardi
                     type="button"
                     className="btn btn-primary rounded-[0.7rem] px-8 shadow-[0_12px_24px_rgba(22,71,101,0.16)]"
                     disabled={isDismissPending}
+                    data-e2e="onboarding-enter"
                     onClick={dismissIntro}
                   >
                     {isDismissPending ? 'Entering...' : 'Enter Inkline'}
@@ -210,6 +212,7 @@ export function OnboardingIntro({ isDismissPending, error, onDismiss }: Onboardi
                     type="button"
                     className="btn btn-outline rounded-[0.7rem] px-7"
                     disabled={isDismissPending}
+                    data-e2e="onboarding-next"
                     onClick={showNextSlide}
                   >
                     Next

@@ -69,6 +69,7 @@ export function SettingsPage({
                   className="select select-bordered w-full"
                   value={defaultProviderId}
                   aria-label="Default AI provider"
+                  data-e2e="default-provider-select"
                   onChange={(event) => onDefaultProviderChange(event.target.value as AiProviderId)}
                 >
                   {PROVIDER_OPTIONS.map((option) => (
@@ -104,6 +105,7 @@ export function SettingsPage({
                 onChange={(event) => onOpenAiBaseUrlChange(event.target.value)}
                 aria-label="OpenAI-compatible base URL"
                 placeholder="https://api.deepseek.com/v1"
+                data-e2e="openai-base-url-input"
               />
             </FormRow>
             <FormRow
@@ -117,6 +119,7 @@ export function SettingsPage({
                 value={openAiModelInput}
                 onChange={(event) => onOpenAiModelChange(event.target.value)}
                 aria-label="OpenAI-compatible model"
+                data-e2e="openai-model-input"
               />
             </FormRow>
           </ProviderSettingsSection>
@@ -143,6 +146,7 @@ export function SettingsPage({
                 value={anthropicModelInput}
                 onChange={(event) => onAnthropicModelChange(event.target.value)}
                 aria-label="Anthropic model"
+                data-e2e="anthropic-model-input"
               />
             </FormRow>
           </ProviderSettingsSection>
@@ -260,7 +264,7 @@ function ProviderSettingsSection({
   const statusText = formatProviderKeyStatus(status.status);
 
   return (
-    <section>
+    <section data-e2e={`${providerId}-provider-settings`}>
       <div>
         <h2 className="editorial-copy text-2xl text-base-content">{title}</h2>
         <p className="mt-1 text-sm text-base-content/50">
@@ -284,18 +288,25 @@ function ProviderSettingsSection({
             aria-label={`${title} API key`}
             type="password"
             placeholder={status.status === 'configured' ? 'Key is saved in OS keychain' : 'Paste key to save'}
+            data-e2e={`${providerId}-api-key-input`}
           />
         </FormRow>
         <div className="grid gap-2 md:grid-cols-[10rem_minmax(0,36rem)] md:items-center">
           <div aria-hidden="true" />
           <div className="flex flex-wrap gap-2">
-            <button type="button" className="btn btn-outline rounded-[0.7rem]" onClick={onSaveSettings}>
+            <button
+              type="button"
+              className="btn btn-outline rounded-[0.7rem]"
+              data-e2e={`${providerId}-save-settings`}
+              onClick={onSaveSettings}
+            >
               Save settings
             </button>
             <button
               type="button"
               className="btn btn-outline rounded-[0.7rem]"
               disabled={apiKeyInput.trim().length === 0}
+              data-e2e={`${providerId}-save-api-key`}
               onClick={() => onSaveApiKey(providerId)}
             >
               Save API key

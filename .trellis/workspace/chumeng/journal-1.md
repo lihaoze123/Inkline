@@ -1071,3 +1071,37 @@ Merged rewrite-check evaluator and feedback UI slices, fixed retryable retry tra
 ### Next Steps
 
 - None - task complete
+
+
+## Session 32: Deterministic headless UI e2e
+
+**Date**: 2026-05-04
+**Task**: Deterministic headless UI e2e
+**Branch**: `main`
+
+### Summary
+
+Added deterministic mock AI headless UI e2e for review, feedback save, and D+1 rewrite practice; preserved live provider e2e as an env-gated command; documented the mock e2e contract.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `136ede7` | (see git log) |
+| `28f3842` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete

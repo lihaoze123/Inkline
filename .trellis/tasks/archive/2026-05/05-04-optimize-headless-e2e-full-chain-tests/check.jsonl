@@ -1,0 +1,21 @@
+{"file": ".trellis/spec/product/index.md", "reason": "Verify review, feedback save, rewrite practice, privacy, and testing scope."}
+{"file": ".trellis/spec/product/learning-flow.md", "reason": "Check UI flow expectations for review result, self-repair, and rewrite practice."}
+{"file": ".trellis/spec/product/review-agent-contract.md", "reason": "Verify review output contracts, e2e constraints, diagnostics, and validation behavior."}
+{"file": ".trellis/spec/product/privacy-security.md", "reason": "Verify secret handling, provider disclosure, mock isolation, and sanitized diagnostics."}
+{"file": ".trellis/spec/product/validation-and-testing.md", "reason": "Verify testing coverage, Electron/CDP validation, and quality gate expectations."}
+{"file": ".trellis/spec/product/data-model-contract.md", "reason": "Verify review save and rewrite practice persistence semantics."}
+{"file": ".trellis/spec/frontend/index.md", "reason": "Check frontend Electron React guidelines."}
+{"file": ".trellis/spec/frontend/ipc-electron.md", "reason": "Check renderer/preload/main boundary compliance."}
+{"file": ".trellis/spec/frontend/electron-browser-api-restrictions.md", "reason": "Check Electron renderer-specific constraints and real Electron validation."}
+{"file": ".trellis/spec/frontend/components.md", "reason": "Check accessibility and stable UI selector changes."}
+{"file": ".trellis/spec/frontend/react-pitfalls.md", "reason": "Check React state/callback safety in any component edits."}
+{"file": ".trellis/spec/frontend/type-safety.md", "reason": "Check renderer type/import conventions."}
+{"file": ".trellis/spec/backend/index.md", "reason": "Check backend/main-process guidelines."}
+{"file": ".trellis/spec/backend/environment.md", "reason": "Check e2e runtime env guards, temp data isolation, and prod/mock separation."}
+{"file": ".trellis/spec/backend/error-handling.md", "reason": "Check bounded error handling and diagnostics."}
+{"file": ".trellis/spec/backend/type-safety.md", "reason": "Check service-layer type and schema safety."}
+{"file": ".trellis/spec/backend/quality.md", "reason": "Check main-process import and quality rules."}
+{"file": ".trellis/spec/shared/index.md", "reason": "Check shared quality baseline."}
+{"file": ".trellis/spec/shared/code-quality.md", "reason": "Check mandatory code quality rules."}
+{"file": ".trellis/spec/shared/typescript.md", "reason": "Check TypeScript style and explicitness."}
+{"file": ".trellis/spec/shared/pnpm-electron-setup.md", "reason": "Check Electron Forge/pnpm launch and packaging constraints."}

@@ -18,7 +18,10 @@ import {
 } from '../../../../shared/types/review';
 import { persistNotebookEntries, persistPatternOperations } from '../../learning-assets/service';
 import { getWritingAttempt } from '../../writing/service';
+import { shouldForceE2eRewritePracticeDueNow } from '../../ai/e2e-mock';
 import { reviewRunToSnapshot } from '../lib/snapshots';
+
+const ONE_DAY_MS = 24 * 60 * 60 * 1000;
 
 function createId(prefix: string): string {
   return `${prefix}_${randomUUID()}`;
@@ -183,7 +186,7 @@ export function saveReviewRun(input: SaveReviewInput, options: SaveReviewOptions
               kind: rewritePractice.kind,
               spacedStage: 'D+1',
               status: 'pending',
-              dueAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
+              dueAt: shouldForceE2eRewritePracticeDueNow() ? new Date() : new Date(Date.now() + ONE_DAY_MS),
             })
             .run();
         }

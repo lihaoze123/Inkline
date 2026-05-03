@@ -8,8 +8,8 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-1.md`
-- **Total Sessions**: 31
-- **Last Active**: 2026-05-03
+- **Total Sessions**: 32
+- **Last Active**: 2026-05-04
 <!-- @@@/auto:current-status -->
 
 ---
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-1.md` | ~1073 | Active |
+| `journal-1.md` | ~1107 | Active |
 <!-- @@@/auto:active-documents -->
 
 ---
@@ -29,6 +29,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 32 | 2026-05-04 | Deterministic headless UI e2e | `136ede7`, `28f3842` | `main` |
 | 31 | 2026-05-03 | Rewrite-check integration hardening | `6500882`, `bc12bcc` | `main` |
 | 30 | 2026-05-02 | Rewrite-check feedback UI | `221f58f`, `1506c73`, `05f239b` | `rewrite-check-feedback-ui` |
 | 29 | 2026-05-02 | Rewrite-check evaluator service | `1c59a0b`, `f406204` | `rewrite-check-evaluator-service` |

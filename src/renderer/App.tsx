@@ -733,6 +733,7 @@ function PracticePage({ initialWriting, settings, startup }: PracticePageProps):
                     isActive ? 'font-semibold text-primary' : 'text-base-content/62 hover:text-base-content'
                   }`}
                   aria-current={isActive ? 'page' : undefined}
+                  data-e2e={`nav-${item.id}`}
                   onClick={() => setActiveArea(item.id)}
                 >
                   <span className="nav-icon quiet-sidebar__nav-icon grid place-items-center" aria-hidden="true">
@@ -770,6 +771,7 @@ function PracticePage({ initialWriting, settings, startup }: PracticePageProps):
                   <button
                     type="button"
                     className="btn btn-primary mt-7 rounded-[0.7rem] px-8 text-base shadow-[0_12px_24px_rgba(22,71,101,0.16)]"
+                    data-e2e="today-start-writing"
                     onClick={() => setActiveArea('write')}
                   >
                     {hasWritten ? 'Continue Writing' : 'Start Writing'}
@@ -1334,7 +1336,11 @@ function FeedbackRewritePage({
   const rewriteText = rewritePracticeInput || selfRepairAttempt;
 
   return (
-    <section className="flex min-h-0 flex-1 flex-col gap-5" aria-labelledby="feedback-page-title">
+    <section
+      className="flex min-h-0 flex-1 flex-col gap-5"
+      aria-labelledby="feedback-page-title"
+      data-e2e="feedback-page"
+    >
       <div className="feedback-page__header flex min-h-[8.5rem] items-start justify-between gap-8 pb-3">
         <div>
           <p className="text-sm text-base-content/55">Practice › Feedback & Rewrite</p>
@@ -1434,6 +1440,7 @@ function FeedbackRewritePage({
               }}
               placeholder="Rewrite the focus sentence in your own words."
               aria-label="Your rewrite"
+              data-e2e="self-repair-rewrite-input"
               spellCheck={false}
             />
             {focusCorrection && modelAnswerRevealed ? (
@@ -1455,13 +1462,19 @@ function FeedbackRewritePage({
       </div>
 
       <div className="flex justify-end gap-4 pt-1">
-        <button type="button" className="btn btn-outline rounded-[0.7rem] px-8" onClick={onBackToDraft}>
+        <button
+          type="button"
+          className="btn btn-outline rounded-[0.7rem] px-8"
+          data-e2e="feedback-back-to-draft"
+          onClick={onBackToDraft}
+        >
           Back to draft
         </button>
         <button
           type="button"
           className="btn btn-primary rounded-[0.7rem] px-8 shadow-[0_12px_24px_rgba(22,71,101,0.18)]"
           disabled={reviewState === 'saving' || reviewState === 'saved'}
+          data-e2e="save-review-button"
           onClick={onSaveReview}
         >
           {reviewState === 'saving'

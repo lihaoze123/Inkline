@@ -27,6 +27,8 @@ if (!process.env.TZ && inferredTimeZone) {
   process.env.TZ = inferredTimeZone;
 }
 
+process.env.INKLINE_RUNTIME_IS_PACKAGED = app.isPackaged ? '1' : '0';
+
 export function getRuntimeTimeZone(): string {
   return process.env.TZ || inferredTimeZone || Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
 }
@@ -36,7 +38,11 @@ export function getRuntimeTimeZoneOffsetMinutes(): number {
 }
 
 if (!app.isPackaged) {
-  app.setPath('userData', path.join(app.getPath('userData'), 'dev'));
+  const e2eUserDataDir = process.env.INKLINE_E2E_USER_DATA_DIR;
+  app.setPath(
+    'userData',
+    e2eUserDataDir && e2eUserDataDir.length > 0 ? e2eUserDataDir : path.join(app.getPath('userData'), 'dev'),
+  );
 }
 
 export {};

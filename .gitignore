@@ -3,6 +3,7 @@ dist/
 out/
 .vite/
 *.log
+test-results/
 .DS_Store
 .env
 .env.*

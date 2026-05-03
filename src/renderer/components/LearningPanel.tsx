@@ -53,8 +53,10 @@ export function LearningPanel({
       {writing.staleReview ? <StaleReviewCard onReviewCurrentVersion={onReviewCurrentVersion} /> : null}
 
       {writing.pendingRewritePractice || completedRewritePractice ? (
-        <details className="text-sm text-base-content/62">
-          <summary className="cursor-pointer font-medium text-base-content/70">Rewrite practice is waiting</summary>
+        <details className="text-sm text-base-content/62" data-e2e="rewrite-practice-details">
+          <summary className="cursor-pointer font-medium text-base-content/70" data-e2e="rewrite-practice-summary">
+            Rewrite practice is waiting
+          </summary>
           <RewritePracticeCard
             practice={completedRewritePractice ?? writing.pendingRewritePractice}
             inputValue={rewritePracticeInput}
@@ -71,7 +73,12 @@ export function LearningPanel({
       {hasWritten && preview ? (
         <div className="space-y-3">
           <p className="text-sm leading-6 text-base-content/60">Focused review is ready.</p>
-          <button type="button" className="btn btn-ghost btn-sm rounded-xl px-0 text-primary" onClick={onOpenFeedback}>
+          <button
+            type="button"
+            className="btn btn-ghost btn-sm rounded-xl px-0 text-primary"
+            data-e2e="open-focused-review-button"
+            onClick={onOpenFeedback}
+          >
             Open focused review
           </button>
         </div>
@@ -184,66 +191,75 @@ function RewritePracticeCard({
 
   return (
     <PanelCard tone="success">
-      <div>
-        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-success">D+1 rewrite practice</p>
-        <h3 className="mt-1 font-semibold">Practice this sentence</h3>
-        <p className="mt-1 text-xs text-base-content/45">{practice.spacedStage}</p>
-      </div>
-      <div className="mt-4 space-y-3 text-sm leading-6 text-base-content/70">
-        <p>
-          <strong>Original:</strong> {practice.originalSentence}
-        </p>
-        <p>
-          <strong>Focus pattern:</strong> {practice.focusPattern}
-        </p>
-        <p>{practice.prompt}</p>
-      </div>
-      <input
-        className="input input-bordered mt-4 w-full"
-        aria-label="Your rewrite practice answer"
-        value={inputValue}
-        onChange={(event) => onInputChange(event.target.value)}
-        placeholder="Rewrite it in your own words."
-        disabled={isCompleted || isCheckInProgress}
-      />
-      <div className="mt-4 flex flex-wrap gap-2">
-        <button type="button" className="btn btn-success btn-sm rounded-xl" disabled={!canSubmit} onClick={onComplete}>
-          {isCheckInProgress ? 'Checking rewrite...' : isCompleted ? 'Rewrite submitted' : 'Submit rewrite'}
-        </button>
-        {!isCompleted ? (
+      <div data-e2e="rewrite-practice-card">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-success">D+1 rewrite practice</p>
+          <h3 className="mt-1 font-semibold">Practice this sentence</h3>
+          <p className="mt-1 text-xs text-base-content/45">{practice.spacedStage}</p>
+        </div>
+        <div className="mt-4 space-y-3 text-sm leading-6 text-base-content/70">
+          <p>
+            <strong>Original:</strong> {practice.originalSentence}
+          </p>
+          <p>
+            <strong>Focus pattern:</strong> {practice.focusPattern}
+          </p>
+          <p>{practice.prompt}</p>
+        </div>
+        <input
+          className="input input-bordered mt-4 w-full"
+          aria-label="Your rewrite practice answer"
+          value={inputValue}
+          onChange={(event) => onInputChange(event.target.value)}
+          placeholder="Rewrite it in your own words."
+          disabled={isCompleted || isCheckInProgress}
+          data-e2e="rewrite-practice-input"
+        />
+        <div className="mt-4 flex flex-wrap gap-2">
           <button
             type="button"
-            className="btn btn-ghost btn-sm rounded-xl"
-            disabled={isCheckInProgress}
-            onClick={onSkip}
+            className="btn btn-success btn-sm rounded-xl"
+            disabled={!canSubmit}
+            data-e2e="rewrite-practice-submit"
+            onClick={onComplete}
           >
-            Skip
+            {isCheckInProgress ? 'Checking rewrite...' : isCompleted ? 'Rewrite submitted' : 'Submit rewrite'}
           </button>
+          {!isCompleted ? (
+            <button
+              type="button"
+              className="btn btn-ghost btn-sm rounded-xl"
+              disabled={isCheckInProgress}
+              onClick={onSkip}
+            >
+              Skip
+            </button>
+          ) : null}
+        </div>
+        {isCheckInProgress ? (
+          <p className="mt-3 text-sm leading-6 text-base-content/55">
+            Checking whether the rewrite repairs the focus pattern...
+          </p>
+        ) : null}
+        {showNativeModel ? (
+          <p className="mt-4 rounded-xl bg-base-100 p-3 text-sm leading-6">
+            <strong>Native model:</strong> {practice.nativeModelSentence}
+          </p>
+        ) : (
+          <p className="mt-4 text-sm text-base-content/50">Native model stays hidden until you submit.</p>
+        )}
+        {latestCheck ? (
+          <RewriteCheckFeedbackCard check={latestCheck} isChecking={isCheckInProgress} onRetryCheck={onRetryCheck} />
+        ) : null}
+        {practice.isOlderThanSevenDays ? (
+          <p className="mt-3 text-sm text-base-content/50">This older practice is de-prioritized from Today.</p>
+        ) : null}
+        {error ? (
+          <div className="alert alert-error mt-4">
+            <span>{error}</span>
+          </div>
         ) : null}
       </div>
-      {isCheckInProgress ? (
-        <p className="mt-3 text-sm leading-6 text-base-content/55">
-          Checking whether the rewrite repairs the focus pattern...
-        </p>
-      ) : null}
-      {showNativeModel ? (
-        <p className="mt-4 rounded-xl bg-base-100 p-3 text-sm leading-6">
-          <strong>Native model:</strong> {practice.nativeModelSentence}
-        </p>
-      ) : (
-        <p className="mt-4 text-sm text-base-content/50">Native model stays hidden until you submit.</p>
-      )}
-      {latestCheck ? (
-        <RewriteCheckFeedbackCard check={latestCheck} isChecking={isCheckInProgress} onRetryCheck={onRetryCheck} />
-      ) : null}
-      {practice.isOlderThanSevenDays ? (
-        <p className="mt-3 text-sm text-base-content/50">This older practice is de-prioritized from Today.</p>
-      ) : null}
-      {error ? (
-        <div className="alert alert-error mt-4">
-          <span>{error}</span>
-        </div>
-      ) : null}
     </PanelCard>
   );
 }
@@ -426,6 +442,7 @@ function AfterWritingState({
           className={`btn w-full rounded-xl ${failedCategory ? 'btn-error mt-4' : 'btn-primary'}`}
           disabled={reviewDisabled}
           aria-disabled={reviewDisabled}
+          data-e2e="get-feedback-button"
           onClick={onReviewCurrentVersion}
         >
           {failedCategory ? 'Retry current version' : 'Get Feedback'}

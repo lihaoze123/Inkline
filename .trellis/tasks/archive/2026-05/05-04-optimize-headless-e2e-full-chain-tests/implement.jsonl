@@ -1,0 +1,21 @@
+{"file": ".trellis/spec/product/index.md", "reason": "Product rules for review, feedback save, rewrite practice, privacy, and testing scope."}
+{"file": ".trellis/spec/product/learning-flow.md", "reason": "UI/product flow expectations for review result, self-repair, and rewrite practice."}
+{"file": ".trellis/spec/product/review-agent-contract.md", "reason": "Review output contract, live/mock provider e2e constraints, diagnostics, and validation rules."}
+{"file": ".trellis/spec/product/privacy-security.md", "reason": "Provider disclosure, secret handling, keychain isolation, and diagnostic privacy rules."}
+{"file": ".trellis/spec/product/validation-and-testing.md", "reason": "Testing contracts for review flows, Electron/CDP validation, and manual/e2e verification boundaries."}
+{"file": ".trellis/spec/product/data-model-contract.md", "reason": "Review save, learning history, and rewrite practice persistence contracts."}
+{"file": ".trellis/spec/frontend/index.md", "reason": "Frontend pre-development checklist for Electron React UI changes."}
+{"file": ".trellis/spec/frontend/ipc-electron.md", "reason": "Renderer/preload/main boundary rules for UI-driven Electron flows."}
+{"file": ".trellis/spec/frontend/electron-browser-api-restrictions.md", "reason": "Electron renderer API caveats and requirement to test Electron-specific behavior in Electron."}
+{"file": ".trellis/spec/frontend/components.md", "reason": "Semantic component and accessible UI patterns relevant to stable e2e selectors."}
+{"file": ".trellis/spec/frontend/react-pitfalls.md", "reason": "React state and callback pitfalls while adding selectors or minor UI hooks."}
+{"file": ".trellis/spec/frontend/type-safety.md", "reason": "Renderer type and import conventions for selector and component edits."}
+{"file": ".trellis/spec/backend/index.md", "reason": "Backend pre-development checklist for main-process service and e2e runtime changes."}
+{"file": ".trellis/spec/backend/environment.md", "reason": "Dev/prod isolation and environment handling for e2e-only mock provider and temp data roots."}
+{"file": ".trellis/spec/backend/error-handling.md", "reason": "Bounded failure handling and diagnostics for mock provider/e2e helpers."}
+{"file": ".trellis/spec/backend/type-safety.md", "reason": "Zod/type-safety guidance for service-level mock provider guards."}
+{"file": ".trellis/spec/backend/quality.md", "reason": "Main-process import and Vite quality rules."}
+{"file": ".trellis/spec/shared/index.md", "reason": "Shared pre-development checklist for TypeScript and code quality."}
+{"file": ".trellis/spec/shared/code-quality.md", "reason": "Mandatory code quality rules for all touched files."}
+{"file": ".trellis/spec/shared/typescript.md", "reason": "TypeScript style for e2e helper and mock provider code."}
+{"file": ".trellis/spec/shared/pnpm-electron-setup.md", "reason": "Electron Forge, pnpm, packaging, and native-module constraints relevant to e2e launch scripts."}
