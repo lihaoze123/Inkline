@@ -242,7 +242,7 @@ import keytar from 'keytar';
 
 const store = new Store();
 const rawResponseStorageEnabled = store.get('rawResponseStorageEnabled');
-const apiKey = await keytar.getPassword('english-coach', 'provider-api-key');
+const apiKey = await keytar.getPassword('Inkline', 'provider-api-key');
 ```
 
 Renderer code must not access Node/Electron storage or keychain APIs directly.

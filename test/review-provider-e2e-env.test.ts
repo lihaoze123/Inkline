@@ -71,7 +71,7 @@ async function makeNixStoreWithLibsecret(): Promise<string> {
 }
 
 async function makeTempDir(): Promise<string> {
-  const tempRoot = await mkdtemp(path.join(tmpdir(), 'english-coach-e2e-env-test-'));
+  const tempRoot = await mkdtemp(path.join(tmpdir(), 'Inkline-e2e-env-test-'));
   tempRoots.push(tempRoot);
   return tempRoot;
 }

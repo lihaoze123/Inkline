@@ -6,7 +6,7 @@ Replace the default Electron placeholder icon with a project-owned English Coach
 
 ## What I Already Know
 
-- The app is an Electron Forge desktop app named `english-coach`.
+- The app is an Electron Forge desktop app named `Inkline`.
 - `forge.config.ts` currently has no `packagerConfig.icon`, so packaged builds fall back to the Electron default icon.
 - `src/main/index.ts` creates the main `BrowserWindow` without an icon, so Linux/dev windows can also show the default icon.
 - A generated icon image is available at `/home/chumeng/.codex/generated_images/019de474-33a5-78a1-8edf-f415f04c4c75/ig_0ce9d5f66db2b9140169f4db07ae70819b925959461caf5a21.png`.

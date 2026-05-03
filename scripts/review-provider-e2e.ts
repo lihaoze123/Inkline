@@ -19,7 +19,7 @@ const REQUIRED_ENV = [
 
 const INCLUDE_THINKING_ENV = 'E2E_OPENAI_COMPATIBLE_INCLUDE_THINKING';
 const CDP_PORT_ENV = 'E2E_CDP_PORT';
-const KEYCHAIN_SERVICE_ENV = 'ENGLISH_COACH_KEYCHAIN_SERVICE_NAME';
+const KEYCHAIN_SERVICE_ENV = 'INKLINE_KEYCHAIN_SERVICE_NAME';
 const CDP_WAIT_TIMEOUT_MS = 120_000;
 const RENDERER_EVAL_TIMEOUT_MS = 360_000;
 const ELECTRON_EXIT_TIMEOUT_MS = 8_000;
@@ -181,9 +181,9 @@ async function main(): Promise<void> {
 }
 
 async function launchElectronSession(config: E2EConfig, cdpPort: number): Promise<ElectronSession> {
-  const tempRoot = await mkdtemp(path.join(tmpdir(), 'english-coach-e2e-'));
+  const tempRoot = await mkdtemp(path.join(tmpdir(), 'Inkline-e2e-'));
   const xdgConfigHome = path.join(tempRoot, 'xdg-config');
-  const keychainServiceName = `english-coach-e2e-${randomUUID()}`;
+  const keychainServiceName = `Inkline-e2e-${randomUUID()}`;
   const outputLines: string[] = [];
   const childEnv: Record<string, string | undefined> = {
     ...process.env,

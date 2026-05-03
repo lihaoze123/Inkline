@@ -634,7 +634,7 @@ Root `package.json`:
 
 ```json
 {
-  "name": "english-coach",
+  "name": "inkline",
   "author": "lihaoze123",
   "license": "UNLICENSED",
   "private": true
@@ -680,7 +680,7 @@ makers: [new MakerSquirrel({}), new MakerDeb({}), new MakerAppImage({})];
 
 ```json
 {
-  "name": "english-coach",
+  "name": "inkline",
   "private": true
 }
 ```
@@ -691,7 +691,7 @@ This leaves Squirrel/NuGet without package authors metadata and native package m
 
 ```json
 {
-  "name": "english-coach",
+  "name": "inkline",
   "author": "lihaoze123",
   "license": "UNLICENSED",
   "private": true

@@ -30,7 +30,7 @@ describe('settings defaults contract', () => {
       rawResponseStorageEnabled: false,
       reviewThinkingEnabled: false,
       onboardingIntroVersionSeen: 0,
-      databaseLocation: '/tmp/english-coach.sqlite',
+      databaseLocation: '/tmp/Inkline.sqlite',
       piMonoAuthStatus: 'not-configured',
       providerApiKeyStatus: 'not-configured',
       providerCredentialStatuses: {
@@ -202,7 +202,7 @@ describe('settings defaults contract', () => {
       return { default: MockStore };
     });
     vi.doMock('../src/main/db/client', () => ({
-      getDatabasePath: () => '/tmp/english-coach.sqlite',
+      getDatabasePath: () => '/tmp/Inkline.sqlite',
     }));
     vi.doMock('../src/main/services/credentials/service', () => ({
       getProviderCredentialStatuses: async () => ({

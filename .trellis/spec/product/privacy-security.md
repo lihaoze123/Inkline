@@ -126,7 +126,7 @@ The main process builds the provider request from template metadata and optional
 - Prefer OS keychain for provider credentials.
 - Renderer code must not directly access secrets.
 - Main process owns credential access and exposes only narrow IPC operations.
-- Live e2e runs may override the OS keychain service with `ENGLISH_COACH_KEYCHAIN_SERVICE_NAME`; production/default runtime must continue using the `english-coach` service name.
+- Live e2e runs may override the OS keychain service with `INKLINE_KEYCHAIN_SERVICE_NAME`; production/default runtime must continue using the `Inkline` service name.
 - Live e2e runs that launch real Electron/CDP may add runtime-only native library paths required by the OS keychain backend, such as detected Nix `libsecret` directories, but must still set credentials through renderer `window.api` and main IPC rather than bypassing the keychain path.
 
 ## Agent Tool Boundary

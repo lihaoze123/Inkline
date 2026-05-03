@@ -169,7 +169,7 @@ export function runMigrations() {
 ### 2. Signatures
 
 - Database path: `getDatabasePath(): string`
-  - Returns `path.join(app.getPath('userData'), 'english-coach.sqlite')`.
+- Returns `path.join(app.getPath('userData'), 'Inkline.sqlite')`.
   - Dev/prod isolation comes from `env-setup` changing `app.getPath('userData')` before database initialization.
 - SQLite open precondition:
   - Create `path.dirname(getDatabasePath())` with `mkdirSync(..., { recursive: true })` before constructing `new Database(...)`.
@@ -222,7 +222,7 @@ type MigrationResult =
 
 ### 5. Good/Base/Bad Cases
 
-- Good: Dev app opens `english-coach.sqlite` under the dev-isolated `userData` directory, applies migrations from repo `drizzle`, and stores no provider secrets in SQL.
+- Good: Dev app opens `Inkline.sqlite` under the dev-isolated `userData` directory, applies migrations from repo `drizzle`, and stores no provider secrets in SQL.
 - Base: Packaged app opens the production `userData` database and applies migrations from `process.resourcesPath/drizzle`.
 - Bad: Migration lookup depends on Vite output-relative paths, so packaged apps cannot find `drizzle`.
 - Bad: Renderer imports schema or database modules to display local status.

@@ -9,7 +9,7 @@ Adopt `Inkline` as the visible product name for the desktop English writing prac
 * The user selected option 1: `Inkline`, with Chinese companion name `墨线`.
 * The app currently exposes `English Coach` in the Electron window title, HTML title, main navigation, and onboarding intro.
 * The README still describes the product as `Writing Practice`.
-* Persistent internal identifiers include `english-coach.sqlite` and the keytar service name `english-coach`.
+* Persistent internal identifiers include `Inkline.sqlite` and the keytar service name `Inkline`.
 
 ## Assumptions
 

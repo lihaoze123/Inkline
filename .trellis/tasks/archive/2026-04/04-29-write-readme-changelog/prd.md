@@ -2,19 +2,19 @@
 
 ## Goal
 
-Create project documentation for the current english-coach repository: a README for users/developers and a CHANGELOG that records released or notable changes.
+Create project documentation for the current Inkline repository: a README for users/developers and a CHANGELOG that records released or notable changes.
 
 ## What I already know
 
 * The user asked to write README documentation and "CHANGLOG", interpreted as CHANGELOG.
-* The repository is named `english-coach`.
+* The repository is named `Inkline`.
 * Current branch is `main` and the working tree was clean at session start.
 * No root README or root CHANGELOG currently exists in tracked files.
-* `package.json` identifies the app as `english-coach` v0.1.0: "Local-first English journal coach desktop app."
+* `package.json` identifies the app as `Inkline` v0.1.0: "Local-first English journal coach desktop app."
 * Runtime stack from `package.json`: Electron Forge + Vite, React 19, TypeScript, SQLite via better-sqlite3 + Drizzle, pnpm.
 * Supported scripts: `dev`, `lint`, `typecheck`, `test`, `review:harness`, `build`/`package`, `make`, `postinstall`.
 * Current UI implements Today page, journal editor, autosave, review preview/save flow, provider disclosure, D+1 rewrite practice, anchored highlights, stale review handling, and raw response storage status.
-* Local database path is `app.getPath('userData')/english-coach.sqlite`.
+* Local database path is `app.getPath('userData')/Inkline.sqlite`.
 * Settings currently default provider/model to `Not configured`; raw model response storage defaults off.
 * Review implementation currently calls `callPiMonoReviewAgent` by default while tests can inject a review agent.
 * Product specs define v0.1 as local-first daily journal review, self-repair, reference rewrite, and one rewrite practice; v0.2/backlog items should not be documented as current capabilities.

@@ -1,9 +1,13 @@
 import type { ForgeConfig } from '@electron-forge/shared-types';
+import type { ForgePlatform } from '@electron-forge/shared-types';
 import { MakerDeb } from '@electron-forge/maker-deb';
 import { MakerDMG } from '@electron-forge/maker-dmg';
-import { MakerSquirrel } from '@electron-forge/maker-squirrel';
+import { MakerBase } from '@electron-forge/maker-base';
+import type { MakerOptions } from '@electron-forge/maker-base';
 import { VitePlugin } from '@electron-forge/plugin-vite';
 import { MakerAppImage } from '@reforged/maker-appimage';
+import { build } from 'app-builder-lib';
+import type { Configuration, NsisOptions } from 'app-builder-lib';
 import { cp, mkdir } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -13,9 +17,67 @@ const nativeModules = ['better-sqlite3', 'bindings', 'file-uri-to-path', 'keytar
 const iconBasePath = path.resolve(projectRoot, 'resources', 'icon');
 const pngIconPath = `${iconBasePath}.png`;
 const icoIconPath = `${iconBasePath}.ico`;
+const builderArchValues = ['x64', 'ia32', 'armv7l', 'arm64', 'universal'] as const;
+
+type BuilderArch = (typeof builderArchValues)[number];
+
+function toBuilderArch(arch: string): BuilderArch {
+  if (builderArchValues.includes(arch as BuilderArch)) {
+    return arch as BuilderArch;
+  }
+
+  throw new Error(`Unsupported NSIS target architecture: ${arch}`);
+}
+
+class MakerNsis extends MakerBase<NsisOptions> {
+  name = 'nsis';
+  defaultPlatforms: ForgePlatform[] = ['win32'];
+
+  isSupportedOnCurrentPlatform(): boolean {
+    return process.platform === 'win32';
+  }
+
+  async make({ dir, makeDir, targetArch, packageJSON }: MakerOptions): Promise<string[]> {
+    const nsisOutputPath = path.join(makeDir, 'nsis', targetArch);
+    const productName = packageJSON.productName ?? 'Inkline';
+    const version = packageJSON.version;
+    const arch = toBuilderArch(targetArch);
+    const config: Configuration = {
+      appId: 'com.lihaoze123.inkline',
+      productName,
+      directories: {
+        output: nsisOutputPath,
+      },
+      win: {
+        icon: icoIconPath,
+      },
+      nsis: {
+        artifactName: `${productName}-${version}-Setup.${'${ext}'}`,
+        oneClick: false,
+        perMachine: false,
+        allowElevation: true,
+        allowToChangeInstallationDirectory: true,
+        runAfterFinish: false,
+        createDesktopShortcut: true,
+        createStartMenuShortcut: true,
+        shortcutName: 'Inkline',
+        menuCategory: 'Inkline',
+        ...this.config,
+      },
+    };
+
+    return build({
+      prepackaged: dir,
+      win: [`nsis:${arch}`],
+      publish: 'never',
+      config,
+    });
+  }
+}
 
 const config: ForgeConfig = {
   packagerConfig: {
+    name: 'Inkline',
     asar: {
       unpack: '*.{node,dll}',
     },
@@ -23,8 +85,7 @@ const config: ForgeConfig = {
     extraResource: ['drizzle', 'resources'],
   },
   rebuildConfig: {
-    force: true,
-    onlyModules: ['better-sqlite3'],
+    onlyModules: [],
   },
   hooks: {
     packageAfterCopy: async (_forgeConfig, buildPath) => {
@@ -42,9 +103,7 @@ const config: ForgeConfig = {
     },
   },
   makers: [
-    new MakerSquirrel({
-      setupIcon: icoIconPath,
-    }),
+    new MakerNsis(),
     new MakerDMG({
       format: 'ULFO',
     }),

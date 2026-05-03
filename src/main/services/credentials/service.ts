@@ -10,8 +10,8 @@ import type {
 type Keytar = typeof keytar;
 
 const require = createRequire(import.meta.url);
-const SERVICE_NAME = 'english-coach';
-const SERVICE_NAME_ENV = 'ENGLISH_COACH_KEYCHAIN_SERVICE_NAME';
+const SERVICE_NAME = 'Inkline';
+const SERVICE_NAME_ENV = 'INKLINE_KEYCHAIN_SERVICE_NAME';
 const PROVIDER_ACCOUNT = 'provider-api-key';
 const ANTHROPIC_PROVIDER_ACCOUNT = 'provider-api-key:anthropic';
 
