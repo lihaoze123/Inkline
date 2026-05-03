@@ -47,7 +47,6 @@ export type OnboardingIntroProps = {
 export function OnboardingIntro({ isDismissPending, error, onDismiss }: OnboardingIntroProps): React.JSX.Element {
   const prefersReducedMotion = usePrefersReducedMotion();
   const dialogRef = useRef<HTMLElement>(null);
-  const skipButtonRef = useRef<HTMLButtonElement>(null);
   const [stage, setStage] = useState<IntroStage>('brand');
   const [slideIndex, setSlideIndex] = useState(0);
   const [hasManualControl, setHasManualControl] = useState(false);
@@ -56,8 +55,7 @@ export function OnboardingIntro({ isDismissPending, error, onDismiss }: Onboardi
   const isFinalSlide = slideIndex === ONBOARDING_SLIDES.length - 1;
 
   useEffect(() => {
-    const focusTarget = skipButtonRef.current ?? dialogRef.current;
-    focusTarget?.focus();
+    dialogRef.current?.focus();
   }, []);
 
   useEffect(() => {
@@ -128,18 +126,7 @@ export function OnboardingIntro({ isDismissPending, error, onDismiss }: Onboardi
       aria-describedby={stage === 'brand' ? 'welcome-intro-brand-description' : 'welcome-intro-slide-description'}
       tabIndex={-1}
     >
-      <div className="flex items-center justify-between px-6 py-5 md:px-9">
-        <span className="text-sm font-medium text-base-content/48">Inkline</span>
-        <button
-          ref={skipButtonRef}
-          type="button"
-          className="btn btn-ghost btn-sm rounded-[0.65rem] text-base-content/58"
-          disabled={isDismissPending}
-          onClick={dismissIntro}
-        >
-          Skip
-        </button>
-      </div>
+      <div className="welcome-intro__drag-strip" aria-hidden="true" />
 
       {stage === 'brand' ? (
         <div className="welcome-intro__brand flex flex-1 flex-col items-center justify-center px-6 pb-20 text-center">
