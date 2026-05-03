@@ -139,7 +139,7 @@ Validation failure must not write long-term statistics. Store validation errors 
 
 - Trigger: Any task that changes review input construction, review prompt text, live model calls, provider configuration, or template-aware review behavior.
 - MVP v0.1 must not bind to pi-mono by default. The product needs structured language judgment, not a full coding-agent runtime.
-- v0.1 live review uses a minimal OpenAI-compatible direct adapter configured by base URL, model, and OS-keychain API key.
+- v0.1 live review uses AI SDK provider adapters configured by provider id, model, OS-keychain API key, and a custom base URL only for `openai-compatible`.
 - pi-mono is a v0.2+ optional runtime adapter only when the product needs multi-step agent workflows, controlled tool calls, reusable agent sessions, or transcript replay.
 
 ### 2. Signatures
@@ -162,6 +162,19 @@ type ReviewModelClientOutput = {
 interface ReviewAgent {
   (input: ReviewModelClientInput): Promise<ReviewModelClientOutput>;
 }
+```
+
+Provider ids:
+
+```ts
+type AiProviderId =
+  | 'openai'
+  | 'deepseek'
+  | 'anthropic'
+  | 'google'
+  | 'xai'
+  | 'openrouter'
+  | 'openai-compatible';
 ```
 
 Provider diagnostics shape:
@@ -210,7 +223,7 @@ Main-process review flow:
 ReviewService
   -> disclosure + active writing revision checks
   -> build template-aware ReviewInput
-  -> OpenAI-compatible provider adapter
+  -> AI SDK provider adapter
   -> AI SDK structured generation using Electron net.fetch
   -> structured output / JSON schema
   -> validateReviewResult
@@ -218,16 +231,13 @@ ReviewService
   -> review_runs status update
 ```
 
-OpenAI-compatible structured generation shape:
+Structured generation shape:
 
 ```ts
 type ReviewStructuredGenerationRequest = {
-  runtimeConfig: {
-    provider: 'openai-compatible';
-    apiKey: string;
-    baseUrl: string;
-    model: string;
-  };
+  runtimeConfig:
+    | { provider: Exclude<AiProviderId, 'openai-compatible'>; apiKey: string; model: string }
+    | { provider: 'openai-compatible'; apiKey: string; baseUrl: string; model: string };
   systemPrompt: string;
   userPrompt: string;
   schema: typeof reviewOutputSchema;
@@ -242,14 +252,21 @@ type ReviewStructuredGenerationRequest = {
 ### 3. Contracts
 
 - Renderer never calls provider SDKs, pi-mono, keychain, database services, or prompt builders directly.
-- Electron main process owns provider/base URL/model settings, disclosure checks, OS keychain reads, prompt construction, model invocation, validation, and persistence.
+- Electron main process owns provider/model/custom base URL settings, disclosure checks, OS keychain reads, prompt construction, model invocation, validation, and persistence.
 - Review start input uses `writingAttemptId` and `writingRevisionId`; the service must reject mismatched or non-active revisions.
 - Review input includes `writingTemplate`, `generatedPrompt`, and `userGoal` when present on the writing attempt.
-- OpenAI-compatible calls must use the AI SDK with Electron `net.fetch`, not Node/global `fetch`, so desktop system proxy behavior is respected.
+- AI SDK provider calls must use Electron `net.fetch`, not Node/global `fetch`, so desktop system proxy behavior is respected.
+- Hosted provider settings use first-class provider ids and do not require a base URL. Only `openai-compatible` requires `baseUrl`.
 - The provider adapter must request structured JSON output and still pass `unknown` through `validateReviewResult`.
 - The review adapter must allow long reasoning models by defaulting to `maxOutputTokens: 16_000` and `timeoutMs: 240_000`; tests may inject a shorter timeout override.
-- Review thinking is off by default where supported by requesting AI SDK OpenAI provider option `reasoningEffort: 'none'`. If an OpenAI-compatible provider rejects `none` as an unsupported enum before producing output, retry once without `reasoningEffort` and record diagnostics with requested effort `none`, effective effort unavailable/provider-default, fallback used, and a bounded warning.
-- When the user enables review thinking, request AI SDK OpenAI provider option `reasoningEffort: 'medium'`; do not use provider-specific request-body knobs.
+- Review and rewrite-check thinking options must be built through one shared provider-reasoning helper, not handwritten per call site.
+- DeepSeek must use the documented `thinking` toggle: first-class DeepSeek uses `providerOptions.deepseek.thinking`, and custom DeepSeek-compatible endpoints use `providerOptions.openaiCompatible.thinking`. Do not use `reasoningEffort: 'none'` as the DeepSeek off path.
+- OpenAI must only send `reasoningEffort: 'none'` for models that document it, such as GPT-5.1. For other likely OpenAI reasoning models, minimize with documented low/minimal controls; for non-reasoning models, omit reasoning options.
+- Anthropic must not use `thinking: { type: 'disabled' }`; the documented minimize path is `providerOptions.anthropic.effort = 'low'` where supported.
+- Google/Gemini must use documented `thinkingConfig`: Gemini 2.5 can disable with `thinkingBudget: 0`; Gemini 3 uses model-family-appropriate `thinkingLevel`.
+- xAI/Grok may minimize with documented `reasoningEffort: 'low'`; non-reasoning model ids may omit reasoning options.
+- OpenRouter may use documented provider-specific reasoning controls when available; do not assume every routed model supports a universal off switch.
+- If a provider rejects a removable `reasoningEffort: 'none'` before producing output, retry once without that field and record diagnostics with requested effort `none`, effective effort unavailable/provider-default, fallback used, and a bounded warning.
 - `output` remains untrusted `unknown` until the shared review contract validates it.
 - `rawOutput` is stored only when the raw-response setting allows it; production default is off.
 - `providerDiagnostics` may be persisted in `review_runs.summary_json` independent of `rawOutput`, but only as bounded sanitized metadata: finish reason, token usage including reasoning/text token split when available, warning count/summaries, response id/model id, provider metadata keys, requested/effective reasoning effort, fallback status, error name, safe error message, and failure kind.
@@ -263,10 +280,12 @@ type ReviewStructuredGenerationRequest = {
 | Disclosure not accepted | Do not call provider; return `disclosureRequired` |
 | `writingRevisionId` does not belong to `writingAttemptId` | Return `{ success: false, error }`; do not call provider |
 | Revision is not the active revision for the attempt | Return `{ success: false, error }`; do not call provider |
-| Provider base URL/model/key missing | Do not send writing content; transition/return review failure with configuration error |
+| Provider model/key missing | Do not send writing content; transition/return review failure with configuration error |
+| Custom OpenAI-compatible base URL missing | Do not send writing content; transition/return review failure with configuration error |
 | OS keychain unavailable | Do not send writing content; transition/return review failure with configuration error |
 | Provider network/auth error | Persist `review_failed`; store sanitized error details |
 | Provider rejects AI SDK `reasoningEffort: 'none'` before output | Retry once without `reasoningEffort`; if the retry validates, keep the review normal and persist fallback diagnostics |
+| DeepSeek or DeepSeek-compatible endpoint is configured with review thinking off | Send documented `thinking: { type: 'disabled' }`; do not fall back to provider-default thinking |
 | Provider reaches output limit before usable JSON | Persist `review_failed`; set diagnostics `failureKind` to `length` or `no_output` when available; do not write learning history |
 | Provider returns no usable structured output | Persist `review_failed`; set diagnostics `failureKind: 'no_output'`; store safe user-facing validation error; do not write learning history |
 | Provider returns malformed JSON or schema-invalid structured output | Persist `review_failed`; store validation errors; do not write learning history |
@@ -277,7 +296,8 @@ type ReviewStructuredGenerationRequest = {
 
 ### 5. Good/Base/Bad Cases
 
-- Good: Main process calls the OpenAI-compatible adapter through the review seam, uses the AI SDK provider configured with Electron `net.fetch`, includes template/goal/prompt context, asks for structured JSON output, validates through `validateReviewResult`, and persists only status/raw/error fields allowed by privacy settings.
+- Good: Main process calls the review seam, uses the selected first-class AI SDK provider configured with Electron `net.fetch`, includes template/goal/prompt context, asks for structured JSON output, validates through `validateReviewResult`, and persists only status/raw/error fields allowed by privacy settings.
+- Good: DeepSeek with review thinking off sends `thinking: { type: 'disabled' }`, records `reasoningTokens: 0` when the provider reports that, and does not use fallback diagnostics.
 - Base: Compatible provider returns schema-valid structured output with warnings or provider metadata; shared validation still decides whether preview is allowed.
 - Base: No key or keychain unavailable; review fails before writing content is sent.
 - Bad: v0.1 introduces pi-mono/coding-agent runtime complexity for a single-step review call, uses global `fetch` instead of Electron `net.fetch`, lets renderer touch provider SDKs/API keys, or trusts model JSON without shared validation.
@@ -289,9 +309,10 @@ type ReviewStructuredGenerationRequest = {
 - Unit test: malformed or schema-invalid model output transitions to `review_failed`, stores validation errors, and does not update learning-history state.
 - Template-aware input test: review input includes selected template metadata, generated prompt, and user goal when present.
 - Privacy test: raw output is stored only when the raw-response setting is enabled.
-- Adapter test: OpenAI-compatible adapter calls the shared AI SDK structured generation boundary with the review schema, JSON output mode, Electron `net.fetch` provider runtime, and bounded output/timeout settings.
+- Adapter test: review adapter calls the shared AI SDK structured generation boundary with the review schema, JSON output mode, Electron `net.fetch` provider runtime, and bounded output/timeout settings.
 - Adapter test: review adapter passes `maxOutputTokens: 16_000` and a long default timeout while preserving the shorter injected timeout used by tests.
-- Adapter test: default off requests `reasoningEffort: 'none'`; thinking enabled requests `reasoningEffort: 'medium'`.
+- Provider reasoning unit test: default off and enabled thinking map through the shared provider-reasoning helper for OpenAI, DeepSeek, Anthropic, Google/Gemini, xAI/Grok, OpenRouter, and custom OpenAI-compatible.
+- Provider reasoning unit test: custom DeepSeek-compatible endpoints use `providerOptions.openaiCompatible.thinking = { type: 'disabled' }`, not `reasoningEffort: 'none'`.
 - AI generation test: when a provider rejects `reasoningEffort: 'none'` as an unsupported enum, generation retries once without that field and records fallback diagnostics.
 - Observability test: no-output/length failures persist sanitized diagnostics with finish reason, output tokens, reasoning tokens, response model id, and provider metadata keys when available.
 - Privacy test: provider diagnostic summaries and validation errors never persist raw provider body text or API-key-like secrets.
@@ -321,6 +342,9 @@ const result = await provider.chat.completions.create({
   messages,
   deepseek_reasoning: false,
 });
+
+// DeepSeek does not use OpenAI-style "none" as the reliable off switch.
+const providerOptions = { openaiCompatible: { reasoningEffort: 'none' } };
 ```
 
 #### Correct
@@ -335,11 +359,12 @@ const generation = await generateStructuredObject({
   maxOutputTokens: 16_000,
   timeoutMs: 240_000,
   maxRetries: 0,
-  providerOptions: {
-    openai: {
-      reasoningEffort: reviewThinkingEnabled ? 'medium' : 'none',
-    },
-  },
+  providerOptions: buildProviderReasoningOptions({
+    providerId: providerSettings.providerId,
+    model: providerSettings.model,
+    thinkingEnabled: reviewThinkingEnabled,
+    baseUrl: providerSettings.providerId === 'openai-compatible' ? providerSettings.baseUrl : undefined,
+  }),
 });
 const validation = validateReviewResult(reviewInput, generation.output);
 ```
@@ -360,7 +385,14 @@ generateStructuredObject(input): Promise<{
   output: OutputObject;
   rawOutput: unknown;
   providerDiagnostics?: AiProviderDiagnostics | null;
-  provider: 'openai-compatible' | 'anthropic';
+  provider:
+    | 'openai'
+    | 'deepseek'
+    | 'anthropic'
+    | 'google'
+    | 'xai'
+    | 'openrouter'
+    | 'openai-compatible';
   model: string;
 }>;
 
