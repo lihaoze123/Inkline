@@ -136,6 +136,11 @@ textarea:hover::-webkit-scrollbar-thumb {
 }
 
 @supports (top: env(titlebar-area-y)) {
+  :root {
+    --app-window-drag-height: env(titlebar-area-height, 2.5rem);
+    --app-window-content-top-padding: max(2.5rem, env(titlebar-area-height, 2.5rem));
+  }
+
   .app-window-drag-strip {
     top: env(titlebar-area-y, 0);
     left: env(titlebar-area-x, 0);
@@ -186,6 +191,25 @@ a,
 
 .welcome-intro {
   background: var(--coach-paper);
+}
+
+.welcome-intro__drag-strip {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 1;
+  width: 100%;
+  height: var(--app-window-drag-height);
+  -webkit-app-region: drag;
+}
+
+@supports (top: env(titlebar-area-y)) {
+  .welcome-intro__drag-strip {
+    top: env(titlebar-area-y, 0);
+    left: env(titlebar-area-x, 0);
+    width: env(titlebar-area-width, 100%);
+    height: env(titlebar-area-height, var(--app-window-drag-height));
+  }
 }
 
 .welcome-intro__brand-mark {
@@ -261,7 +285,7 @@ a,
 
 .app-ink--page {
   position: absolute;
-  top: 0.75rem;
+  top: calc(var(--app-window-content-top-padding) + 0.75rem);
   right: clamp(2rem, 4.4vw, 4.75rem);
   z-index: 0;
   width: clamp(29rem, 35vw, 33.75rem);
@@ -304,7 +328,7 @@ a,
 
 @media (max-width: 1180px), (max-height: 700px) {
   .app-ink--page {
-    top: 0.75rem;
+    top: calc(var(--app-window-content-top-padding) + 0.75rem);
     right: 1.25rem;
     width: clamp(24rem, 38vw, 29rem);
     height: clamp(7.25rem, 11vw, 9.5rem);
