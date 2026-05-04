@@ -106,7 +106,7 @@ const config: ForgeConfig = {
       unpack: '*.{node,dll}',
     },
     icon: iconBasePath,
-    executableName: 'Inkline',
+    executableName: 'inkline',
     osxSign: macSignConfig,
     osxNotarize: macNotarizeConfig,
     extraResource: ['drizzle', 'resources'],
@@ -141,7 +141,7 @@ const config: ForgeConfig = {
     }),
     new MakerAppImage({
       options: {
-        bin: 'Inkline',
+        bin: 'inkline',
         categories: ['Education'],
         icon: pngIconPath,
       },
