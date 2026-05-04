@@ -75,8 +75,6 @@ class MakerNsis extends MakerBase<NsisOptions> {
   }
 }
 
-
-
 const appleId = process.env.APPLE_ID;
 const appleIdPassword = process.env.APPLE_APP_SPECIFIC_PASSWORD;
 const appleTeamId = process.env.APPLE_TEAM_ID;
@@ -91,14 +89,15 @@ const macSignConfig = process.env.MAC_CODESIGN_IDENTITY
     }
   : undefined;
 
-const macNotarizeConfig = macSignConfig && appleId && appleIdPassword && appleTeamId
-  ? {
-      tool: 'notarytool',
-      appleId,
-      appleIdPassword,
-      teamId: appleTeamId,
-    }
-  : undefined;
+const macNotarizeConfig =
+  macSignConfig && appleId && appleIdPassword && appleTeamId
+    ? {
+        tool: 'notarytool',
+        appleId,
+        appleIdPassword,
+        teamId: appleTeamId,
+      }
+    : undefined;
 
 const config: ForgeConfig = {
   packagerConfig: {
