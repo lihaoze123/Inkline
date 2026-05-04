@@ -97,6 +97,11 @@ jobs:
         run: pnpm rebuild fs-xattr macos-alias
 
       - name: Make distributables
+        env:
+          MAC_CODESIGN_IDENTITY: ${{ secrets.MAC_CODESIGN_IDENTITY }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         run: pnpm make
 
       - name: Upload artifacts

@@ -75,6 +75,31 @@ class MakerNsis extends MakerBase<NsisOptions> {
   }
 }
 
+
+
+const appleId = process.env.APPLE_ID;
+const appleIdPassword = process.env.APPLE_APP_SPECIFIC_PASSWORD;
+const appleTeamId = process.env.APPLE_TEAM_ID;
+
+const macSignConfig = process.env.MAC_CODESIGN_IDENTITY
+  ? {
+      identity: process.env.MAC_CODESIGN_IDENTITY,
+      hardenedRuntime: true,
+      entitlements: 'resources/entitlements.mac.plist',
+      'entitlements-inherit': 'resources/entitlements.mac.plist',
+      'gatekeeper-assess': false,
+    }
+  : undefined;
+
+const macNotarizeConfig = appleId && appleIdPassword && appleTeamId
+  ? {
+      tool: 'notarytool',
+      appleId,
+      appleIdPassword,
+      teamId: appleTeamId,
+    }
+  : undefined;
+
 const config: ForgeConfig = {
   packagerConfig: {
     name: 'Inkline',
@@ -82,6 +107,9 @@ const config: ForgeConfig = {
       unpack: '*.{node,dll}',
     },
     icon: iconBasePath,
+    executableName: 'Inkline',
+    osxSign: macSignConfig,
+    osxNotarize: macNotarizeConfig,
     extraResource: ['drizzle', 'resources'],
   },
   rebuildConfig: {
@@ -114,6 +142,7 @@ const config: ForgeConfig = {
     }),
     new MakerAppImage({
       options: {
+        bin: 'Inkline',
         categories: ['Education'],
         icon: pngIconPath,
       },

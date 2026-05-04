@@ -74,3 +74,36 @@ Added a tag/release-triggered and manually dispatchable GitHub Actions workflow 
 ### Next Steps
 
 - None - task complete
+
+
+## Session 3: Fix release CI: Linux AppImage + mac signing/notarization
+
+**Date**: 2026-05-04
+**Task**: Fix release CI: Linux AppImage + mac signing/notarization
+**Branch**: `work`
+
+### Summary
+
+Diagnosed Linux release failure and fixed AppImage executable naming mismatch by aligning Forge packager executableName with MakerAppImage bin (方案B). Added macOS signing/notarization hooks and workflow secret wiring to address damaged-app installs when credentials are available.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `40354c5` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
