@@ -91,7 +91,7 @@ const macSignConfig = process.env.MAC_CODESIGN_IDENTITY
     }
   : undefined;
 
-const macNotarizeConfig = appleId && appleIdPassword && appleTeamId
+const macNotarizeConfig = macSignConfig && appleId && appleIdPassword && appleTeamId
   ? {
       tool: 'notarytool',
       appleId,
