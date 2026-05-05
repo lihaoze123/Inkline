@@ -1139,3 +1139,36 @@ Added first-class AI provider selection, provider-specific reasoning controls, D
 ### Next Steps
 
 - None - task complete
+
+
+## Session 34: Improve AI provider settings flow
+
+**Date**: 2026-05-05
+**Task**: Improve AI provider settings flow
+**Branch**: `ai-provider-selected-settings`
+
+### Summary
+
+Changed Settings so users select one AI provider before seeing provider-specific configuration, unified provider/key saving, updated UI e2e, and added render coverage.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `6f65896` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
