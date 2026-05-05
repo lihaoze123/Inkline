@@ -282,6 +282,87 @@ pattern_detection
 
 v0.1 only requires `rewrite_original` with `D+1`.
 
+## Repair-to-Transfer Evidence Semantics
+
+The data model must keep task lifecycle, evaluator outcome, and learning evidence state separate.
+
+- `rewrite_tasks.status` describes the practice item lifecycle only.
+- `rewrite_checks.status` describes evaluator execution and retryability.
+- `rewrite_checks.outcome` describes learner performance for one evaluation attempt.
+- Derived Progress/evidence state must not treat `rewrite_tasks.status = 'completed'` as learning success.
+
+Evidence stages:
+
+| Evidence | Data interpretation |
+| --- | --- |
+| D+1 `correct` on `rewrite_original` | Original repair succeeded. |
+| D+3 `correct` on `new_context_reuse` | Target pattern transferred once. |
+| D+7 `correct` on `new_context_reuse` | Pattern is stable after spaced reuse. |
+| `partly_correct` | Visible progress only; do not advance stage. |
+| `incorrect` | Unsuccessful attempt; do not advance stage. |
+| Valid alternative | Positive language feedback but not target-pattern transfer evidence. |
+
+D+3/D+7 generation must be progressive:
+
+- Review/save creates only the D+1 original-repair task.
+- Create D+3 only after D+1 `correct`.
+- Create D+7 only after D+3 `correct`.
+- Do not create future spaced tasks before the prior success signal exists.
+
+`partly_correct` and `incorrect` keep the learner in the same phase and allow retry. Retry remains within the same rewrite task. Each retry appends a `rewrite_checks` attempt; do not generate a separate retry task for the first transfer-evidence version.
+
+## Future Pattern Transfer Data Contracts
+
+When implemented, pattern transfer features should preserve these relationships without adding a separate `reuse_tasks` system:
+
+```text
+rewrite_tasks.kind = 'rewrite_original'     with spaced_stage = 'D+1'
+rewrite_tasks.kind = 'new_context_reuse'    with spaced_stage = 'D+3' | 'D+7'
+```
+
+Future D+3/D+7 tasks should be traceable to:
+
+- source pattern;
+- source correction/review context;
+- source task/check outcome that generated the next stage;
+- hidden prompt contract;
+- latest and historical rewrite-check attempts.
+
+Pattern fingerprint fields should be schema-validated when saved from review and then reused by later prompt generation/evaluation:
+
+```text
+pattern_type
+learner_error
+target_correction
+abstract_rule
+positive_examples_json
+negative_example
+transfer_boundary
+forbidden_leakage_terms_json
+```
+
+New-context prompt contract fields should stay hidden from normal learner UI:
+
+```text
+target_meaning
+allowed_hints_json
+forbidden_hints_json
+expected_pattern_family
+```
+
+Transfer evaluator diagnostic fields may be persisted as structured JSON or normalized columns in a future PRD:
+
+```text
+used_target_pattern
+preserved_required_meaning
+natural_in_context
+contains_forbidden_leakage
+used_valid_alternative
+reason_code
+```
+
+Public snapshots should keep learner-facing output simple unless a future diagnostics UI explicitly asks for internals.
+
 ## Review State Rules
 
 - User clicking Review creates or transitions a run to `reviewing`.
