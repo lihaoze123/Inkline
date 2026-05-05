@@ -1,0 +1,4 @@
+{"file":".trellis/spec/product/validation-and-testing.md","reason":"Check deterministic e2e command semantics, live skip behavior, diagnostics, and privacy constraints."}
+{"file":".trellis/spec/shared/code-quality.md","reason":"Check lint/typecheck and code quality expectations."}
+{"file":".trellis/spec/shared/pnpm-electron-setup.md","reason":"Check CI dependency install order and required quality gates."}
+{"file":".trellis/tasks/05-05-e2e-test-headless/research/electron-headless-ci.md","reason":"Check implementation remains aligned with selected Xvfb wrapper approach."}

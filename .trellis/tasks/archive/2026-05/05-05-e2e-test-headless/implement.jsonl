@@ -1,0 +1,6 @@
+{"file":".trellis/spec/product/validation-and-testing.md","reason":"Defines deterministic UI E2E and live-provider E2E contracts, launcher-owned flags, artifacts, and validation expectations."}
+{"file":".trellis/spec/shared/code-quality.md","reason":"Mandatory code quality rules for TypeScript changes."}
+{"file":".trellis/spec/shared/typescript.md","reason":"TypeScript style rules for explicit types and safe narrowing."}
+{"file":".trellis/spec/shared/pnpm-electron-setup.md","reason":"Defines pnpm/Electron CI setup and Linux native dependency ordering."}
+{"file":".trellis/spec/backend/environment.md","reason":"Documents dev/test userData isolation constraints relevant to Electron e2e launches."}
+{"file":".trellis/tasks/05-05-e2e-test-headless/research/electron-headless-ci.md","reason":"Research comparing Xvfb and alternative headless Electron strategies for this repo."}
