@@ -80,15 +80,16 @@ v0.2 validates whether users learn from recurring patterns and reuse them in new
 - Review input reuses active non-spelling patterns from the persistent archive.
 - Upgrade opportunities are allowed by cap, validated against source writing, and persisted as Notebook entries.
 - Notebook and Progress pages read real local learning history.
+- Durable rewrite-check attempts evaluate submitted D+1 rewrites and persist `correct`, `partly_correct`, or `incorrect` outcomes with retryable failure states.
 
 ### Remaining v0.2 Adds
 
-- Pattern mastery status.
-- Successful reuse tracking.
+- Rewrite lifecycle semantics for skip, snooze, expire, and retry recovery.
+- Pattern evidence status based on repair and delayed transfer, not task completion.
+- D+3 and D+7 delayed new-context reuse tasks.
+- Pattern fingerprints and transfer boundaries for reliable reuse generation/evaluation.
+- Hidden new-context prompt contracts and transfer evaluator diagnostic checks.
 - Pattern merge/de-dup flow.
-- Rewrite-check agent.
-- Rewrite skip, snooze, and expire.
-- D+3 and D+7 spaced reuse tasks.
 - Apply correction through a revision mechanism.
 
 ## Backlog After v0.2

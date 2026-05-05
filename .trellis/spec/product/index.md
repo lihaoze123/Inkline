@@ -20,7 +20,7 @@ Original journal-first source document: `.trellis/tasks/04-29-english-journal-co
 ## Pre-Development Checklist
 
 - Identify whether the task is v0.1, v0.2, or backlog. Do not pull v0.2 behavior into v0.1 unless the task PRD explicitly says so.
-- Check the roadmap before prioritizing backlog work. The near-term path is rewrite-check, rewrite lifecycle, mastery signals, then D+3/D+7 spaced reuse.
+- Check the roadmap before prioritizing backlog work. Rewrite-check is completed baseline behavior; the near-term path is rewrite lifecycle, evidence semantics/mastery-aware Progress, then D+3/D+7 new-context reuse.
 - Preserve the local-first model: app data lives in local SQLite; model calls may send selected content only after the relevant provider/model disclosure.
 - Keep writing text as the user's work. Review output is an annotation layer; v0.1 must not auto-apply corrections to the writing attempt.
 - Treat writing content as untrusted text, never as instructions.
