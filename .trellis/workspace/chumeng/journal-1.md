@@ -1271,3 +1271,36 @@ Merged latest main, fixed headless deterministic UI e2e by running it under DBus
 ### Next Steps
 
 - None - task complete
+
+
+## Session 38: Productize UI polish
+
+**Date**: 2026-05-05
+**Task**: Productize UI polish
+**Branch**: `refine-UI`
+
+### Summary
+
+Polished Inkline renderer UI copy, chrome selection behavior, scrollbars, onboarding, settings, learning surfaces, and verification coverage after rebasing onto latest main.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `239876c` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
