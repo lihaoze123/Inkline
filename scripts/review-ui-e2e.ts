@@ -254,7 +254,7 @@ async function launchMockElectronSession(cdpPort: number): Promise<ElectronSessi
     '--disable-gpu',
     '--window-size=1280,900',
     '--force-prefers-reduced-motion=reduce',
-    ...(process.platform === 'linux' ? ['--no-sandbox'] : []),
+    ...(process.platform === 'linux' ? ['--no-sandbox', '--ozone-platform=x11'] : []),
   ];
   const child = spawn('pnpm', ['exec', 'electron-forge', 'start', '--', ...electronArgs], {
     cwd: process.cwd(),

@@ -16,6 +16,7 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:e2e": "tsx scripts/review-ui-e2e.ts",
+    "test:e2e:headless": "bash scripts/run-headless-e2e-linux.sh",
     "test:e2e:live": "tsx scripts/review-provider-e2e.ts",
     "review:harness": "tsx scripts/review-contract-harness.ts",
     "check": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm test && pnpm review:harness",

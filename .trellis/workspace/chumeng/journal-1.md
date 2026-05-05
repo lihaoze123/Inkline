@@ -1238,3 +1238,36 @@ Refreshed product roadmap and Trellis product specs around Prove Pattern Transfe
 ### Next Steps
 
 - None - task complete
+
+
+## Session 37: Fix headless e2e keychain setup
+
+**Date**: 2026-05-05
+**Task**: Fix headless e2e keychain setup
+**Branch**: `chore/headless-e2e`
+
+### Summary
+
+Merged latest main, fixed headless deterministic UI e2e by running it under DBus Secret Service plus Xvfb, updated CI dependencies and e2e spec guidance, and verified lint/typecheck/format/headed e2e with local headless blocked only by missing xvfb-run on NixOS.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `c2540a0` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
