@@ -118,6 +118,33 @@ MVP internal target: anchoring success >= 95%; formal experience must not be bel
 - Reference rewrite must include `noticeTheGap`.
 - Native model for rewrite practice is hidden until the user submits the rewrite unless the task says otherwise.
 
+## Pattern Fingerprint Contract
+
+Future transfer work should not ask D+3/D+7 prompt generators or evaluators to reinterpret a loose focus-pattern sentence from scratch. When a valid review is saved, the app should persist a structured, schema-validated fingerprint for the selected focus pattern.
+
+The fingerprint should include:
+
+```ts
+type PatternFingerprint = {
+  patternType: 'grammar' | 'collocation' | 'word_choice' | 'phrase_structure' | 'register' | 'sentence_logic';
+  learnerError: string;
+  targetCorrection: string;
+  abstractRule: string;
+  positiveExamples: string[];
+  negativeExample: string;
+  transferBoundary: string;
+  forbiddenLeakageTerms: string[];
+};
+```
+
+Rules:
+
+- Generate the fingerprint at review/save time from the validated focus correction and review context.
+- Use `transferBoundary` to define what counts as same-pattern transfer and what does not.
+- Use `forbiddenLeakageTerms` to prevent new-context reuse prompts from exposing the target expression or original-keyword answer.
+- Later D+3/D+7 prompt generation and transfer evaluation must consume the saved fingerprint instead of reconstructing the pattern ad hoc.
+- Do not expose fingerprint internals as normal learner UI; Progress should translate them into plain-language evidence.
+
 ## Client Validation
 
 Before preview or save, validate:
@@ -471,6 +498,8 @@ Persist only bounded metadata and safe messages; keep raw provider content behin
 
 ## Rewrite-Check Contract
 
-v0.1 can defer rewrite-check. When implemented, rewrite-check evaluates the user's rewrite; it must not directly rewrite the user's answer as an automatic replacement.
+Rewrite-check is baseline behavior for submitted D+1 rewrites. It evaluates the user's rewrite; it must not directly rewrite the user's answer as an automatic replacement.
 
 Rewrite-check does not update writing error count. Practice errors and free-writing errors must not be mixed.
+
+D+1 rewrite-check evaluates original repair. Future D+3/D+7 `new_context_reuse` checks should reuse the same public outcome vocabulary but branch evaluator instructions to judge delayed transfer rather than original-sentence repair.

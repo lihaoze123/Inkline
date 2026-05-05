@@ -1205,3 +1205,36 @@ Updated Settings model entry to reflect AI SDK direct-provider string model IDs 
 ### Next Steps
 
 - None - task complete
+
+
+## Session 36: Roadmap evidence semantics refresh
+
+**Date**: 2026-05-05
+**Task**: Roadmap evidence semantics refresh
+**Branch**: `roadmap-spec-refresh-evidence-semantics-clean`
+
+### Summary
+
+Refreshed product roadmap and Trellis product specs around Prove Pattern Transfer evidence semantics, marking rewrite-check as completed baseline and defining lifecycle, retry, fingerprint, transfer prompt, evaluator diagnostic, and Progress evidence-chain contracts.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `de9256d` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete

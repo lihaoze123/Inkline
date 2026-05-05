@@ -1,0 +1,8 @@
+{"file":".trellis/tasks/05-05-05-05-roadmap-spec-refresh-evidence-semantics/prd.md","reason":"Task requirements and agreed Prove Pattern Transfer evidence semantics for this spec refresh."}
+{"file":".trellis/spec/product/roadmap.md","reason":"Primary target spec that must move rewrite-check to completed baseline and update next roadmap axis."}
+{"file":".trellis/tasks/04-29-v0-2-learning-assets-backlog/prd.md","reason":"Backlog doc that currently lists rewrite-check as future work and must be refreshed."}
+{"file":".trellis/spec/product/learning-flow.md","reason":"Existing learning-flow and rewrite-check contracts that new repair/transfer semantics must extend consistently."}
+{"file":".trellis/spec/product/data-model-contract.md","reason":"Existing rewrite task/check data contracts and future evidence-chain relationships to keep consistent."}
+{"file":".trellis/spec/product/review-agent-contract.md","reason":"Review focus-pattern output contract that future pattern fingerprint semantics should align with."}
+{"file":".trellis/spec/product/mvp-scope.md","reason":"Implemented-vs-future boundary for v0.1/v0.2 learning-loop scope."}
+{"file":".trellis/spec/product/index.md","reason":"Product spec index may need updated pointers or roadmap guidance after the refresh."}

@@ -10,6 +10,35 @@
 - Every review must include positive evidence through at least one concrete `What you did well` item.
 - Reference rewrite must support noticing-the-gap, not just show a native version.
 - D+1 rewrite practice is a core differentiator; the product must not feel like a one-off correction tool.
+- The next learning-system proof is delayed pattern transfer: a learner repairs a focus pattern, then later uses the same pattern correctly in a new context.
+- Task completion, evaluator outcome, and learning evidence state are separate concepts.
+
+## Prove Pattern Transfer
+
+Inkline's learning path should be judged by whether a focus pattern transfers, not by whether the learner merely completed activity.
+
+Evidence semantics:
+
+| Evidence | Meaning |
+| --- | --- |
+| Task `completed` | The learner submitted something; this is not learning success. |
+| D+1 `correct` | The learner repaired the original sentence once. |
+| D+3 `correct` | The learner transferred the pattern once in a delayed new context. |
+| D+7 `correct` | The pattern is stable after spaced reuse. |
+| `partly_correct` | Progress feedback only; do not advance stage. |
+| `incorrect` | Unsuccessful attempt; keep retry/recovery possible without shaming copy. |
+| Valid alternative | Natural expression can be praised, but target-pattern transfer is not shown. |
+
+Recommended user-facing evidence labels:
+
+```text
+Needs repair
+Repaired once
+Transferred once
+Stable after spaced reuse
+```
+
+Do not show `mastered` in the first transfer-evidence version. If later specs add a richer mastery lifecycle, it must be based on more than one delayed new-context success.
 
 ## Scenario: Practice Entry and Template Flow
 
@@ -220,14 +249,30 @@ A rewrite practice includes:
 - Skip action.
 - Snooze action only if the task explicitly implements snooze.
 
-v0.1 does not require the full rewrite queue or rewrite-check agent unless the task PRD says so.
+Rewrite-check is completed baseline behavior for submitted D+1 rewrites. The remaining rewrite-practice roadmap expands lifecycle and transfer semantics rather than reopening rewrite-check scope.
+
+Lifecycle semantics:
+
+- `pending`: the task is due or waiting.
+- `in_progress`: the learner is working on the task.
+- `completed`: the learner submitted; this does not imply learning success.
+- `skipped`: the learner intentionally abandoned this practice opportunity; not success.
+- `snoozed`: the learner deferred the task by changing `dueAt`; no mastery impact.
+- `expired`: the task is too stale to keep pushing; not a language failure, but the review window was missed.
+
+Retry semantics:
+
+- `partly_correct` and `incorrect` do not advance spaced stage.
+- Retry stays within the same rewrite task and creates additional `rewrite_checks` attempts.
+- The first transfer-evidence version should not create a separate retry/drill task.
+- The current evidence state is derived from the latest completed check while preserving attempt history for diagnostics.
 
 ## Scenario: Rewrite-Check Evaluator, Retry, and Feedback UI
 
 ### 1. Scope / Trigger
 
 - Trigger: Any task that changes D+1 rewrite submit, rewrite-check retry, `rewrite_checks` persistence, shared writing IPC/types, persisted rewrite-check result display, or renderer cache handling for rewrite-check responses.
-- This scenario applies once a task PRD enables rewrite-check for the milestone; it does not imply the full rewrite queue, mastery transitions, or D+3/D+7 reuse.
+- Rewrite-check is baseline behavior for the completed D+1 milestone; this scenario does not imply the full rewrite queue, mastery transitions, or D+3/D+7 reuse.
 - Rewrite-check UI is a learning feedback surface, not a correction-application flow. The user's submitted rewrite remains their text.
 
 ### 2. Signatures
@@ -302,6 +347,7 @@ rewrite_checks.created_at/updated_at/completed_at Unix milliseconds
 - `RewritePracticeSnapshot.latestRewriteCheck` exposes the newest check state needed by the renderer after submit, skip, retry, or refresh.
 - `retryRewriteCheck` must reuse saved `rewrite_tasks.user_rewrite_text`; it must not ask the renderer to resubmit text. Each retry creates a new `rewrite_checks` attempt.
 - `incorrect` completes the D+1 task but records unsuccessful learning. `partly_correct` is visible progress, not mastery success. Only `correct` is the strong success signal for future mastery/reuse logic.
+- D+1 `correct` means original repair succeeded; it does not yet prove delayed transfer. Later D+3/D+7 transfer tasks must branch evaluator semantics by `rewrite_tasks.kind` and `spacedStage`.
 - First-version submit is synchronous: save rewrite, run evaluator, persist completed/retryable attempt, then return the updated snapshot. Do not add workers or polling unless a future PRD changes the contract.
 - While submit or retry is pending, disable rewrite input, submit, skip, and retry controls for that card.
 - A saved submitted rewrite may have `status: 'completed'` even when `latestRewriteCheck.outcome` is `partly_correct`, `incorrect`, or unavailable after evaluator failure.
@@ -313,7 +359,23 @@ rewrite_checks.created_at/updated_at/completed_at Unix milliseconds
 - Retryable/failed checks explain that the rewrite was saved and expose retry.
 - `RetryRewriteCheckResult` handling must tolerate partial success payloads. If `writing` is absent but `rewritePractice` is present, patch cached attempts by `rewritePractice.id`. If only `rewriteCheck` is present, patch the cached pending/completed rewrite whose id matches `rewriteCheck.rewriteTaskId`.
 
-### 4. Validation & Error Matrix
+### 4. Future Transfer Contracts
+
+D+3/D+7 new-context reuse is future work, but must follow these contracts when implemented:
+
+- Review/save generates only the D+1 original-repair task.
+- Generate D+3 only after D+1 rewrite-check returns `correct`.
+- Generate D+7 only after D+3 new-context reuse returns `correct`.
+- Do not batch-create future spaced tasks at review-save time.
+- Represent D+3/D+7 as `rewrite_tasks.kind = 'new_context_reuse'` with `spacedStage = 'D+3' | 'D+7'`.
+- Keep D+1 original repair as `rewrite_original`.
+- New-context prompts must be short writing tasks in a new scenario, not original-sentence rewrites or mechanical fill-in drills.
+- Store hidden prompt contracts for new-context tasks: `targetMeaning`, `allowedHints`, `forbiddenHints`, and `expectedPatternFamily`.
+- Visible prompts must not contain target expressions, target collocations, or original-keyword leakage from `forbiddenHints`.
+- Transfer evaluator internals may store `usedTargetPattern`, `preservedRequiredMeaning`, `naturalInContext`, `containsForbiddenLeakage`, `usedValidAlternative`, and `reasonCode`.
+- Valid alternative wording should receive positive feedback but should not advance target-pattern transfer evidence.
+
+### 5. Validation & Error Matrix
 
 | Condition | Behavior |
 | --- | --- |
@@ -335,7 +397,7 @@ rewrite_checks.created_at/updated_at/completed_at Unix milliseconds
 | Retry succeeds with only `rewriteCheck` | Update the matching cached rewrite task's `latestRewriteCheck`; do not show a false retry error. |
 | Retry/submit returns `success: false` | Keep existing rewrite state visible and show the returned safe error. |
 
-### 5. Good/Base/Bad Cases
+### 6. Good/Base/Bad Cases
 
 - Good: User submits a D+1 rewrite, sees `Checking rewrite...`, then sees native model plus `correct` feedback while their rewrite text remains unchanged.
 - Good: User submits `I went home.`; the app saves that text, evaluator returns `correct`, `latestRewriteCheck.outcome` is `correct`, and future mastery logic can treat it as a strong success signal.
@@ -347,7 +409,7 @@ rewrite_checks.created_at/updated_at/completed_at Unix milliseconds
 - Bad: Retry requires the renderer to send the rewrite text again, allowing UI/server state drift.
 - Bad: Retry succeeds but the UI shows `Unable to retry rewrite check` because the response omitted a full writing snapshot.
 
-### 6. Tests Required
+### 7. Tests Required
 
 - Service test: submit persists trimmed `userRewriteText` before the evaluator mock executes.
 - Service tests: `correct`, `partly_correct`, and `incorrect` each persist a completed `rewrite_checks` row and expose `latestRewriteCheck`.
@@ -361,7 +423,7 @@ rewrite_checks.created_at/updated_at/completed_at Unix milliseconds
 - Regression tests: existing review save and rewrite practice tests still pass.
 - UI/manual smoke should cover checking, `correct`, `partly_correct`, `incorrect`, retryable failure, and native-model reveal after submit.
 
-### 7. Wrong vs Correct
+### 8. Wrong vs Correct
 
 #### Wrong
 

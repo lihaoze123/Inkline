@@ -1,0 +1,8 @@
+{"file":".trellis/tasks/05-05-05-05-roadmap-spec-refresh-evidence-semantics/prd.md","reason":"Acceptance criteria and out-of-scope boundaries for checking the spec refresh."}
+{"file":".trellis/spec/product/roadmap.md","reason":"Verify roadmap status, sequencing, and Prove Pattern Transfer axis are internally consistent."}
+{"file":".trellis/tasks/04-29-v0-2-learning-assets-backlog/prd.md","reason":"Verify completed rewrite-check work is no longer presented as unstarted backlog."}
+{"file":".trellis/spec/product/learning-flow.md","reason":"Verify lifecycle, retry, repair, transfer, and Progress wording stays consistent with existing rewrite-check contracts."}
+{"file":".trellis/spec/product/data-model-contract.md","reason":"Verify task/check lifecycle and evidence-chain data-contract wording remains coherent and non-duplicative."}
+{"file":".trellis/spec/product/review-agent-contract.md","reason":"Verify pattern fingerprint language does not conflict with current review/focus-pattern contracts."}
+{"file":".trellis/spec/product/mvp-scope.md","reason":"Verify implemented/future boundaries remain accurate after moving rewrite-check out of future backlog."}
+{"file":".trellis/spec/product/index.md","reason":"Verify the product spec index still points future agents to the right roadmap and contract files."}
