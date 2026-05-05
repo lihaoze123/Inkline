@@ -196,7 +196,14 @@ async function launchElectronSession(config: E2EConfig, cdpPort: number): Promis
   if (nativeDependencyLdLibraryPath) {
     childEnv.LD_LIBRARY_PATH = nativeDependencyLdLibraryPath;
   }
-  const child = spawn('pnpm', ['exec', 'electron-forge', 'start', '--', `--remote-debugging-port=${cdpPort}`], {
+  const electronArgs = [
+    `--remote-debugging-port=${cdpPort}`,
+    '--disable-gpu',
+    '--window-size=1280,900',
+    '--force-prefers-reduced-motion=reduce',
+    ...(process.platform === 'linux' ? ['--no-sandbox', '--ozone-platform=x11'] : []),
+  ];
+  const child = spawn('pnpm', ['exec', 'electron-forge', 'start', '--', ...electronArgs], {
     cwd: process.cwd(),
     env: childEnv,
     detached: process.platform !== 'win32',
