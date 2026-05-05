@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-1.md`
-- **Total Sessions**: 34
+- **Total Sessions**: 35
 - **Last Active**: 2026-05-05
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-1.md` | ~1174 | Active |
+| `journal-1.md` | ~1207 | Active |
 <!-- @@@/auto:active-documents -->
 
 ---
@@ -29,6 +29,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 35 | 2026-05-05 | Improve AI model settings entry | `ae1c1a4` | `ai-provider-selected-settings` |
 | 34 | 2026-05-05 | Improve AI provider settings flow | `6f65896` | `ai-provider-selected-settings` |
 | 33 | 2026-05-04 | Provider-specific AI providers and reasoning controls | `1e29c94`, `457f17a` | `main` |
 | 32 | 2026-05-04 | Deterministic headless UI e2e | `136ede7`, `28f3842` | `main` |
