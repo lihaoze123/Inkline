@@ -191,6 +191,7 @@ Commands:
 
 ```bash
 pnpm test:e2e
+pnpm test:e2e:headless
 pnpm test:e2e:live
 ```
 
@@ -201,6 +202,7 @@ INKLINE_E2E_AI_MOCK=1
 INKLINE_KEYCHAIN_SERVICE_NAME=<random e2e service name>
 XDG_CONFIG_HOME=<temporary e2e config root>
 E2E_CDP_PORT=<optional fixed CDP port>
+DISPLAY=<provided by xvfb-run for pnpm test:e2e:headless>
 E2E_OPENAI_COMPATIBLE_API_KEY=<live-provider command only>
 E2E_OPENAI_COMPATIBLE_BASE_URL=<live-provider command only>
 E2E_OPENAI_COMPATIBLE_MODEL=<live-provider command only>
@@ -209,12 +211,15 @@ E2E_OPENAI_COMPATIBLE_MODEL=<live-provider command only>
 ### 3. Contracts
 
 - `pnpm test:e2e` runs the deterministic mock UI full-chain and must not require real provider credentials.
+- `pnpm test:e2e:headless` clears Wayland display state, forces an X11 session hint, and wraps the deterministic mock UI e2e with `xvfb-run -a`; it is the command Linux headless CI should run.
 - `pnpm test:e2e:live` preserves the live-provider CDP workflow and must skip cleanly when `E2E_OPENAI_COMPATIBLE_*` variables are missing.
 - The mock AI provider is hidden behind an e2e-only runtime flag and must not appear in public provider schemas, Settings options, or normal user-facing provider UI.
 - The mock AI provider must only return output when the e2e flag is set and the runtime is not production/packaged.
 - Deterministic fixtures belong under `test/fixtures/`; they are test assets, not product contracts.
 - The UI e2e must use a fresh temporary app config/data root and an isolated e2e keychain service on every run.
 - E2E-only Electron/Chromium flags such as remote debugging, fixed window size, `--disable-gpu`, or Linux-only `--no-sandbox` must be set by the e2e launcher, not by the normal `pnpm dev` script.
+- Linux headless environments must provide a display driver via Xvfb; Chromium flags alone are not a replacement for `$DISPLAY`.
+- Linux e2e launchers must force X11 (`--ozone-platform=x11`) so Wayland sessions do not bypass the Xvfb display.
 - Failure artifacts for mock UI e2e may include screenshots and bounded DOM summaries; live-provider e2e must not capture screenshots by default because real writing content may be visible.
 
 ### 4. Validation & Error Matrix
@@ -224,6 +229,8 @@ E2E_OPENAI_COMPATIBLE_MODEL=<live-provider command only>
 | Mock e2e flag is absent | Use normal provider behavior; do not return fixture output. |
 | Runtime is production/packaged | Do not enable mock provider, even if the e2e flag is present. |
 | Live-provider env vars are absent | `pnpm test:e2e:live` reports a clean skipped status with missing env names only. |
+| `xvfb-run` is missing for `pnpm test:e2e:headless` | The command fails before Electron launch; install Xvfb in CI/dev shell rather than falling back to headed mode. |
+| Wayland session variables leak into headless e2e | `pnpm test:e2e:headless` must clear `WAYLAND_DISPLAY`, set an X11 session hint, and the launcher must pass `--ozone-platform=x11`. |
 | Deterministic UI e2e cannot launch Electron/CDP | Fail with the `launch-cdp` phase and recent sanitized Electron output. |
 | Renderer API never becomes ready | Fail with the `renderer-api-readiness` phase. |
 | A UI element is missing or disabled | Fail with the current phase plus bounded screenshot/DOM summary. |
@@ -233,6 +240,7 @@ E2E_OPENAI_COMPATIBLE_MODEL=<live-provider command only>
 
 ### 5. Good/Base/Bad Cases
 
+- Good: `pnpm test:e2e:headless` runs under Xvfb in Linux CI and completes the same deterministic phases as `pnpm test:e2e`.
 - Good: `pnpm test:e2e` starts from empty temp app data, dismisses onboarding through the UI, configures provider state through the UI, enters fixed writing, reviews with mock output, opens feedback, saves review, returns to Practice, submits D+1 rewrite practice, and observes deterministic rewrite-check completion.
 - Base: The live-provider command remains available and cleanly skips without credentials; it is not part of the deterministic UI e2e's pass/fail.
 - Bad: The default e2e depends on a real API key or model behavior.
@@ -247,19 +255,20 @@ E2E_OPENAI_COMPATIBLE_MODEL=<live-provider command only>
 - Unit test: deterministic rewrite-check fixture validates against the rewrite-check schema.
 - E2E helper test: DOM driver escaping, redaction, phase summary, failure artifact path, and live no-env skip behavior.
 - E2E command: `pnpm test:e2e` passes through named phases for setup, launch/CDP, renderer readiness, provider setup, review generation, feedback save, rewrite practice, and cleanup.
+- Headless E2E command: `pnpm test:e2e:headless` runs the same deterministic flow under Xvfb in Linux headless environments.
 
 ### 7. Wrong vs Correct
 
 #### Wrong
 
 ```text
-pnpm test:e2e uses a saved developer database and a real API key, then sometimes fails because the provider judged the rewrite differently.
+pnpm test:e2e:headless drops `xvfb-run` and only adds Chromium flags, then fails on Linux CI because Electron cannot find a display.
 ```
 
 #### Correct
 
 ```text
-pnpm test:e2e uses fresh temp app data, an isolated e2e keychain service, and deterministic mock AI fixtures; live-provider compatibility is checked separately with pnpm test:e2e:live.
+pnpm test:e2e:headless clears `WAYLAND_DISPLAY`, forces an X11 session hint, then runs `xvfb-run -a pnpm test:e2e`; CI/dev shells install Xvfb, while Electron/Chromium flags remain inside the e2e launchers.
 ```
 
 ## Required Review Harness Cases

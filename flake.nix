@@ -17,6 +17,7 @@
           nodejs_24
           pnpm
           corepack
+          xvfb-run
           python3
           pkg-config
           gcc
