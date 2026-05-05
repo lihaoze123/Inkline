@@ -1,0 +1,5 @@
+{"file":".trellis/spec/frontend/components.md","reason":"Settings page component structure and UI conventions."}
+{"file":".trellis/spec/frontend/state-management.md","reason":"Renderer state and React Query mutation conventions for settings updates."}
+{"file":".trellis/spec/frontend/type-safety.md","reason":"TypeScript and prop contract expectations for React components."}
+{"file":".trellis/spec/product/privacy-security.md","reason":"API key handling and privacy-sensitive UI behavior."}
+{"file":".trellis/spec/shared/typescript.md","reason":"Shared TypeScript quality rules for implementation."}

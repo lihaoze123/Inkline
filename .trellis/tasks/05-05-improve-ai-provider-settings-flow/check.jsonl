@@ -1,0 +1,5 @@
+{"file":".trellis/spec/frontend/quality.md","reason":"Frontend quality verification expectations."}
+{"file":".trellis/spec/frontend/type-safety.md","reason":"Type-checking and React type safety review."}
+{"file":".trellis/spec/frontend/components.md","reason":"Review component behavior and accessibility consistency."}
+{"file":".trellis/spec/product/privacy-security.md","reason":"Verify credential handling remains safe."}
+{"file":".trellis/spec/shared/code-quality.md","reason":"General code quality and reuse review."}

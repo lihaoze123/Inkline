@@ -642,47 +642,48 @@ function PracticePage({ initialWriting, settings, startup }: PracticePageProps):
     setProviderModelInputs((current) => ({ ...current, [providerId]: value }));
   }, []);
 
-  const saveProviderConfig = useCallback(
+  const updateProviderApiKeyInput = useCallback((providerId: AiProviderId, value: string): void => {
+    setProviderApiKeyInputs((current) => ({ ...current, [providerId]: value }));
+  }, []);
+
+  const saveProviderSettings = useCallback(
     async (providerId: AiProviderId): Promise<void> => {
+      const apiKey = providerApiKeyInputs[providerId].trim();
+      const label = providerLabel(providerId);
       setSettingsError(null);
       setSettingsMessage(null);
+
       try {
         const updatedSettings = await setProviderConfigMutation(
           buildProviderConfigInput(providerId, openAiCompatibleBaseUrlInput, providerModelInputs[providerId]),
         );
         setOpenAiCompatibleBaseUrlInput(getOpenAiCompatibleBaseUrlInput(updatedSettings));
         setProviderModelInputs(getProviderModelInputs(updatedSettings));
-        setSettingsMessage(`${providerLabel(providerId)} settings saved.`);
-      } catch (error) {
-        const message =
-          error instanceof Error ? error.message : `Unable to save ${providerLabel(providerId)} settings.`;
-        setSettingsError(message);
-      }
-    },
-    [openAiCompatibleBaseUrlInput, providerModelInputs, setProviderConfigMutation],
-  );
 
-  const updateProviderApiKeyInput = useCallback((providerId: AiProviderId, value: string): void => {
-    setProviderApiKeyInputs((current) => ({ ...current, [providerId]: value }));
-  }, []);
-
-  const saveProviderApiKey = useCallback(
-    async (providerId: AiProviderId): Promise<void> => {
-      setSettingsError(null);
-      setSettingsMessage(null);
-      try {
-        const result = await setProviderApiKeyMutation({ providerId, apiKey: providerApiKeyInputs[providerId] });
-        if (result.success && result.status) {
-          setProviderApiKeyInputs((current) => ({ ...current, [providerId]: '' }));
-          setSettingsMessage('Provider API key saved to the OS keychain.');
+        if (apiKey.length === 0) {
+          setSettingsMessage(`${label} settings saved.`);
           return;
         }
-        setSettingsError(result.error ?? 'Unable to save provider API key.');
+
+        const result = await setProviderApiKeyMutation({ providerId, apiKey });
+        if (result.success && result.status) {
+          setProviderApiKeyInputs((current) => ({ ...current, [providerId]: '' }));
+          setSettingsMessage(`${label} settings and API key saved.`);
+          return;
+        }
+
+        setSettingsError(result.error ?? `Unable to save ${label} API key.`);
       } catch (error) {
-        setSettingsError(getErrorMessage(error, 'Unable to save provider API key.'));
+        setSettingsError(getErrorMessage(error, `Unable to save ${label} settings.`));
       }
     },
-    [providerApiKeyInputs, setProviderApiKeyMutation],
+    [
+      openAiCompatibleBaseUrlInput,
+      providerApiKeyInputs,
+      providerModelInputs,
+      setProviderApiKeyMutation,
+      setProviderConfigMutation,
+    ],
   );
 
   const deleteProviderKey = useCallback(
@@ -958,11 +959,8 @@ function PracticePage({ initialWriting, settings, startup }: PracticePageProps):
                 onOpenAiCompatibleBaseUrlChange={setOpenAiCompatibleBaseUrlInput}
                 onProviderModelChange={updateProviderModelInput}
                 onApiKeyChange={updateProviderApiKeyInput}
-                onSaveProviderConfig={(providerId) => {
-                  void saveProviderConfig(providerId);
-                }}
-                onSaveApiKey={(providerId) => {
-                  void saveProviderApiKey(providerId);
+                onSaveProviderSettings={(providerId) => {
+                  void saveProviderSettings(providerId);
                 }}
                 onDeleteApiKey={(providerId) => {
                   void deleteProviderKey(providerId);
