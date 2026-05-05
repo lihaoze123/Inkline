@@ -4,8 +4,23 @@ import type { SettingsPageProps } from './types';
 import { formatProviderKeyStatus } from './format';
 
 const PROVIDER_LABELS: Record<AiProviderId, string> = {
-  'openai-compatible': 'OpenAI-compatible',
+  openai: 'OpenAI',
+  deepseek: 'DeepSeek',
   anthropic: 'Anthropic Claude',
+  google: 'Google Gemini',
+  xai: 'xAI Grok',
+  openrouter: 'OpenRouter',
+  'openai-compatible': 'Custom OpenAI-compatible',
+};
+
+const PROVIDER_DESCRIPTIONS: Record<AiProviderId, string> = {
+  openai: 'Use OpenAI hosted models with the official AI SDK OpenAI provider.',
+  deepseek: 'Use DeepSeek hosted models with provider-specific thinking controls.',
+  anthropic: "Use Anthropic's Claude models with a separate key.",
+  google: 'Use Google Gemini hosted models with documented thinking budget controls.',
+  xai: 'Use xAI Grok hosted models with documented reasoning effort controls.',
+  openrouter: 'Use OpenRouter model routes with the documented OpenRouter AI SDK provider.',
+  'openai-compatible': 'Use a custom OpenAI-compatible endpoint for local models, proxies, or unsupported providers.',
 };
 
 const PROVIDER_OPTIONS: { value: AiProviderId; label: string }[] = aiProviderIdSchema.options.map((value) => ({
@@ -16,19 +31,16 @@ const PROVIDER_OPTIONS: { value: AiProviderId; label: string }[] = aiProviderIdS
 export function SettingsPage({
   settings,
   startup,
-  openAiBaseUrlInput,
-  openAiModelInput,
-  anthropicModelInput,
+  openAiCompatibleBaseUrlInput,
+  providerModelInputs,
   apiKeyInputs,
   message,
   error,
   onDefaultProviderChange,
-  onOpenAiBaseUrlChange,
-  onOpenAiModelChange,
-  onAnthropicModelChange,
+  onOpenAiCompatibleBaseUrlChange,
+  onProviderModelChange,
   onApiKeyChange,
-  onSaveOpenAiConfig,
-  onSaveAnthropicConfig,
+  onSaveProviderConfig,
   onSaveApiKey,
   onDeleteApiKey,
   onRawResponseStorageChange,
@@ -37,10 +49,6 @@ export function SettingsPage({
 }: SettingsPageProps): React.JSX.Element {
   const aiModelSettings = settings.aiModelSettings;
   const defaultProviderId = aiModelSettings?.defaultProviderId ?? settings.providerId ?? 'openai-compatible';
-  const openAiSettings = aiModelSettings?.providers['openai-compatible'];
-  const anthropicSettings = aiModelSettings?.providers.anthropic;
-  const openAiCredentialStatus = getCredentialStatus(settings, 'openai-compatible');
-  const anthropicCredentialStatus = getCredentialStatus(settings, 'anthropic');
 
   return (
     <section className="flex min-h-0 flex-col" aria-labelledby="settings-page-title">
@@ -82,74 +90,58 @@ export function SettingsPage({
             </div>
           </section>
 
-          <ProviderSettingsSection
-            providerId="openai-compatible"
-            title="OpenAI-compatible"
-            description="Use OpenAI or another OpenAI-compatible base endpoint, such as https://api.deepseek.com/v1."
-            status={openAiCredentialStatus}
-            apiKeyInput={apiKeyInputs['openai-compatible']}
-            onApiKeyChange={onApiKeyChange}
-            onSaveApiKey={onSaveApiKey}
-            onDeleteApiKey={onDeleteApiKey}
-            onSaveSettings={onSaveOpenAiConfig}
-          >
-            <FormRow
-              label="Base URL"
-              htmlFor="openai-base-url-input"
-              helperText="Paste the provider base URL; /chat/completions is removed automatically."
-            >
-              <input
-                id="openai-base-url-input"
-                className="input input-bordered w-full"
-                value={openAiBaseUrlInput}
-                onChange={(event) => onOpenAiBaseUrlChange(event.target.value)}
-                aria-label="OpenAI-compatible base URL"
-                placeholder="https://api.deepseek.com/v1"
-                data-e2e="openai-base-url-input"
-              />
-            </FormRow>
-            <FormRow
-              label="Model"
-              htmlFor="openai-model-input"
-              helperText={openAiSettings ? `Current saved model: ${openAiSettings.model}` : undefined}
-            >
-              <input
-                id="openai-model-input"
-                className="input input-bordered w-full"
-                value={openAiModelInput}
-                onChange={(event) => onOpenAiModelChange(event.target.value)}
-                aria-label="OpenAI-compatible model"
-                data-e2e="openai-model-input"
-              />
-            </FormRow>
-          </ProviderSettingsSection>
+          {PROVIDER_OPTIONS.map((option) => {
+            const providerSettings = aiModelSettings?.providers[option.value];
+            const credentialStatus = getCredentialStatus(settings, option.value);
+            const title = PROVIDER_LABELS[option.value];
 
-          <ProviderSettingsSection
-            providerId="anthropic"
-            title="Anthropic Claude"
-            description="Use Anthropic's Claude models with a separate key."
-            status={anthropicCredentialStatus}
-            apiKeyInput={apiKeyInputs.anthropic}
-            onApiKeyChange={onApiKeyChange}
-            onSaveApiKey={onSaveApiKey}
-            onDeleteApiKey={onDeleteApiKey}
-            onSaveSettings={onSaveAnthropicConfig}
-          >
-            <FormRow
-              label="Model"
-              htmlFor="anthropic-model-input"
-              helperText={anthropicSettings ? `Current saved model: ${anthropicSettings.model}` : undefined}
-            >
-              <input
-                id="anthropic-model-input"
-                className="input input-bordered w-full"
-                value={anthropicModelInput}
-                onChange={(event) => onAnthropicModelChange(event.target.value)}
-                aria-label="Anthropic model"
-                data-e2e="anthropic-model-input"
-              />
-            </FormRow>
-          </ProviderSettingsSection>
+            return (
+              <ProviderSettingsSection
+                key={option.value}
+                providerId={option.value}
+                title={title}
+                description={PROVIDER_DESCRIPTIONS[option.value]}
+                status={credentialStatus}
+                apiKeyInput={apiKeyInputs[option.value]}
+                onApiKeyChange={onApiKeyChange}
+                onSaveApiKey={onSaveApiKey}
+                onDeleteApiKey={onDeleteApiKey}
+                onSaveSettings={() => onSaveProviderConfig(option.value)}
+              >
+                {option.value === 'openai-compatible' ? (
+                  <FormRow
+                    label="Base URL"
+                    htmlFor="openai-base-url-input"
+                    helperText="Only custom OpenAI-compatible endpoints need a manual base URL."
+                  >
+                    <input
+                      id="openai-base-url-input"
+                      className="input input-bordered w-full"
+                      value={openAiCompatibleBaseUrlInput}
+                      onChange={(event) => onOpenAiCompatibleBaseUrlChange(event.target.value)}
+                      aria-label="Custom OpenAI-compatible base URL"
+                      placeholder="http://localhost:11434/v1"
+                      data-e2e="openai-base-url-input"
+                    />
+                  </FormRow>
+                ) : null}
+                <FormRow
+                  label="Model"
+                  htmlFor={`${option.value}-model-input`}
+                  helperText={providerSettings ? `Current saved model: ${providerSettings.model}` : undefined}
+                >
+                  <input
+                    id={`${option.value}-model-input`}
+                    className="input input-bordered w-full"
+                    value={providerModelInputs[option.value]}
+                    onChange={(event) => onProviderModelChange(option.value, event.target.value)}
+                    aria-label={`${title} model`}
+                    data-e2e={`${option.value}-model-input`}
+                  />
+                </FormRow>
+              </ProviderSettingsSection>
+            );
+          })}
 
           <section>
             <h2 className="editorial-copy text-2xl text-base-content">Review behavior</h2>
@@ -211,8 +203,13 @@ export function SettingsPage({
             <dl className="mt-5 grid gap-4 text-sm">
               <StatusRow label="Default provider" value={settings.provider} />
               <StatusRow label="Default model" value={settings.model} />
-              <StatusRow label="OpenAI-compatible key" value={formatProviderKeyStatus(openAiCredentialStatus.status)} />
-              <StatusRow label="Anthropic key" value={formatProviderKeyStatus(anthropicCredentialStatus.status)} />
+              {PROVIDER_OPTIONS.map((option) => (
+                <StatusRow
+                  key={option.value}
+                  label={`${option.label} key`}
+                  value={formatProviderKeyStatus(getCredentialStatus(settings, option.value).status)}
+                />
+              ))}
               <StatusRow label="Local model" value={settings.isLocalModel ? 'Yes' : 'No'} />
               <StatusRow label="Review context" value={settings.reviewContextDescription} />
               <StatusRow label="Database" value={startup.databaseReady ? settings.databaseLocation : 'Unavailable'} />

@@ -1,0 +1,19 @@
+{"_example": "Fill with {\"file\": \"<path>\", \"reason\": \"<why>\"}. Put spec/research files only — no code paths. Run `python3 .trellis/scripts/get_context.py --mode packages` to list available specs. Delete this line once real entries are added."}
+{"file": ".trellis/spec/product/index.md", "reason": "Product contracts for settings, provider disclosures, review agent calls, and privacy-sensitive model behavior."}
+{"file": ".trellis/spec/product/privacy-security.md", "reason": "Provider credentials and raw model/debug behavior must preserve local-first privacy expectations."}
+{"file": ".trellis/spec/product/review-agent-contract.md", "reason": "Review/rewrite provider changes must preserve review contract behavior."}
+{"file": ".trellis/spec/product/validation-and-testing.md", "reason": "Tests should align with review contract validation expectations."}
+{"file": ".trellis/spec/backend/index.md", "reason": "Main-process provider runtime, settings, IPC, and service modules are backend work."}
+{"file": ".trellis/spec/backend/api-module.md", "reason": "Service module/API organization for settings, credentials, AI generation, and review procedures."}
+{"file": ".trellis/spec/backend/type-safety.md", "reason": "Runtime config and provider settings require Zod-first discriminated unions and type-safe validation."}
+{"file": ".trellis/spec/backend/quality.md", "reason": "Main-process imports and quality conventions for backend changes."}
+{"file": ".trellis/spec/frontend/index.md", "reason": "Settings page UI and renderer state changes."}
+{"file": ".trellis/spec/frontend/ipc-electron.md", "reason": "Renderer settings mutations cross IPC boundaries."}
+{"file": ".trellis/spec/frontend/react-pitfalls.md", "reason": "Settings UI state and handlers should avoid React state pitfalls."}
+{"file": ".trellis/spec/frontend/components.md", "reason": "Settings form semantics, layout, and scroll behavior."}
+{"file": ".trellis/spec/frontend/type-safety.md", "reason": "Renderer/shared import and prop typing conventions."}
+{"file": ".trellis/spec/frontend/quality.md", "reason": "Frontend code quality and performance checks."}
+{"file": ".trellis/spec/shared/index.md", "reason": "Shared Zod schemas and provider types are central to this change."}
+{"file": ".trellis/spec/shared/typescript.md", "reason": "TypeScript conventions for shared provider schemas and discriminated unions."}
+{"file": ".trellis/spec/shared/code-quality.md", "reason": "Mandatory shared code quality rules."}
+{"file": ".trellis/tasks/05-04-provider-reasoning-controls/research/vercel-ai-sdk-reasoning-controls.md", "reason": "Official AI SDK/provider docs for first-class packages and reasoning/thinking controls."}

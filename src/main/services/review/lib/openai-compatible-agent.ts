@@ -1,13 +1,12 @@
 import { reviewOutputSchema } from '../../../../shared/review-contract/schemas';
-import type { AiReasoningEffort } from '../../../../shared/types/ai';
 import type { ProviderOptions } from '@ai-sdk/provider-utils';
 import { generateStructuredObject, type AiProviderRuntimeConfig } from '../../ai';
+import { buildProviderReasoningOptions } from '../../ai/reasoning-options';
 import { buildAiRuntimeConfigForFeature } from '../../ai/runtime-config';
 import { reviewAgentResponseSchema, type ReviewAgent, type ReviewAgentResponse } from '../types';
 
 const DEFAULT_REQUEST_TIMEOUT_MS = 240_000;
 const DEFAULT_MAX_OUTPUT_TOKENS = 16_000;
-const DEFAULT_REVIEW_REASONING_EFFORT: AiReasoningEffort = 'none';
 
 type OpenAiCompatibleRuntimeConfig = {
   provider: 'openai-compatible';
@@ -95,15 +94,12 @@ export function createOpenAiCompatibleReviewAgent(options: OpenAiCompatibleAgent
 }
 
 function defaultReviewProviderOptions(runtimeConfig: AiProviderRuntimeConfig): ProviderOptions | undefined {
-  if (runtimeConfig.provider !== 'openai-compatible') {
-    return undefined;
-  }
-
-  return {
-    openai: {
-      reasoningEffort: DEFAULT_REVIEW_REASONING_EFFORT,
-    },
-  };
+  return buildProviderReasoningOptions({
+    providerId: runtimeConfig.provider,
+    model: runtimeConfig.model,
+    thinkingEnabled: false,
+    baseUrl: runtimeConfig.provider === 'openai-compatible' ? runtimeConfig.baseUrl : undefined,
+  });
 }
 
 export const callOpenAiCompatibleReviewAgent: ReviewAgent = createOpenAiCompatibleReviewAgent();

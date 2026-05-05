@@ -22,7 +22,6 @@ import {
   aiProviderDiagnosticsSchema,
   safeAiProviderDiagnosticErrorMessage,
   sanitizeAiProviderDiagnosticText,
-  type AiReasoningEffort,
   type AiProviderDiagnostics,
   type AiProviderFailureKind,
 } from '../../../../shared/types/ai';
@@ -31,6 +30,7 @@ import { hasReviewDisclosureAcknowledgement } from '../lib/disclosure';
 import { buildReviewInput } from '../lib/input';
 import { getAiProviderDiagnosticsFromError } from '../../ai';
 import { getProviderSettingsForFeature } from '../../ai/runtime-config';
+import { buildProviderReasoningOptions } from '../../ai/reasoning-options';
 import { callOpenAiCompatibleReviewAgent } from '../lib/openai-compatible-agent';
 import { buildReviewPersistenceDecision } from '../lib/persistence-decision';
 import { buildReviewUserPrompt, REVIEW_SYSTEM_PROMPT } from '../lib/prompt';
@@ -50,9 +50,6 @@ type PhaseTimingState = {
   startedAt: number;
   timings: Record<ReviewProgressPhase, number | null>;
 };
-
-const DISABLED_REVIEW_REASONING_EFFORT: AiReasoningEffort = 'none';
-const ENABLED_REVIEW_REASONING_EFFORT: AiReasoningEffort = 'medium';
 
 function createId(prefix: string): string {
   return `${prefix}_${randomUUID()}`;
@@ -366,17 +363,12 @@ function getReviewProviderMetadata(
 
 function buildReviewProviderOptions(settings: ReviewSettingsSnapshot): ProviderOptions | undefined {
   const providerSettings = getProviderSettingsForFeature(settings, 'review');
-  if (providerSettings.providerId !== 'openai-compatible') {
-    return undefined;
-  }
-
-  return {
-    openai: {
-      reasoningEffort: settings.reviewThinkingEnabled
-        ? ENABLED_REVIEW_REASONING_EFFORT
-        : DISABLED_REVIEW_REASONING_EFFORT,
-    },
-  };
+  return buildProviderReasoningOptions({
+    providerId: providerSettings.providerId,
+    model: providerSettings.model,
+    thinkingEnabled: settings.reviewThinkingEnabled,
+    baseUrl: providerSettings.providerId === 'openai-compatible' ? providerSettings.baseUrl : undefined,
+  });
 }
 
 function buildReviewRunSummary(params: {

@@ -1105,3 +1105,37 @@ Added deterministic mock AI headless UI e2e for review, feedback save, and D+1 r
 ### Next Steps
 
 - None - task complete
+
+
+## Session 33: Provider-specific AI providers and reasoning controls
+
+**Date**: 2026-05-04
+**Task**: Provider-specific AI providers and reasoning controls
+**Branch**: `main`
+
+### Summary
+
+Added first-class AI provider selection, provider-specific reasoning controls, DeepSeek disabled-thinking support, settings UI updates, tests, and provider reasoning specs. Verified lint, typecheck, tests, review harness, and live DeepSeek e2e.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `1e29c94` | (see git log) |
+| `457f17a` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete

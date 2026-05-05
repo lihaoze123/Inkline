@@ -23,7 +23,7 @@ function getLegacyProviderSettings(
 ): ProviderSettings {
   return {
     providerId: 'openai-compatible',
-    provider: 'OpenAI-compatible',
+    provider: 'Custom OpenAI-compatible',
     baseUrl: settings.baseUrl,
     model: settings.model,
     isLocalModel: settings.isLocalModel ?? false,
@@ -35,8 +35,18 @@ function getLegacyProviderSettings(
   };
 }
 
+const PROVIDER_ERROR_LABELS: Record<AiProviderId, string> = {
+  openai: 'OpenAI provider',
+  deepseek: 'DeepSeek provider',
+  anthropic: 'Anthropic Claude provider',
+  google: 'Google Gemini provider',
+  xai: 'xAI Grok provider',
+  openrouter: 'OpenRouter provider',
+  'openai-compatible': 'Custom OpenAI-compatible provider',
+};
+
 function providerLabel(providerId: AiProviderId): string {
-  return providerId === 'anthropic' ? 'Anthropic Claude provider' : 'OpenAI-compatible provider';
+  return PROVIDER_ERROR_LABELS[providerId];
 }
 
 export function getProviderSettingsForFeature(
@@ -69,22 +79,32 @@ export async function buildAiRuntimeConfigForFeature(
     );
   }
 
-  if (providerSettings.providerId === 'anthropic') {
-    return {
-      provider: 'anthropic',
-      apiKey,
-      model: providerSettings.model,
-    };
-  }
+  return buildRuntimeConfig(providerSettings, apiKey);
+}
 
-  if (!providerSettings.baseUrl || !providerSettings.model) {
-    throw new Error('OpenAI-compatible provider base URL and model are required.');
-  }
+function buildRuntimeConfig(providerSettings: ProviderSettings, apiKey: string): AiProviderRuntimeConfig {
+  switch (providerSettings.providerId) {
+    case 'openai':
+    case 'deepseek':
+    case 'anthropic':
+    case 'google':
+    case 'xai':
+    case 'openrouter':
+      return {
+        provider: providerSettings.providerId,
+        apiKey,
+        model: providerSettings.model,
+      };
+    case 'openai-compatible':
+      if (!providerSettings.baseUrl || !providerSettings.model) {
+        throw new Error('Custom OpenAI-compatible provider base URL and model are required.');
+      }
 
-  return {
-    provider: 'openai-compatible',
-    apiKey,
-    baseUrl: providerSettings.baseUrl,
-    model: providerSettings.model,
-  };
+      return {
+        provider: 'openai-compatible',
+        apiKey,
+        baseUrl: providerSettings.baseUrl,
+        model: providerSettings.model,
+      };
+  }
 }

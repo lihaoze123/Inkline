@@ -1,6 +1,12 @@
 import { z } from 'zod';
 
-export const aiProviderIdSchema = z.enum(['openai-compatible', 'anthropic']);
+export const HOSTED_AI_PROVIDER_IDS = ['openai', 'deepseek', 'anthropic', 'google', 'xai', 'openrouter'] as const;
+
+export const AI_PROVIDER_IDS = [...HOSTED_AI_PROVIDER_IDS, 'openai-compatible'] as const;
+
+export const hostedAiProviderIdSchema = z.enum(HOSTED_AI_PROVIDER_IDS);
+
+export const aiProviderIdSchema = z.enum(AI_PROVIDER_IDS);
 
 export const providerKeyStatusValueSchema = z.enum(['not-configured', 'configured', 'unavailable']);
 
@@ -11,11 +17,26 @@ export const providerKeyStatusSchema = z.object({
 });
 
 export const providerCredentialStatusesSchema = z.object({
+  openai: providerKeyStatusSchema.extend({
+    providerId: z.literal('openai'),
+  }),
+  deepseek: providerKeyStatusSchema.extend({
+    providerId: z.literal('deepseek'),
+  }),
   'openai-compatible': providerKeyStatusSchema.extend({
     providerId: z.literal('openai-compatible'),
   }),
   anthropic: providerKeyStatusSchema.extend({
     providerId: z.literal('anthropic'),
+  }),
+  google: providerKeyStatusSchema.extend({
+    providerId: z.literal('google'),
+  }),
+  xai: providerKeyStatusSchema.extend({
+    providerId: z.literal('xai'),
+  }),
+  openrouter: providerKeyStatusSchema.extend({
+    providerId: z.literal('openrouter'),
   }),
 });
 

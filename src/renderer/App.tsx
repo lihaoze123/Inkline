@@ -5,7 +5,11 @@ import type { WritingAttemptSnapshot, WritingTemplateId } from '@shared/types/wr
 import { WRITING_TEMPLATES } from '@shared/writing/templates';
 import type { ReviewPreviewSnapshot, ReviewProgressEvent, ReviewRunSnapshot } from '@shared/types/review';
 import type { AiProviderId } from '@shared/types/credentials';
-import { CURRENT_ONBOARDING_INTRO_VERSION, type SettingsSnapshot } from '@shared/types/settings';
+import {
+  CURRENT_ONBOARDING_INTRO_VERSION,
+  type SettingsSnapshot,
+  type SetProviderConfigInput,
+} from '@shared/types/settings';
 import type { ErrorPatternSnapshot, NotebookEntrySnapshot } from '@shared/types/learning-assets';
 import { WritingEditorCard } from './components/WritingEditorCard';
 import { LearningPanel } from './components/LearningPanel';
@@ -68,6 +72,71 @@ function emptyReviewProgress(): ReviewProgressModel {
 
 function getErrorMessage(error: unknown, fallback: string): string {
   return error instanceof Error ? error.message : fallback;
+}
+
+function emptyProviderTextInputMap(): Record<AiProviderId, string> {
+  return {
+    openai: '',
+    deepseek: '',
+    anthropic: '',
+    google: '',
+    xai: '',
+    openrouter: '',
+    'openai-compatible': '',
+  };
+}
+
+function getProviderModelInputs(settings: SettingsSnapshot): Record<AiProviderId, string> {
+  const providers = settings.aiModelSettings?.providers;
+  return {
+    openai: providers?.openai.model ?? (settings.providerId === 'openai' ? settings.model : ''),
+    deepseek: providers?.deepseek.model ?? (settings.providerId === 'deepseek' ? settings.model : ''),
+    anthropic: providers?.anthropic.model ?? (settings.providerId === 'anthropic' ? settings.model : ''),
+    google: providers?.google.model ?? (settings.providerId === 'google' ? settings.model : ''),
+    xai: providers?.xai.model ?? (settings.providerId === 'xai' ? settings.model : ''),
+    openrouter: providers?.openrouter.model ?? (settings.providerId === 'openrouter' ? settings.model : ''),
+    'openai-compatible':
+      providers?.['openai-compatible'].model ??
+      (!settings.providerId || settings.providerId === 'openai-compatible' ? settings.model : ''),
+  };
+}
+
+function getOpenAiCompatibleBaseUrlInput(settings: SettingsSnapshot): string {
+  return settings.aiModelSettings?.providers['openai-compatible'].baseUrl ?? settings.baseUrl;
+}
+
+function buildProviderConfigInput(providerId: AiProviderId, baseUrl: string, model: string): SetProviderConfigInput {
+  if (providerId === 'openai-compatible') {
+    return {
+      providerId,
+      baseUrl,
+      model,
+    };
+  }
+
+  return {
+    providerId,
+    model,
+  };
+}
+
+function providerLabel(providerId: AiProviderId): string {
+  switch (providerId) {
+    case 'openai':
+      return 'OpenAI';
+    case 'deepseek':
+      return 'DeepSeek';
+    case 'anthropic':
+      return 'Anthropic';
+    case 'google':
+      return 'Google Gemini';
+    case 'xai':
+      return 'xAI Grok';
+    case 'openrouter':
+      return 'OpenRouter';
+    case 'openai-compatible':
+      return 'Custom OpenAI-compatible';
+  }
 }
 
 export function App(): React.JSX.Element {
@@ -160,19 +229,15 @@ function PracticePage({ initialWriting, settings, startup }: PracticePageProps):
   const notebookEntriesQuery = useNotebookEntries({ enabled: activeArea === 'notebook' });
   const [currentTimeMs, setCurrentTimeMs] = useState(() => Date.now());
   const [showRevealConfirmation, setShowRevealConfirmation] = useState(false);
-  const [openAiBaseUrlInput, setOpenAiBaseUrlInput] = useState(
-    settings.aiModelSettings?.providers['openai-compatible'].baseUrl ?? settings.baseUrl,
+  const [openAiCompatibleBaseUrlInput, setOpenAiCompatibleBaseUrlInput] = useState(() =>
+    getOpenAiCompatibleBaseUrlInput(settings),
   );
-  const [openAiModelInput, setOpenAiModelInput] = useState(
-    settings.aiModelSettings?.providers['openai-compatible'].model ?? settings.model,
+  const [providerModelInputs, setProviderModelInputs] = useState<Record<AiProviderId, string>>(() =>
+    getProviderModelInputs(settings),
   );
-  const [anthropicModelInput, setAnthropicModelInput] = useState(
-    settings.aiModelSettings?.providers.anthropic.model ?? '',
+  const [providerApiKeyInputs, setProviderApiKeyInputs] = useState<Record<AiProviderId, string>>(() =>
+    emptyProviderTextInputMap(),
   );
-  const [providerApiKeyInputs, setProviderApiKeyInputs] = useState<Record<AiProviderId, string>>({
-    'openai-compatible': '',
-    anthropic: '',
-  });
   const [settingsMessage, setSettingsMessage] = useState<string | null>(null);
   const [settingsError, setSettingsError] = useState<string | null>(null);
   const [isWelcomeIntroReplayOpen, setIsWelcomeIntroReplayOpen] = useState(false);
@@ -573,40 +638,29 @@ function PracticePage({ initialWriting, settings, startup }: PracticePageProps):
     [setDefaultProviderMutation],
   );
 
-  const saveOpenAiProviderConfig = useCallback(async (): Promise<void> => {
-    setSettingsError(null);
-    setSettingsMessage(null);
-    try {
-      const updatedSettings = await setProviderConfigMutation({
-        providerId: 'openai-compatible',
-        baseUrl: openAiBaseUrlInput,
-        model: openAiModelInput,
-      });
-      setOpenAiBaseUrlInput(
-        updatedSettings.aiModelSettings?.providers['openai-compatible'].baseUrl ?? updatedSettings.baseUrl,
-      );
-      setOpenAiModelInput(
-        updatedSettings.aiModelSettings?.providers['openai-compatible'].model ?? updatedSettings.model,
-      );
-      setSettingsMessage('OpenAI-compatible settings saved.');
-    } catch (error) {
-      const message = error instanceof Error ? error.message : 'Unable to save OpenAI-compatible settings.';
-      setSettingsError(message);
-    }
-  }, [openAiBaseUrlInput, openAiModelInput, setProviderConfigMutation]);
+  const updateProviderModelInput = useCallback((providerId: AiProviderId, value: string): void => {
+    setProviderModelInputs((current) => ({ ...current, [providerId]: value }));
+  }, []);
 
-  const saveAnthropicProviderConfig = useCallback(async (): Promise<void> => {
-    setSettingsError(null);
-    setSettingsMessage(null);
-    try {
-      const updatedSettings = await setProviderConfigMutation({ providerId: 'anthropic', model: anthropicModelInput });
-      setAnthropicModelInput(updatedSettings.aiModelSettings?.providers.anthropic.model ?? updatedSettings.model);
-      setSettingsMessage('Anthropic settings saved.');
-    } catch (error) {
-      const message = error instanceof Error ? error.message : 'Unable to save Anthropic settings.';
-      setSettingsError(message);
-    }
-  }, [anthropicModelInput, setProviderConfigMutation]);
+  const saveProviderConfig = useCallback(
+    async (providerId: AiProviderId): Promise<void> => {
+      setSettingsError(null);
+      setSettingsMessage(null);
+      try {
+        const updatedSettings = await setProviderConfigMutation(
+          buildProviderConfigInput(providerId, openAiCompatibleBaseUrlInput, providerModelInputs[providerId]),
+        );
+        setOpenAiCompatibleBaseUrlInput(getOpenAiCompatibleBaseUrlInput(updatedSettings));
+        setProviderModelInputs(getProviderModelInputs(updatedSettings));
+        setSettingsMessage(`${providerLabel(providerId)} settings saved.`);
+      } catch (error) {
+        const message =
+          error instanceof Error ? error.message : `Unable to save ${providerLabel(providerId)} settings.`;
+        setSettingsError(message);
+      }
+    },
+    [openAiCompatibleBaseUrlInput, providerModelInputs, setProviderConfigMutation],
+  );
 
   const updateProviderApiKeyInput = useCallback((providerId: AiProviderId, value: string): void => {
     setProviderApiKeyInputs((current) => ({ ...current, [providerId]: value }));
@@ -893,24 +947,19 @@ function PracticePage({ initialWriting, settings, startup }: PracticePageProps):
               <SettingsPage
                 settings={appSettings}
                 startup={startup}
-                openAiBaseUrlInput={openAiBaseUrlInput}
-                openAiModelInput={openAiModelInput}
-                anthropicModelInput={anthropicModelInput}
+                openAiCompatibleBaseUrlInput={openAiCompatibleBaseUrlInput}
+                providerModelInputs={providerModelInputs}
                 apiKeyInputs={providerApiKeyInputs}
                 message={settingsMessage}
                 error={settingsError}
                 onDefaultProviderChange={(providerId) => {
                   void setDefaultProvider(providerId);
                 }}
-                onOpenAiBaseUrlChange={setOpenAiBaseUrlInput}
-                onOpenAiModelChange={setOpenAiModelInput}
-                onAnthropicModelChange={setAnthropicModelInput}
+                onOpenAiCompatibleBaseUrlChange={setOpenAiCompatibleBaseUrlInput}
+                onProviderModelChange={updateProviderModelInput}
                 onApiKeyChange={updateProviderApiKeyInput}
-                onSaveOpenAiConfig={() => {
-                  void saveOpenAiProviderConfig();
-                }}
-                onSaveAnthropicConfig={() => {
-                  void saveAnthropicProviderConfig();
+                onSaveProviderConfig={(providerId) => {
+                  void saveProviderConfig(providerId);
                 }}
                 onSaveApiKey={(providerId) => {
                   void saveProviderApiKey(providerId);

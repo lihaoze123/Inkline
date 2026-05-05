@@ -340,7 +340,7 @@ describe('startReview observability', () => {
     ]);
     expect(new Set(events.map((event) => event.runId)).size).toBe(1);
     expect(observedProviderOptions).toEqual({
-      openai: {
+      openaiCompatible: {
         reasoningEffort: 'none',
       },
     });
@@ -540,8 +540,8 @@ describe('startReview observability', () => {
       error: 'AI service connection failed. Try again or check Settings.',
     });
     expect(observedProviderOptions).toEqual({
-      openai: {
-        reasoningEffort: 'medium',
+      openaiCompatible: {
+        thinking: { type: 'enabled' },
       },
     });
     expect(result.reviewRun?.summary?.providerDiagnostics).toMatchObject({

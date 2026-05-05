@@ -4,6 +4,8 @@ import {
   providerCredentialMutationResultSchema,
   providerCredentialStatusesSchema,
   setProviderApiKeyInputSchema,
+  type AiProviderId,
+  type ProviderKeyStatusValue,
 } from '../src/shared/types/credentials';
 import { IPC_CHANNELS } from '../src/shared/constants/channels';
 import { normalizeOpenAiCompatibleBaseUrl } from '../src/main/services/ai/openai-compatible';
@@ -18,11 +20,95 @@ import {
   settingsSnapshotSchema,
 } from '../src/shared/types/settings';
 
+type ProviderStatusFixture = {
+  providerId: AiProviderId;
+  status: ProviderKeyStatusValue;
+  storage: 'os-keychain';
+};
+
+type ProviderStatusesFixture = Record<AiProviderId, ProviderStatusFixture>;
+
+function providerStatus(
+  providerId: AiProviderId,
+  status: ProviderKeyStatusValue = 'not-configured',
+): ProviderStatusFixture {
+  return { providerId, status, storage: 'os-keychain' as const };
+}
+
+function allProviderCredentialStatuses(overrides: Partial<ProviderStatusesFixture> = {}): ProviderStatusesFixture {
+  return {
+    openai: providerStatus('openai'),
+    deepseek: providerStatus('deepseek'),
+    'openai-compatible': providerStatus('openai-compatible'),
+    anthropic: providerStatus('anthropic'),
+    google: providerStatus('google'),
+    xai: providerStatus('xai'),
+    openrouter: providerStatus('openrouter'),
+    ...overrides,
+  };
+}
+
+function allProviderSettings(overrides: Partial<Record<AiProviderId, unknown>> = {}): Record<AiProviderId, unknown> {
+  return {
+    openai: {
+      providerId: 'openai',
+      provider: 'OpenAI',
+      model: 'gpt-4o-mini',
+      isLocalModel: false,
+      apiKeyStatus: providerStatus('openai'),
+    },
+    deepseek: {
+      providerId: 'deepseek',
+      provider: 'DeepSeek',
+      model: 'deepseek-chat',
+      isLocalModel: false,
+      apiKeyStatus: providerStatus('deepseek'),
+    },
+    'openai-compatible': {
+      providerId: 'openai-compatible',
+      provider: 'Custom OpenAI-compatible',
+      baseUrl: 'https://api.openai.com/v1',
+      model: 'gpt-4o-mini',
+      isLocalModel: false,
+      apiKeyStatus: providerStatus('openai-compatible'),
+    },
+    anthropic: {
+      providerId: 'anthropic',
+      provider: 'Anthropic Claude',
+      model: 'claude-sonnet-4-5',
+      isLocalModel: false,
+      apiKeyStatus: providerStatus('anthropic'),
+    },
+    google: {
+      providerId: 'google',
+      provider: 'Google Gemini',
+      model: 'gemini-2.5-flash',
+      isLocalModel: false,
+      apiKeyStatus: providerStatus('google'),
+    },
+    xai: {
+      providerId: 'xai',
+      provider: 'xAI Grok',
+      model: 'grok-4-fast-non-reasoning',
+      isLocalModel: false,
+      apiKeyStatus: providerStatus('xai'),
+    },
+    openrouter: {
+      providerId: 'openrouter',
+      provider: 'OpenRouter',
+      model: 'openai/gpt-4o-mini',
+      isLocalModel: false,
+      apiKeyStatus: providerStatus('openrouter'),
+    },
+    ...overrides,
+  };
+}
+
 describe('settings defaults contract', () => {
   it('keeps production raw response storage off by default', () => {
     const parsed = settingsSnapshotSchema.parse({
       providerId: 'openai-compatible',
-      provider: 'OpenAI-compatible',
+      provider: 'Custom OpenAI-compatible',
       baseUrl: 'https://api.openai.com/v1',
       model: 'gpt-4o-mini',
       isLocalModel: false,
@@ -33,29 +119,10 @@ describe('settings defaults contract', () => {
       databaseLocation: '/tmp/Inkline.sqlite',
       piMonoAuthStatus: 'not-configured',
       providerApiKeyStatus: 'not-configured',
-      providerCredentialStatuses: {
-        'openai-compatible': { providerId: 'openai-compatible', status: 'not-configured', storage: 'os-keychain' },
-        anthropic: { providerId: 'anthropic', status: 'not-configured', storage: 'os-keychain' },
-      },
+      providerCredentialStatuses: allProviderCredentialStatuses(),
       aiModelSettings: {
         defaultProviderId: 'openai-compatible',
-        providers: {
-          'openai-compatible': {
-            providerId: 'openai-compatible',
-            provider: 'OpenAI-compatible',
-            baseUrl: 'https://api.openai.com/v1',
-            model: 'gpt-4o-mini',
-            isLocalModel: false,
-            apiKeyStatus: { providerId: 'openai-compatible', status: 'not-configured', storage: 'os-keychain' },
-          },
-          anthropic: {
-            providerId: 'anthropic',
-            provider: 'Anthropic Claude',
-            model: 'claude-sonnet-4-5',
-            isLocalModel: false,
-            apiKeyStatus: { providerId: 'anthropic', status: 'not-configured', storage: 'os-keychain' },
-          },
-        },
+        providers: allProviderSettings(),
         featureOverrides: {},
       },
       ankiConnectStatus: 'reserved',
@@ -68,13 +135,13 @@ describe('settings defaults contract', () => {
 
   it('accepts OpenAI-compatible provider configuration without exposing credentials', () => {
     const parsed = providerConfigSchema.parse({
-      provider: 'OpenAI-compatible',
+      provider: 'Custom OpenAI-compatible',
       baseUrl: 'https://api.openai.com/v1',
       model: 'gpt-4o-mini',
       isLocalModel: false,
     });
 
-    expect(parsed.provider).toBe('OpenAI-compatible');
+    expect(parsed.provider).toBe('Custom OpenAI-compatible');
     expect('apiKey' in parsed).toBe(false);
   });
 
@@ -93,10 +160,10 @@ describe('settings defaults contract', () => {
   it('represents default provider and future feature-level model overrides', () => {
     const parsed = aiModelSettingsSchema.parse({
       defaultProviderId: 'openai-compatible',
-      providers: {
+      providers: allProviderSettings({
         'openai-compatible': {
           providerId: 'openai-compatible',
-          provider: 'OpenAI-compatible',
+          provider: 'Custom OpenAI-compatible',
           baseUrl: 'https://provider.example/v1',
           model: 'review-model',
           isLocalModel: false,
@@ -109,21 +176,22 @@ describe('settings defaults contract', () => {
           isLocalModel: false,
           apiKeyStatus: { providerId: 'anthropic', status: 'not-configured', storage: 'os-keychain' },
         },
-      },
+      }),
       featureOverrides: {
         starterPrompt: { providerId: 'anthropic', model: 'claude-sonnet-4-5' },
       },
     });
 
-    expect(parsed.providers['openai-compatible'].provider).toBe('OpenAI-compatible');
+    expect(parsed.providers['openai-compatible'].provider).toBe('Custom OpenAI-compatible');
     expect(parsed.featureOverrides.starterPrompt?.providerId).toBe('anthropic');
   });
 
-  it('validates provider credential status maps for both first providers', () => {
-    const parsed = providerCredentialStatusesSchema.parse({
-      'openai-compatible': { providerId: 'openai-compatible', status: 'configured', storage: 'os-keychain' },
-      anthropic: { providerId: 'anthropic', status: 'not-configured', storage: 'os-keychain' },
-    });
+  it('validates provider credential status maps for all first-class providers', () => {
+    const parsed = providerCredentialStatusesSchema.parse(
+      allProviderCredentialStatuses({
+        'openai-compatible': providerStatus('openai-compatible', 'configured'),
+      }),
+    );
 
     expect(parsed['openai-compatible'].status).toBe('configured');
     expect(parsed.anthropic.status).toBe('not-configured');
@@ -205,10 +273,7 @@ describe('settings defaults contract', () => {
       getDatabasePath: () => '/tmp/Inkline.sqlite',
     }));
     vi.doMock('../src/main/services/credentials/service', () => ({
-      getProviderCredentialStatuses: async () => ({
-        'openai-compatible': { providerId: 'openai-compatible', status: 'not-configured', storage: 'os-keychain' },
-        anthropic: { providerId: 'anthropic', status: 'not-configured', storage: 'os-keychain' },
-      }),
+      getProviderCredentialStatuses: async () => allProviderCredentialStatuses(),
     }));
 
     const { getSettingsSnapshot, setOnboardingIntroVersionSeen, setReviewThinking } =
@@ -236,10 +301,9 @@ describe('settings defaults contract', () => {
     const result = providerCredentialMutationResultSchema.parse({
       success: true,
       status: { providerId: 'anthropic', status: 'configured', storage: 'os-keychain' },
-      providerStatuses: {
-        'openai-compatible': { providerId: 'openai-compatible', status: 'not-configured', storage: 'os-keychain' },
-        anthropic: { providerId: 'anthropic', status: 'configured', storage: 'os-keychain' },
-      },
+      providerStatuses: allProviderCredentialStatuses({
+        anthropic: providerStatus('anthropic', 'configured'),
+      }),
     });
 
     expect(result.status?.status).toBe('configured');

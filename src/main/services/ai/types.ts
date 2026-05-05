@@ -1,10 +1,19 @@
 import { z } from 'zod';
 import type { ProviderOptions } from '@ai-sdk/provider-utils';
 import { aiProviderDiagnosticsSchema } from '../../../shared/types/ai';
-
-export const aiProviderIdSchema = z.enum(['openai-compatible', 'anthropic']);
+import { aiProviderIdSchema } from '../../../shared/types/credentials';
 
 export const aiProviderRuntimeConfigSchema = z.discriminatedUnion('provider', [
+  z.object({
+    provider: z.literal('openai'),
+    apiKey: z.string().min(1),
+    model: z.string().trim().min(1),
+  }),
+  z.object({
+    provider: z.literal('deepseek'),
+    apiKey: z.string().min(1),
+    model: z.string().trim().min(1),
+  }),
   z.object({
     provider: z.literal('openai-compatible'),
     apiKey: z.string().min(1),
@@ -13,6 +22,21 @@ export const aiProviderRuntimeConfigSchema = z.discriminatedUnion('provider', [
   }),
   z.object({
     provider: z.literal('anthropic'),
+    apiKey: z.string().min(1),
+    model: z.string().trim().min(1),
+  }),
+  z.object({
+    provider: z.literal('google'),
+    apiKey: z.string().min(1),
+    model: z.string().trim().min(1),
+  }),
+  z.object({
+    provider: z.literal('xai'),
+    apiKey: z.string().min(1),
+    model: z.string().trim().min(1),
+  }),
+  z.object({
+    provider: z.literal('openrouter'),
     apiKey: z.string().min(1),
     model: z.string().trim().min(1),
   }),

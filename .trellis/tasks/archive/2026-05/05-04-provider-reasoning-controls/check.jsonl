@@ -1,0 +1,17 @@
+{"_example": "Fill with {\"file\": \"<path>\", \"reason\": \"<why>\"}. Put spec/research files only — no code paths. Run `python3 .trellis/scripts/get_context.py --mode packages` to list available specs. Delete this line once real entries are added."}
+{"file": ".trellis/spec/product/index.md", "reason": "Verify provider/settings changes preserve product and privacy contracts."}
+{"file": ".trellis/spec/product/privacy-security.md", "reason": "Verify credential handling and provider disclosures remain privacy-safe."}
+{"file": ".trellis/spec/product/review-agent-contract.md", "reason": "Verify review/rewrite provider changes preserve review agent contracts."}
+{"file": ".trellis/spec/product/validation-and-testing.md", "reason": "Verify relevant tests match review validation expectations."}
+{"file": ".trellis/spec/backend/index.md", "reason": "Check backend service, runtime config, and IPC conventions."}
+{"file": ".trellis/spec/backend/type-safety.md", "reason": "Check Zod-first provider schema and discriminated union safety."}
+{"file": ".trellis/spec/backend/quality.md", "reason": "Check backend import and quality rules."}
+{"file": ".trellis/spec/frontend/index.md", "reason": "Check settings page behavior and UI conventions."}
+{"file": ".trellis/spec/frontend/ipc-electron.md", "reason": "Check renderer-to-main settings mutations remain IPC-safe."}
+{"file": ".trellis/spec/frontend/react-pitfalls.md", "reason": "Check React settings state and handler patterns."}
+{"file": ".trellis/spec/frontend/components.md", "reason": "Check settings UI semantic/layout conventions."}
+{"file": ".trellis/spec/frontend/quality.md", "reason": "Check frontend quality conventions."}
+{"file": ".trellis/spec/shared/index.md", "reason": "Check shared provider schemas and diagnostics contracts."}
+{"file": ".trellis/spec/shared/typescript.md", "reason": "Check shared TypeScript and type annotation conventions."}
+{"file": ".trellis/spec/shared/code-quality.md", "reason": "Check mandatory shared quality rules."}
+{"file": ".trellis/tasks/05-04-provider-reasoning-controls/research/vercel-ai-sdk-reasoning-controls.md", "reason": "Verify implementation follows official AI SDK/provider reasoning controls."}
