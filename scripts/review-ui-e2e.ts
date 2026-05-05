@@ -321,6 +321,7 @@ async function configureMockProvider(driver: DomDriver): Promise<void> {
   await driver.selectE2e('default-provider-select', 'openai-compatible');
   await driver.waitForE2e('openai-base-url-input');
   await driver.fillE2e('openai-base-url-input', MOCK_BASE_URL);
+  await driver.waitForE2e('openai-compatible-model-input');
   await driver.fillE2e('openai-compatible-model-input', MOCK_MODEL);
   await driver.fillE2e('openai-compatible-api-key-input', MOCK_API_KEY);
   await driver.clickE2e('openai-compatible-save-settings');

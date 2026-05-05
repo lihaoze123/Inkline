@@ -116,22 +116,13 @@ export function SettingsPage({
                     />
                   </FormRow>
                 ) : null}
-                <FormRow
-                  label="Model"
-                  htmlFor={`${defaultProviderId}-model-input`}
-                  helperText={
-                    selectedProviderSettings ? `Current saved model: ${selectedProviderSettings.model}` : undefined
-                  }
-                >
-                  <input
-                    id={`${defaultProviderId}-model-input`}
-                    className="input input-bordered w-full"
-                    value={providerModelInputs[defaultProviderId]}
-                    onChange={(event) => onProviderModelChange(defaultProviderId, event.target.value)}
-                    aria-label={`${selectedProviderTitle} model`}
-                    data-e2e={`${defaultProviderId}-model-input`}
-                  />
-                </FormRow>
+                <ProviderModelField
+                  providerId={defaultProviderId}
+                  title={selectedProviderTitle}
+                  value={providerModelInputs[defaultProviderId]}
+                  savedModel={selectedProviderSettings?.model}
+                  onChange={onProviderModelChange}
+                />
               </ProviderSettingsSection>
             </div>
           </section>
@@ -222,6 +213,38 @@ export function SettingsPage({
         </div>
       </div>
     </section>
+  );
+}
+
+function ProviderModelField({
+  providerId,
+  title,
+  value,
+  savedModel,
+  onChange,
+}: {
+  providerId: AiProviderId;
+  title: string;
+  value: string;
+  savedModel?: string;
+  onChange: (providerId: AiProviderId, value: string) => void;
+}): React.JSX.Element {
+  const helperText = savedModel
+    ? `Current saved model: ${savedModel}. AI SDK direct providers accept model IDs as strings and do not expose a runtime model catalog.`
+    : 'AI SDK direct providers accept model IDs as strings and do not expose a runtime model catalog.';
+
+  return (
+    <FormRow label="Model" htmlFor={`${providerId}-model-input`} helperText={helperText}>
+      <input
+        id={`${providerId}-model-input`}
+        className="input input-bordered w-full"
+        value={value}
+        onChange={(event) => onChange(providerId, event.target.value)}
+        aria-label={`${title} model ID`}
+        placeholder={`Enter ${title} model ID`}
+        data-e2e={`${providerId}-model-input`}
+      />
+    </FormRow>
   );
 }
 

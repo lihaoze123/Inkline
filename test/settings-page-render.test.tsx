@@ -18,6 +18,16 @@ function providerStatus<T extends AiProviderId>(
   return { providerId, status, storage: 'os-keychain' };
 }
 
+const DEFAULT_PROVIDER_MODEL_INPUTS: Record<AiProviderId, string> = {
+  openai: 'gpt-4o-mini',
+  deepseek: 'deepseek-chat',
+  anthropic: 'claude-sonnet-4-5',
+  google: 'gemini-2.5-flash',
+  xai: 'grok-4-fast-non-reasoning',
+  openrouter: 'openai/gpt-4o-mini',
+  'openai-compatible': 'custom-model',
+};
+
 function allProviderCredentialStatuses(): ProviderCredentialStatuses {
   return {
     openai: providerStatus('openai'),
@@ -30,47 +40,49 @@ function allProviderCredentialStatuses(): ProviderCredentialStatuses {
   };
 }
 
-function allProviderSettings(): AiProviderSettingsMap {
+function allProviderSettings(
+  providerModelInputs: Record<AiProviderId, string> = DEFAULT_PROVIDER_MODEL_INPUTS,
+): AiProviderSettingsMap {
   return {
     openai: {
       providerId: 'openai' as const,
       provider: 'OpenAI',
-      model: 'gpt-4o-mini',
+      model: providerModelInputs.openai,
       isLocalModel: false,
       apiKeyStatus: providerStatus('openai'),
     },
     deepseek: {
       providerId: 'deepseek' as const,
       provider: 'DeepSeek',
-      model: 'deepseek-chat',
+      model: providerModelInputs.deepseek,
       isLocalModel: false,
       apiKeyStatus: providerStatus('deepseek'),
     },
     anthropic: {
       providerId: 'anthropic' as const,
       provider: 'Anthropic Claude',
-      model: 'claude-sonnet-4-5',
+      model: providerModelInputs.anthropic,
       isLocalModel: false,
       apiKeyStatus: providerStatus('anthropic', 'configured'),
     },
     google: {
       providerId: 'google' as const,
       provider: 'Google Gemini',
-      model: 'gemini-2.5-flash',
+      model: providerModelInputs.google,
       isLocalModel: false,
       apiKeyStatus: providerStatus('google'),
     },
     xai: {
       providerId: 'xai' as const,
       provider: 'xAI Grok',
-      model: 'grok-4-fast-non-reasoning',
+      model: providerModelInputs.xai,
       isLocalModel: false,
       apiKeyStatus: providerStatus('xai'),
     },
     openrouter: {
       providerId: 'openrouter' as const,
       provider: 'OpenRouter',
-      model: 'openai/gpt-4o-mini',
+      model: providerModelInputs.openrouter,
       isLocalModel: false,
       apiKeyStatus: providerStatus('openrouter'),
     },
@@ -78,15 +90,18 @@ function allProviderSettings(): AiProviderSettingsMap {
       providerId: 'openai-compatible' as const,
       provider: 'Custom OpenAI-compatible',
       baseUrl: 'https://provider.example/v1',
-      model: 'custom-model',
+      model: providerModelInputs['openai-compatible'],
       isLocalModel: false,
       apiKeyStatus: providerStatus('openai-compatible', 'configured'),
     },
   };
 }
 
-function makeSettings(defaultProviderId: AiProviderId): SettingsSnapshot {
-  const providers = allProviderSettings();
+function makeSettings(
+  defaultProviderId: AiProviderId,
+  providerModelInputs: Record<AiProviderId, string> = DEFAULT_PROVIDER_MODEL_INPUTS,
+): SettingsSnapshot {
+  const providers = allProviderSettings(providerModelInputs);
   const selectedProvider = providers[defaultProviderId];
 
   return {
@@ -115,7 +130,10 @@ function makeSettings(defaultProviderId: AiProviderId): SettingsSnapshot {
   };
 }
 
-async function renderSettingsPage(defaultProviderId: AiProviderId): Promise<string> {
+async function renderSettingsPage(
+  defaultProviderId: AiProviderId,
+  providerModelOverrides: Partial<Record<AiProviderId, string>> = {},
+): Promise<string> {
   const providerTextInputMap = {
     openai: '',
     deepseek: '',
@@ -125,14 +143,9 @@ async function renderSettingsPage(defaultProviderId: AiProviderId): Promise<stri
     openrouter: '',
     'openai-compatible': '',
   };
-  const providerModelInputs = {
-    openai: 'gpt-4o-mini',
-    deepseek: 'deepseek-chat',
-    anthropic: 'claude-sonnet-4-5',
-    google: 'gemini-2.5-flash',
-    xai: 'grok-4-fast-non-reasoning',
-    openrouter: 'openai/gpt-4o-mini',
-    'openai-compatible': 'custom-model',
+  const providerModelInputs: Record<AiProviderId, string> = {
+    ...DEFAULT_PROVIDER_MODEL_INPUTS,
+    ...providerModelOverrides,
   };
   const startup: StartupStatus = {
     databaseReady: true,
@@ -145,7 +158,7 @@ async function renderSettingsPage(defaultProviderId: AiProviderId): Promise<stri
 
   return renderToStaticMarkup(
     <SettingsPage
-      settings={makeSettings(defaultProviderId)}
+      settings={makeSettings(defaultProviderId, providerModelInputs)}
       startup={startup}
       openAiCompatibleBaseUrlInput="https://provider.example/v1"
       providerModelInputs={providerModelInputs}
@@ -167,10 +180,14 @@ async function renderSettingsPage(defaultProviderId: AiProviderId): Promise<stri
 
 describe('SettingsPage provider flow', () => {
   it('renders only the selected hosted provider settings', async () => {
-    const html = await renderSettingsPage('anthropic');
+    const html = await renderSettingsPage('anthropic', {
+      anthropic: 'anthropic-render-test-model',
+    });
 
     expect(html).toContain('data-e2e="anthropic-provider-settings"');
     expect(html).toContain('data-e2e="anthropic-model-input"');
+    expect(html).toContain('value="anthropic-render-test-model"');
+    expect(html).not.toContain('data-e2e="openai-model-input"');
     expect(html).toContain('Save provider');
     expect(html).not.toContain('data-e2e="openai-provider-settings"');
     expect(html).not.toContain('data-e2e="openai-compatible-provider-settings"');
@@ -186,5 +203,17 @@ describe('SettingsPage provider flow', () => {
     expect(html).toContain('data-e2e="openai-compatible-provider-settings"');
     expect(html).toContain('data-e2e="openai-base-url-input"');
     expect(html).not.toContain('data-e2e="anthropic-provider-settings"');
+  });
+
+  it('keeps arbitrary OpenAI-compatible model IDs editable', async () => {
+    const html = await renderSettingsPage('openai-compatible', {
+      'openai-compatible': 'mock-review-model',
+    });
+
+    expect(html).toContain('data-e2e="openai-compatible-model-input"');
+    expect(html).toContain('value="mock-review-model"');
+    expect(html).toContain('AI SDK direct providers accept model IDs as strings');
+    expect(html).not.toContain('data-e2e="openai-compatible-model-select"');
+    expect(html).not.toContain('__custom_model__');
   });
 });
