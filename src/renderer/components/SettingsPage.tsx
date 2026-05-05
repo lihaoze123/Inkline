@@ -40,8 +40,7 @@ export function SettingsPage({
   onOpenAiCompatibleBaseUrlChange,
   onProviderModelChange,
   onApiKeyChange,
-  onSaveProviderConfig,
-  onSaveApiKey,
+  onSaveProviderSettings,
   onDeleteApiKey,
   onRawResponseStorageChange,
   onReviewThinkingChange,
@@ -49,6 +48,9 @@ export function SettingsPage({
 }: SettingsPageProps): React.JSX.Element {
   const aiModelSettings = settings.aiModelSettings;
   const defaultProviderId = aiModelSettings?.defaultProviderId ?? settings.providerId ?? 'openai-compatible';
+  const selectedProviderSettings = aiModelSettings?.providers[defaultProviderId];
+  const selectedProviderTitle = PROVIDER_LABELS[defaultProviderId];
+  const selectedCredentialStatus = getCredentialStatus(settings, defaultProviderId);
 
   return (
     <section className="flex min-h-0 flex-col" aria-labelledby="settings-page-title">
@@ -65,13 +67,12 @@ export function SettingsPage({
       <div className="scrollable min-h-0 flex-1 overflow-y-auto pr-1" style={{ scrollbarGutter: 'stable' }}>
         <div className="grid max-w-4xl gap-12 pb-8">
           <section>
-            <h2 className="editorial-copy text-2xl text-base-content">Global default</h2>
+            <h2 className="editorial-copy text-2xl text-base-content">AI provider</h2>
             <p className="mt-1 max-w-2xl text-sm leading-6 text-base-content/55">
-              This first UI version uses one global default provider/model. Feature-specific model overrides are
-              reserved internally for later.
+              Choose the provider first, then configure only the settings for that provider.
             </p>
-            <div className="mt-5 grid gap-5">
-              <FormRow label="Default provider" htmlFor="default-provider-select">
+            <div className="mt-5 grid gap-8">
+              <FormRow label="Provider" htmlFor="default-provider-select">
                 <select
                   id="default-provider-select"
                   className="select select-bordered w-full"
@@ -87,28 +88,18 @@ export function SettingsPage({
                   ))}
                 </select>
               </FormRow>
-            </div>
-          </section>
 
-          {PROVIDER_OPTIONS.map((option) => {
-            const providerSettings = aiModelSettings?.providers[option.value];
-            const credentialStatus = getCredentialStatus(settings, option.value);
-            const title = PROVIDER_LABELS[option.value];
-
-            return (
               <ProviderSettingsSection
-                key={option.value}
-                providerId={option.value}
-                title={title}
-                description={PROVIDER_DESCRIPTIONS[option.value]}
-                status={credentialStatus}
-                apiKeyInput={apiKeyInputs[option.value]}
+                providerId={defaultProviderId}
+                title={selectedProviderTitle}
+                description={PROVIDER_DESCRIPTIONS[defaultProviderId]}
+                status={selectedCredentialStatus}
+                apiKeyInput={apiKeyInputs[defaultProviderId]}
                 onApiKeyChange={onApiKeyChange}
-                onSaveApiKey={onSaveApiKey}
                 onDeleteApiKey={onDeleteApiKey}
-                onSaveSettings={() => onSaveProviderConfig(option.value)}
+                onSaveSettings={() => onSaveProviderSettings(defaultProviderId)}
               >
-                {option.value === 'openai-compatible' ? (
+                {defaultProviderId === 'openai-compatible' ? (
                   <FormRow
                     label="Base URL"
                     htmlFor="openai-base-url-input"
@@ -125,23 +116,16 @@ export function SettingsPage({
                     />
                   </FormRow>
                 ) : null}
-                <FormRow
-                  label="Model"
-                  htmlFor={`${option.value}-model-input`}
-                  helperText={providerSettings ? `Current saved model: ${providerSettings.model}` : undefined}
-                >
-                  <input
-                    id={`${option.value}-model-input`}
-                    className="input input-bordered w-full"
-                    value={providerModelInputs[option.value]}
-                    onChange={(event) => onProviderModelChange(option.value, event.target.value)}
-                    aria-label={`${title} model`}
-                    data-e2e={`${option.value}-model-input`}
-                  />
-                </FormRow>
+                <ProviderModelField
+                  providerId={defaultProviderId}
+                  title={selectedProviderTitle}
+                  value={providerModelInputs[defaultProviderId]}
+                  savedModel={selectedProviderSettings?.model}
+                  onChange={onProviderModelChange}
+                />
               </ProviderSettingsSection>
-            );
-          })}
+            </div>
+          </section>
 
           <section>
             <h2 className="editorial-copy text-2xl text-base-content">Review behavior</h2>
@@ -203,13 +187,10 @@ export function SettingsPage({
             <dl className="mt-5 grid gap-4 text-sm">
               <StatusRow label="Default provider" value={settings.provider} />
               <StatusRow label="Default model" value={settings.model} />
-              {PROVIDER_OPTIONS.map((option) => (
-                <StatusRow
-                  key={option.value}
-                  label={`${option.label} key`}
-                  value={formatProviderKeyStatus(getCredentialStatus(settings, option.value).status)}
-                />
-              ))}
+              <StatusRow
+                label={`${selectedProviderTitle} key`}
+                value={formatProviderKeyStatus(selectedCredentialStatus.status)}
+              />
               <StatusRow label="Local model" value={settings.isLocalModel ? 'Yes' : 'No'} />
               <StatusRow label="Review context" value={settings.reviewContextDescription} />
               <StatusRow label="Database" value={startup.databaseReady ? settings.databaseLocation : 'Unavailable'} />
@@ -235,6 +216,38 @@ export function SettingsPage({
   );
 }
 
+function ProviderModelField({
+  providerId,
+  title,
+  value,
+  savedModel,
+  onChange,
+}: {
+  providerId: AiProviderId;
+  title: string;
+  value: string;
+  savedModel?: string;
+  onChange: (providerId: AiProviderId, value: string) => void;
+}): React.JSX.Element {
+  const helperText = savedModel
+    ? `Current saved model: ${savedModel}. AI SDK direct providers accept model IDs as strings and do not expose a runtime model catalog.`
+    : 'AI SDK direct providers accept model IDs as strings and do not expose a runtime model catalog.';
+
+  return (
+    <FormRow label="Model" htmlFor={`${providerId}-model-input`} helperText={helperText}>
+      <input
+        id={`${providerId}-model-input`}
+        className="input input-bordered w-full"
+        value={value}
+        onChange={(event) => onChange(providerId, event.target.value)}
+        aria-label={`${title} model ID`}
+        placeholder={`Enter ${title} model ID`}
+        data-e2e={`${providerId}-model-input`}
+      />
+    </FormRow>
+  );
+}
+
 function ProviderSettingsSection({
   providerId,
   title,
@@ -243,7 +256,6 @@ function ProviderSettingsSection({
   apiKeyInput,
   children,
   onApiKeyChange,
-  onSaveApiKey,
   onDeleteApiKey,
   onSaveSettings,
 }: {
@@ -254,7 +266,6 @@ function ProviderSettingsSection({
   apiKeyInput: string;
   children: React.ReactNode;
   onApiKeyChange: (providerId: AiProviderId, value: string) => void;
-  onSaveApiKey: (providerId: AiProviderId) => void;
   onDeleteApiKey: (providerId: AiProviderId) => void;
   onSaveSettings: () => void;
 }): React.JSX.Element {
@@ -263,7 +274,7 @@ function ProviderSettingsSection({
   return (
     <section data-e2e={`${providerId}-provider-settings`}>
       <div>
-        <h2 className="editorial-copy text-2xl text-base-content">{title}</h2>
+        <h3 className="editorial-copy text-2xl text-base-content">{title}</h3>
         <p className="mt-1 text-sm text-base-content/50">
           Key status: {statusText}; storage: {status.storage}
         </p>
@@ -275,7 +286,7 @@ function ProviderSettingsSection({
         <FormRow
           label="API key"
           htmlFor={`${providerId}-api-key-input`}
-          helperText="API keys are stored through the OS keychain and never returned to the renderer."
+          helperText="API keys are stored through the OS keychain and never returned to the renderer. Leave blank to keep the saved key unchanged."
         >
           <input
             id={`${providerId}-api-key-input`}
@@ -297,16 +308,7 @@ function ProviderSettingsSection({
               data-e2e={`${providerId}-save-settings`}
               onClick={onSaveSettings}
             >
-              Save settings
-            </button>
-            <button
-              type="button"
-              className="btn btn-outline rounded-[0.7rem]"
-              disabled={apiKeyInput.trim().length === 0}
-              data-e2e={`${providerId}-save-api-key`}
-              onClick={() => onSaveApiKey(providerId)}
-            >
-              Save API key
+              Save provider
             </button>
             <button
               type="button"

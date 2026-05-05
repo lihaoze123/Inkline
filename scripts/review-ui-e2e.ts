@@ -317,15 +317,15 @@ async function dismissOnboarding(driver: DomDriver): Promise<void> {
 
 async function configureMockProvider(driver: DomDriver): Promise<void> {
   await driver.clickE2e('nav-settings');
-  await driver.waitForE2e('openai-base-url-input');
+  await driver.waitForE2e('default-provider-select');
   await driver.selectE2e('default-provider-select', 'openai-compatible');
+  await driver.waitForE2e('openai-base-url-input');
   await driver.fillE2e('openai-base-url-input', MOCK_BASE_URL);
-  await driver.fillE2e('openai-model-input', MOCK_MODEL);
-  await driver.clickE2e('openai-compatible-save-settings');
-  await driver.waitForText('OpenAI-compatible settings saved.');
+  await driver.waitForE2e('openai-compatible-model-input');
+  await driver.fillE2e('openai-compatible-model-input', MOCK_MODEL);
   await driver.fillE2e('openai-compatible-api-key-input', MOCK_API_KEY);
-  await driver.clickE2e('openai-compatible-save-api-key');
-  await driver.waitForText('Provider API key saved to the OS keychain.');
+  await driver.clickE2e('openai-compatible-save-settings');
+  await driver.waitForText('Custom OpenAI-compatible settings and API key saved.');
 }
 
 async function enterWritingAndStartReview(driver: DomDriver): Promise<void> {
