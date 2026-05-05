@@ -1,0 +1,8 @@
+{"file":".trellis/tasks/05-05-fix-headless-e2e-provider-settings-ci-failure/prd.md","reason":"Task requirements, root-cause analysis, NixOS local constraints, and chosen Secret Service runtime approach."}
+{"file":".trellis/spec/product/validation-and-testing.md","reason":"Deterministic mock UI e2e contract, headless Xvfb requirements, failure artifact privacy rules, and required e2e commands."}
+{"file":".trellis/spec/product/privacy-security.md","reason":"Provider credential handling contract: credentials must use keychain IPC path and e2e keychain service isolation."}
+{"file":".trellis/spec/frontend/ipc-electron.md","reason":"Settings IPC and credential mutation contract that the e2e must continue exercising through renderer UI/preload/main."}
+{"file":".trellis/spec/backend/environment.md","reason":"Electron dev/prod/userData environment isolation constraints relevant to e2e runtime environment setup."}
+{"file":".trellis/spec/backend/quality.md","reason":"Main process/import/testing quality guidance, including native settings/keychain side-effect constraints."}
+{"file":".trellis/spec/shared/code-quality.md","reason":"Mandatory code quality rules for any scripts/config changes and tests."}
+{"file":".trellis/spec/shared/typescript.md","reason":"TypeScript standards for exported helpers if implementation touches scripts/tests."}

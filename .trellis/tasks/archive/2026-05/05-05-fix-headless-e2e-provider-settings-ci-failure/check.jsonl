@@ -1,0 +1,7 @@
+{"file":".trellis/tasks/05-05-fix-headless-e2e-provider-settings-ci-failure/prd.md","reason":"Acceptance criteria and out-of-scope boundaries for checking the CI fix."}
+{"file":".trellis/spec/product/validation-and-testing.md","reason":"Verify deterministic mock UI e2e still uses Xvfb, real UI interaction, isolated app data, and sanitized diagnostics."}
+{"file":".trellis/spec/product/privacy-security.md","reason":"Verify credential/keychain handling remains secret-safe and does not introduce bypasses or leaked API keys."}
+{"file":".trellis/spec/frontend/ipc-electron.md","reason":"Verify settings and credential save path remains renderer UI -> preload IPC -> main/keychain."}
+{"file":".trellis/spec/backend/environment.md","reason":"Verify runtime environment changes do not violate Electron dev/test isolation."}
+{"file":".trellis/spec/shared/code-quality.md","reason":"Verify mandatory lint/type/code quality rules."}
+{"file":".trellis/spec/shared/typescript.md","reason":"Verify TypeScript standards if scripts/tests changed."}
