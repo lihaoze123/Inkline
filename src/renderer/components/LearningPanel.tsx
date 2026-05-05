@@ -34,10 +34,10 @@ export function LearningPanel({
     reviewState === 'reviewing'
       ? null
       : preview
-        ? 'Your focused review is ready when you want to inspect it.'
+        ? 'Focused review is ready.'
         : hasWritten
-          ? 'When the draft feels complete enough, ask for one focused note.'
-          : 'Write first. The coach will wait quietly.';
+          ? 'Ask for feedback when the draft is ready.'
+          : 'The coach waits until you write.';
 
   return (
     <aside
@@ -55,7 +55,7 @@ export function LearningPanel({
       {writing.pendingRewritePractice || completedRewritePractice ? (
         <details className="text-sm text-base-content/62" data-e2e="rewrite-practice-details">
           <summary className="cursor-pointer font-medium text-base-content/70" data-e2e="rewrite-practice-summary">
-            Rewrite practice is waiting
+            Rewrite practice
           </summary>
           <RewritePracticeCard
             practice={completedRewritePractice ?? writing.pendingRewritePractice}
@@ -95,7 +95,7 @@ export function LearningPanel({
       ) : null}
       {reviewError && preview ? (
         <div className="alert alert-error">
-          <span>{reviewError}</span>
+          <span className="selectable-content">{reviewError}</span>
         </div>
       ) : null}
     </aside>
@@ -106,15 +106,15 @@ const reviewPhases: ReviewProgressPhase[] = ['preparing', 'requesting', 'waiting
 
 const phaseLabels: Record<ReviewProgressPhase, string> = {
   preparing: 'Reading your draft',
-  requesting: 'Opening the coach notebook',
+  requesting: 'Sending the review request',
   waiting: 'Finding one useful pattern',
   checking: 'Checking the feedback',
-  building_preview: 'Preparing your rewrite practice',
+  building_preview: 'Preparing rewrite practice',
 };
 
 const phaseStepLabels: Record<ReviewProgressPhase, string> = {
   preparing: 'Read',
-  requesting: 'Open coach',
+  requesting: 'Send',
   waiting: 'Find pattern',
   checking: 'Check',
   building_preview: 'Prepare',
@@ -122,8 +122,8 @@ const phaseStepLabels: Record<ReviewProgressPhase, string> = {
 
 const phaseDescriptions: Record<ReviewProgressPhase, string> = {
   preparing: 'Reading the draft and practice context.',
-  requesting: 'Opening the review request after disclosure.',
-  waiting: 'The provider is preparing focused feedback.',
+  requesting: 'Sending the draft to your configured provider.',
+  waiting: 'Waiting for focused feedback.',
   checking: 'Checking anchors, confidence, and learning actions.',
   building_preview: 'Preparing the rewrite step for review.',
 };
@@ -138,9 +138,9 @@ function PanelCard({
   const toneClassName = {
     base: '',
     primary: '',
-    warning: 'border-l border-warning/40 pl-4',
+    warning: 'rounded-lg bg-warning/10 p-4',
     success: '',
-    error: 'border-l border-error/40 pl-4',
+    error: 'rounded-lg bg-error/10 p-4',
   }[tone];
 
   return <section className={toneClassName}>{children}</section>;
@@ -149,12 +149,10 @@ function PanelCard({
 function StaleReviewCard({ onReviewCurrentVersion }: { onReviewCurrentVersion: () => void }): React.JSX.Element {
   return (
     <PanelCard tone="warning">
-      <h3 className="font-semibold">Review is out of date</h3>
-      <p className="mt-2 text-sm leading-6 text-base-content/65">
-        This review is based on an earlier version of your writing.
-      </p>
+      <h3 className="font-semibold">Review is from an earlier draft</h3>
+      <p className="mt-2 text-sm leading-6 text-base-content/65">Run a fresh review before saving this version.</p>
       <button type="button" className="btn btn-warning btn-sm mt-4 rounded-xl" onClick={onReviewCurrentVersion}>
-        Review current version
+        Review current draft
       </button>
     </PanelCard>
   );
@@ -192,12 +190,12 @@ function RewritePracticeCard({
   return (
     <PanelCard tone="success">
       <div data-e2e="rewrite-practice-card">
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-success">D+1 rewrite practice</p>
-          <h3 className="mt-1 font-semibold">Practice this sentence</h3>
+        <div className="ui-chrome">
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-success">Next rewrite</p>
+          <h3 className="mt-1 font-semibold">Practice the saved pattern</h3>
           <p className="mt-1 text-xs text-base-content/45">{practice.spacedStage}</p>
         </div>
-        <div className="mt-4 space-y-3 text-sm leading-6 text-base-content/70">
+        <div className="selectable-content mt-4 space-y-3 text-sm leading-6 text-base-content/70">
           <p>
             <strong>Original:</strong> {practice.originalSentence}
           </p>
@@ -211,7 +209,7 @@ function RewritePracticeCard({
           aria-label="Your rewrite practice answer"
           value={inputValue}
           onChange={(event) => onInputChange(event.target.value)}
-          placeholder="Rewrite it in your own words."
+          placeholder="Rewrite the sentence in your own words."
           disabled={isCompleted || isCheckInProgress}
           data-e2e="rewrite-practice-input"
         />
@@ -237,26 +235,24 @@ function RewritePracticeCard({
           ) : null}
         </div>
         {isCheckInProgress ? (
-          <p className="mt-3 text-sm leading-6 text-base-content/55">
-            Checking whether the rewrite repairs the focus pattern...
-          </p>
+          <p className="mt-3 text-sm leading-6 text-base-content/55">Checking whether the pattern improved...</p>
         ) : null}
         {showNativeModel ? (
-          <p className="mt-4 rounded-xl bg-base-100 p-3 text-sm leading-6">
-            <strong>Native model:</strong> {practice.nativeModelSentence}
+          <p className="selectable-content mt-4 rounded-xl bg-base-100/55 p-3 text-sm leading-6">
+            <strong>Reference sentence:</strong> {practice.nativeModelSentence}
           </p>
         ) : (
-          <p className="mt-4 text-sm text-base-content/50">Native model stays hidden until you submit.</p>
+          <p className="ui-chrome mt-4 text-sm text-base-content/50">Reference sentence appears after you submit.</p>
         )}
         {latestCheck ? (
           <RewriteCheckFeedbackCard check={latestCheck} isChecking={isCheckInProgress} onRetryCheck={onRetryCheck} />
         ) : null}
         {practice.isOlderThanSevenDays ? (
-          <p className="mt-3 text-sm text-base-content/50">This older practice is de-prioritized from Today.</p>
+          <p className="ui-chrome mt-3 text-sm text-base-content/50">Older practice stays available here.</p>
         ) : null}
         {error ? (
           <div className="alert alert-error mt-4">
-            <span>{error}</span>
+            <span className="selectable-content">{error}</span>
           </div>
         ) : null}
       </div>
@@ -275,7 +271,7 @@ function RewriteCheckFeedbackCard({
 }): React.JSX.Element | null {
   if (isChecking || check.status === 'pending' || check.status === 'in_progress') {
     return (
-      <div className="mt-4 border-l border-primary/35 pl-4 text-sm leading-6 text-base-content/62">
+      <div className="ui-chrome mt-4 rounded-lg bg-primary/[0.05] p-3 text-sm leading-6 text-base-content/62">
         Checking your rewrite now. The rewrite is saved while the evaluator runs.
       </div>
     );
@@ -284,7 +280,7 @@ function RewriteCheckFeedbackCard({
   if (check.status === 'completed' && check.outcome) {
     const copy = rewriteOutcomeCopy(check.outcome);
     return (
-      <div className={`mt-4 border-l pl-4 text-sm leading-6 ${copy.className}`}>
+      <div className={`selectable-content mt-4 rounded-lg bg-base-100/45 p-3 text-sm leading-6 ${copy.className}`}>
         <p className="font-semibold text-base-content/78">{copy.title}</p>
         {check.feedback?.message ? <p className="mt-1 text-base-content/65">{check.feedback.message}</p> : null}
         {check.feedback?.nextStep ? <p className="mt-2 text-base-content/58">Next: {check.feedback.nextStep}</p> : null}
@@ -294,7 +290,7 @@ function RewriteCheckFeedbackCard({
 
   if (check.status === 'failed' || check.status === 'retryable') {
     return (
-      <div className="mt-4 border-l border-error/40 pl-4 text-sm leading-6 text-base-content/65">
+      <div className="selectable-content mt-4 rounded-lg bg-error/10 p-3 text-sm leading-6 text-base-content/65">
         <p className="font-semibold text-base-content/78">Rewrite saved, check did not finish.</p>
         <p className="mt-1">
           {check.errorMessage ?? 'The evaluator could not check this rewrite. Your submitted rewrite was preserved.'}
@@ -314,17 +310,17 @@ function rewriteOutcomeCopy(outcome: RewriteCheckOutcome): { title: string; clas
     case 'correct':
       return {
         title: 'Good repair.',
-        className: 'border-success/55',
+        className: 'text-success',
       };
     case 'partly_correct':
       return {
         title: 'Progress on the pattern.',
-        className: 'border-warning/55',
+        className: 'text-warning',
       };
     case 'incorrect':
       return {
         title: 'Keep this pattern in view.',
-        className: 'border-error/45',
+        className: 'text-error',
       };
   }
 }
@@ -428,10 +424,10 @@ function AfterWritingState({
 
   return (
     <PanelCard tone={failedCategory ? 'error' : 'primary'}>
-      {copy ? <p className="text-sm leading-6 text-base-content/60">{copy}</p> : null}
+      {copy ? <p className="selectable-content text-sm leading-6 text-base-content/60">{copy}</p> : null}
       {failedCategory ? (
         <p className="mt-2 text-sm leading-6 text-base-content/55">
-          Retry reviews the current editor content and creates a new review run.
+          Retry uses the current editor content and creates a fresh review.
         </p>
       ) : null}
       {reviewState === 'reviewing' ? (
@@ -445,7 +441,7 @@ function AfterWritingState({
           data-e2e="get-feedback-button"
           onClick={onReviewCurrentVersion}
         >
-          {failedCategory ? 'Retry current version' : 'Get Feedback'}
+          {failedCategory ? 'Retry review' : 'Review draft'}
         </button>
       )}
       <p className="mt-3 text-xs text-base-content/38">
@@ -466,8 +462,8 @@ function ReviewDetails({
   if (!reviewRun) {
     return fallbackErrorCategory ? (
       <details className="mt-4 text-sm text-base-content/65">
-        <summary className="cursor-pointer font-semibold text-base-content/72">Details</summary>
-        <dl className="mt-3 grid gap-2 text-base-content/65">
+        <summary className="cursor-pointer font-medium text-base-content/50">Technical details</summary>
+        <dl className="selectable-content mt-3 grid gap-2 text-base-content/65">
           <DetailRow label="Error category" value={fallbackErrorCategory} />
         </dl>
       </details>
@@ -479,7 +475,7 @@ function ReviewDetails({
   return (
     <details className="mt-4 text-sm text-base-content/65">
       <summary className="cursor-pointer font-semibold text-base-content/72">Details</summary>
-      <dl className="mt-3 grid gap-2 text-base-content/65">
+      <dl className="selectable-content mt-3 grid gap-2 text-base-content/65">
         <DetailRow label="Run id" value={reviewRun.id} mono />
         <DetailRow label="Provider" value={reviewRun.provider} />
         <DetailRow label="Model" value={reviewRun.model} />
@@ -527,7 +523,7 @@ function ReviewStatsDetails({ summary }: { summary: ReviewRunSummary }): React.J
   return (
     <div className="mt-4">
       <p className="font-semibold">Review stats</p>
-      <dl className="mt-3 grid gap-2 text-sm text-base-content/65">
+      <dl className="selectable-content mt-3 grid gap-2 text-sm text-base-content/65">
         <DetailRow label="Anchored" value={`${summary.reviewStats.anchoredCorrections}`} />
         <DetailRow label="Low confidence" value={`${summary.reviewStats.lowConfidenceCorrections}`} />
         <DetailRow label="Rewrite tasks" value={`${summary.reviewStats.generatedRewriteTasks}`} />
@@ -550,7 +546,7 @@ function ProviderDiagnosticsDetails({ diagnostics }: { diagnostics: AiProviderDi
   return (
     <div className="mt-4">
       <p className="font-semibold">Provider diagnostics</p>
-      <dl className="mt-3 grid gap-2 text-sm text-base-content/65">
+      <dl className="selectable-content mt-3 grid gap-2 text-sm text-base-content/65">
         <DetailRow label="Failure" value={diagnostics.failureKind ?? 'none'} />
         <DetailRow label="Finish" value={diagnostics.finishReason ?? 'not available'} />
         <DetailRow label="Raw finish" value={diagnostics.rawFinishReason ?? 'not available'} />
@@ -590,7 +586,7 @@ function PhaseTimingList({ summary }: { summary: ReviewRunSummary }): React.JSX.
   return (
     <div className="mt-4">
       <p className="font-semibold">Phase timings</p>
-      <dl className="mt-3 grid gap-2 text-sm text-base-content/65">
+      <dl className="selectable-content mt-3 grid gap-2 text-sm text-base-content/65">
         {reviewPhases.map((phase) => (
           <DetailRow
             key={phase}

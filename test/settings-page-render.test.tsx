@@ -212,7 +212,7 @@ describe('SettingsPage provider flow', () => {
 
     expect(html).toContain('data-e2e="openai-compatible-model-input"');
     expect(html).toContain('value="mock-review-model"');
-    expect(html).toContain('AI SDK direct providers accept model IDs as strings');
+    expect(html).toContain('Enter the exact model ID you want Inkline to use.');
     expect(html).not.toContain('data-e2e="openai-compatible-model-select"');
     expect(html).not.toContain('__custom_model__');
   });

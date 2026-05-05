@@ -14,13 +14,13 @@ const PROVIDER_LABELS: Record<AiProviderId, string> = {
 };
 
 const PROVIDER_DESCRIPTIONS: Record<AiProviderId, string> = {
-  openai: 'Use OpenAI hosted models with the official AI SDK OpenAI provider.',
-  deepseek: 'Use DeepSeek hosted models with provider-specific thinking controls.',
-  anthropic: "Use Anthropic's Claude models with a separate key.",
-  google: 'Use Google Gemini hosted models with documented thinking budget controls.',
-  xai: 'Use xAI Grok hosted models with documented reasoning effort controls.',
-  openrouter: 'Use OpenRouter model routes with the documented OpenRouter AI SDK provider.',
-  'openai-compatible': 'Use a custom OpenAI-compatible endpoint for local models, proxies, or unsupported providers.',
+  openai: 'Connect OpenAI for hosted writing feedback and starter prompts.',
+  deepseek: 'Connect DeepSeek when you want DeepSeek-hosted review models.',
+  anthropic: 'Connect Claude models for review and starter prompts.',
+  google: 'Connect Gemini models for review and starter prompts.',
+  xai: 'Connect Grok models for review and starter prompts.',
+  openrouter: 'Route review calls through OpenRouter with the model you choose.',
+  'openai-compatible': 'Use a local or self-hosted OpenAI-compatible endpoint.',
 };
 
 const PROVIDER_OPTIONS: { value: AiProviderId; label: string }[] = aiProviderIdSchema.options.map((value) => ({
@@ -54,13 +54,13 @@ export function SettingsPage({
 
   return (
     <section className="flex min-h-0 flex-col" aria-labelledby="settings-page-title">
-      <div className="mb-10 pb-2">
+      <div className="ui-chrome mb-10 pb-2">
         <p className="text-xs font-semibold uppercase tracking-[0.18em] text-primary/70">Settings</p>
         <h1 id="settings-page-title" className="editorial-heading mt-4 text-5xl text-base-content">
           AI provider
         </h1>
         <p className="mt-4 max-w-2xl text-base leading-7 text-base-content/60">
-          Configure the provider used for Coach feedback and optional starter prompts.
+          Choose the model provider Inkline uses when you ask for feedback or a starter prompt.
         </p>
       </div>
 
@@ -68,7 +68,7 @@ export function SettingsPage({
         <div className="grid max-w-4xl gap-12 pb-8">
           <section>
             <h2 className="editorial-copy text-2xl text-base-content">AI provider</h2>
-            <p className="mt-1 max-w-2xl text-sm leading-6 text-base-content/55">
+            <p className="ui-chrome mt-1 max-w-2xl text-sm leading-6 text-base-content/55">
               Choose the provider first, then configure only the settings for that provider.
             </p>
             <div className="mt-5 grid gap-8">
@@ -129,17 +129,17 @@ export function SettingsPage({
 
           <section>
             <h2 className="editorial-copy text-2xl text-base-content">Review behavior</h2>
-            <p className="mt-2 max-w-2xl text-sm leading-6 text-base-content/55">
-              Your writing stays local by default. Review sends the current writing, template context, and bounded
-              learning context to your configured provider.
+            <p className="ui-chrome mt-2 max-w-2xl text-sm leading-6 text-base-content/55">
+              Your writing stays local until you ask for feedback. Review sends only the current draft and bounded
+              learning context to the provider you configured.
             </p>
             <div className="mt-5 grid gap-5">
               <FormRow
                 label="Thinking"
                 htmlFor="review-thinking-toggle"
-                helperText="Off by default. Turning this on can make reviews much slower and may consume provider reasoning tokens."
+                helperText="Off by default. Enable only when your selected model benefits from reasoning mode."
               >
-                <label className="flex max-w-xl cursor-pointer items-start gap-3 border-l border-info/45 pl-4">
+                <label className="flex max-w-xl cursor-pointer items-start gap-3 rounded-lg bg-base-100/25 p-3">
                   <input
                     id="review-thinking-toggle"
                     className="toggle toggle-info mt-1"
@@ -147,15 +147,15 @@ export function SettingsPage({
                     checked={settings.reviewThinkingEnabled}
                     onChange={(event) => onReviewThinkingChange(event.target.checked)}
                   />
-                  <span className="font-medium">Enable thinking for review calls</span>
+                  <span className="font-medium">Use thinking for reviews</span>
                 </label>
               </FormRow>
               <FormRow
                 label="Raw responses"
                 htmlFor="raw-response-storage-toggle"
-                helperText="Raw responses may contain writing content and stay local unless explicitly exported later."
+                helperText="For troubleshooting only. Raw responses can include writing content and remain stored locally."
               >
-                <label className="flex max-w-xl cursor-pointer items-start gap-3 border-l border-warning/45 pl-4">
+                <label className="flex max-w-xl cursor-pointer items-start gap-3 rounded-lg bg-base-100/25 p-3">
                   <input
                     id="raw-response-storage-toggle"
                     className="toggle toggle-warning mt-1"
@@ -163,13 +163,13 @@ export function SettingsPage({
                     checked={settings.rawResponseStorageEnabled}
                     onChange={(event) => onRawResponseStorageChange(event.target.checked)}
                   />
-                  <span className="font-medium">Save raw model responses for debugging</span>
+                  <span className="font-medium">Keep raw model responses</span>
                 </label>
               </FormRow>
             </div>
           </section>
 
-          <section className="border-t border-base-300/60 pt-6" aria-labelledby="settings-welcome-title">
+          <section className="ui-chrome" aria-labelledby="settings-welcome-title">
             <h2 id="settings-welcome-title" className="sr-only">
               Welcome intro
             </h2>
@@ -182,9 +182,9 @@ export function SettingsPage({
             </button>
           </section>
 
-          <section>
-            <h2 className="editorial-copy text-2xl text-base-content">Status</h2>
-            <dl className="mt-5 grid gap-4 text-sm">
+          <details className="text-sm text-base-content/62">
+            <summary className="ui-chrome cursor-pointer font-medium text-base-content/55">Connection status</summary>
+            <dl className="mt-5 grid gap-4">
               <StatusRow label="Default provider" value={settings.provider} />
               <StatusRow label="Default model" value={settings.model} />
               <StatusRow
@@ -198,7 +198,7 @@ export function SettingsPage({
               <StatusRow label="pi-mono" value={settings.piMonoAuthStatus} />
               <StatusRow label="AnkiConnect" value={settings.ankiConnectStatus} />
             </dl>
-          </section>
+          </details>
 
           {message ? (
             <div className="alert alert-success">
@@ -207,7 +207,7 @@ export function SettingsPage({
           ) : null}
           {error ? (
             <div className="alert alert-error">
-              <span>{error}</span>
+              <span className="selectable-content">{error}</span>
             </div>
           ) : null}
         </div>
@@ -230,8 +230,8 @@ function ProviderModelField({
   onChange: (providerId: AiProviderId, value: string) => void;
 }): React.JSX.Element {
   const helperText = savedModel
-    ? `Current saved model: ${savedModel}. AI SDK direct providers accept model IDs as strings and do not expose a runtime model catalog.`
-    : 'AI SDK direct providers accept model IDs as strings and do not expose a runtime model catalog.';
+    ? `Current saved model: ${savedModel}. Enter the exact model ID you want Inkline to use.`
+    : 'Enter the exact model ID you want Inkline to use.';
 
   return (
     <FormRow label="Model" htmlFor={`${providerId}-model-input`} helperText={helperText}>
@@ -273,10 +273,10 @@ function ProviderSettingsSection({
 
   return (
     <section data-e2e={`${providerId}-provider-settings`}>
-      <div>
+      <div className="ui-chrome">
         <h3 className="editorial-copy text-2xl text-base-content">{title}</h3>
         <p className="mt-1 text-sm text-base-content/50">
-          Key status: {statusText}; storage: {status.storage}
+          Key: {statusText} · Storage: {status.storage}
         </p>
         <p className="mt-2 max-w-2xl text-sm leading-6 text-base-content/55">{description}</p>
       </div>
@@ -370,7 +370,7 @@ function StatusRow({ label, value }: { label: string; value: string }): React.JS
   return (
     <div className="grid gap-2 md:grid-cols-[10rem_minmax(0,36rem)]">
       <dt className="text-xs font-semibold uppercase tracking-[0.14em] text-base-content/40 md:pt-1">{label}</dt>
-      <dd className="max-w-xl break-words text-base-content/72">{value}</dd>
+      <dd className="selectable-content max-w-xl break-words text-base-content/72">{value}</dd>
     </div>
   );
 }

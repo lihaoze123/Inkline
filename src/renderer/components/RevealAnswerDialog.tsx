@@ -13,19 +13,21 @@ export function RevealAnswerDialog({ isOpen, onCancel, onReveal }: RevealAnswerD
         aria-modal="true"
         aria-labelledby="reveal-answer-title"
       >
-        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-primary/70">Try first?</p>
+        <p className="ui-chrome text-xs font-semibold uppercase tracking-[0.18em] text-primary/70">
+          Try your version first
+        </p>
         <h2 id="reveal-answer-title" className="mt-2 text-2xl font-semibold tracking-[-0.03em]">
-          Reveal model answer now?
+          Show the reference answer?
         </h2>
         <p className="mt-3 leading-7 text-base-content/65">
-          You can reveal it now, but self-repair works better when you try one sentence first.
+          You can show it now, but the rewrite is more useful after one attempt in your own words.
         </p>
         <div className="modal-action">
           <button type="button" className="btn btn-ghost rounded-2xl" onClick={onCancel}>
-            Keep trying
+            Keep writing
           </button>
           <button type="button" className="btn btn-primary rounded-2xl" onClick={onReveal}>
-            Reveal anyway
+            Show answer
           </button>
         </div>
       </section>

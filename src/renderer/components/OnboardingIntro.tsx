@@ -17,23 +17,23 @@ type OnboardingSlide = {
 const ONBOARDING_SLIDES: OnboardingSlide[] = [
   {
     id: 'entry',
-    title: 'Start with one quiet prompt',
-    body: 'Today gives you a calm entry into writing practice without a busy dashboard.',
-    visualLabel: 'Entry concept illustration',
+    title: 'Begin with one prompt',
+    body: 'Open the writing space and choose a focused direction before drafting.',
+    visualLabel: 'Writing entry preview',
     panel: 'entry',
   },
   {
     id: 'draft',
-    title: 'Write first, no interruptions',
-    body: 'Draft independently before the coach adds any correction or suggestion.',
-    visualLabel: 'Draft concept illustration',
+    title: 'Write before feedback',
+    body: 'Draft in English first. The coach waits until you ask for review.',
+    visualLabel: 'Drafting preview',
     panel: 'draft',
   },
   {
     id: 'review',
-    title: 'Review one pattern, then rewrite',
-    body: 'Feedback narrows to one transferable pattern and brings you back to a small rewrite.',
-    visualLabel: 'Review concept illustration',
+    title: 'Repair one pattern',
+    body: 'Review focuses on one reusable pattern, then brings you back to a short rewrite.',
+    visualLabel: 'Review and rewrite preview',
     panel: 'review',
   },
 ];
@@ -140,7 +140,7 @@ export function OnboardingIntro({ isDismissPending, error, onDismiss }: Onboardi
             Inkline
           </h1>
           <p id="welcome-intro-brand-description" className="mt-4 max-w-md text-base leading-7 text-base-content/58">
-            A quiet desk for focused English writing practice.
+            Focused English writing, review, and rewrite practice.
           </p>
           {prefersReducedMotion ? (
             <button
@@ -153,7 +153,7 @@ export function OnboardingIntro({ isDismissPending, error, onDismiss }: Onboardi
             </button>
           ) : null}
           {error ? (
-            <p className="mt-4 text-sm text-error" role="alert">
+            <p className="selectable-content mt-4 text-sm text-error" role="alert">
               {error}
             </p>
           ) : null}
@@ -205,7 +205,7 @@ export function OnboardingIntro({ isDismissPending, error, onDismiss }: Onboardi
                     data-e2e="onboarding-enter"
                     onClick={dismissIntro}
                   >
-                    {isDismissPending ? 'Entering...' : 'Enter Inkline'}
+                    {isDismissPending ? 'Opening...' : 'Start writing'}
                   </button>
                 ) : (
                   <button
@@ -221,7 +221,7 @@ export function OnboardingIntro({ isDismissPending, error, onDismiss }: Onboardi
               </div>
 
               {error ? (
-                <p className="mt-4 text-sm text-error" role="alert">
+                <p className="selectable-content mt-4 text-sm text-error" role="alert">
                   {error}
                 </p>
               ) : null}
@@ -254,7 +254,7 @@ function IntroVisual({ slide }: { slide: OnboardingSlide }): React.JSX.Element {
 function EntryPanel(): React.JSX.Element {
   return (
     <div className="grid min-h-[26rem] gap-6 p-5 md:grid-cols-[11rem_minmax(0,1fr)] md:p-7">
-      <div className="hidden border-r border-base-300/50 pr-5 md:block">
+      <div className="hidden rounded-lg bg-base-200/45 p-5 md:block">
         <p className="editorial-copy text-2xl text-base-content/72">Inkline</p>
         <div className="mt-8 grid gap-4 text-sm text-base-content/40">
           <span className="font-semibold text-primary">Today</span>
@@ -263,9 +263,9 @@ function EntryPanel(): React.JSX.Element {
         </div>
       </div>
       <div className="content-center">
-        <p className="text-sm text-base-content/45">Good morning.</p>
+        <p className="text-sm text-base-content/45">Writing prompt</p>
         <p className="editorial-heading mt-5 max-w-lg text-4xl leading-[1.08] text-base-content">
-          Describe one small decision you made today.
+          Describe a real moment from today that stayed with you.
         </p>
         <div className="mt-8 h-10 w-36 rounded-[0.65rem] bg-primary/90" />
       </div>
@@ -279,14 +279,14 @@ function DraftPanel(): React.JSX.Element {
       <div className="flex flex-col">
         <p className="text-xs font-semibold uppercase tracking-[0.14em] text-primary/65">Practice</p>
         <p className="editorial-heading mt-4 text-3xl leading-tight text-base-content">
-          Write about one idea you want to express clearly.
+          Develop one idea in clear English.
         </p>
         <div className="mt-5 flex items-center gap-3 text-xs text-base-content/40">
           <span>Free Writing</span>
-          <span aria-hidden="true">|</span>
+          <span aria-hidden="true">·</span>
           <span>Draft</span>
         </div>
-        <div className="mt-4 flex-1 border border-base-300/70 bg-base-100 p-5">
+        <div className="mt-4 flex-1 rounded-lg bg-base-100/52 p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.7)]">
           <div className="grid gap-3">
             <span className="h-2 w-11/12 rounded-full bg-base-content/12" />
             <span className="h-2 w-10/12 rounded-full bg-base-content/10" />
@@ -296,9 +296,9 @@ function DraftPanel(): React.JSX.Element {
           </div>
         </div>
       </div>
-      <div className="hidden border-l border-base-300/50 pl-5 text-sm text-base-content/42 md:block">
+      <div className="hidden rounded-lg bg-base-200/45 p-5 text-sm text-base-content/42 md:block">
         <p className="font-medium text-base-content/55">Coach</p>
-        <p className="mt-4 leading-6">Available after your draft.</p>
+        <p className="mt-4 leading-6">Ready when you ask for feedback.</p>
       </div>
     </div>
   );
@@ -320,14 +320,14 @@ function ReviewPanel(): React.JSX.Element {
           <p className="editorial-copy text-xl text-base-content/70">Original draft</p>
           <div className="mt-4 grid gap-3">
             <span className="h-2 w-11/12 rounded-full bg-base-content/10" />
-            <span className="h-2 w-8/12 rounded-full bg-warning/45" />
+            <span className="h-2 w-8/12 rounded-full bg-warning/42" />
             <span className="h-2 w-10/12 rounded-full bg-base-content/10" />
           </div>
         </div>
       </div>
-      <div className="border border-base-300/70 bg-base-100 p-5">
+      <div className="rounded-lg bg-base-100/52 p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.7)]">
         <p className="editorial-copy text-2xl text-base-content">Try rewriting</p>
-        <p className="mt-3 text-sm text-base-content/46">Your rewrite</p>
+        <p className="mt-3 text-sm text-base-content/46">Your repair</p>
         <div className="mt-5 grid gap-3">
           <span className="h-2 w-10/12 rounded-full bg-base-content/10" />
           <span className="h-2 w-8/12 rounded-full bg-base-content/10" />

@@ -348,7 +348,7 @@ async function enterWritingAndStartReview(driver: DomDriver): Promise<void> {
 async function saveFocusedFeedback(driver: DomDriver): Promise<void> {
   await driver.clickE2e('open-focused-review-button');
   await driver.waitForE2e('feedback-page');
-  await driver.waitForText('Feedback & Rewrite');
+  await driver.waitForText('Feedback & rewrite');
   await driver.waitForText('Original draft');
   await driver.waitForText('Try rewriting');
   await driver.fillE2e('self-repair-rewrite-input', E2E_UI_SELF_REPAIR_REWRITE);
@@ -365,7 +365,7 @@ async function completeRewritePractice(driver: DomDriver): Promise<void> {
   await driver.waitForE2eEnabled('rewrite-practice-submit', CDP_WAIT_TIMEOUT_MS);
   await driver.clickE2e('rewrite-practice-submit');
   await driver.waitForText('Good repair.', REWRITE_CHECK_TIMEOUT_MS);
-  await driver.waitForText('Native model:', CDP_WAIT_TIMEOUT_MS);
+  await driver.waitForText('Reference sentence:', CDP_WAIT_TIMEOUT_MS);
 }
 
 async function captureFailureDiagnostics(cdp: CdpClient): Promise<{

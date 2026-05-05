@@ -23,9 +23,9 @@ export function WritingEditorCard({
   return (
     <section className="flex min-h-0 flex-col" aria-labelledby="writing-editor-title">
       {isStarterPromptVisible ? (
-        <div className="flex flex-col gap-3 pb-3 text-sm text-base-content/58">
+        <div className="ui-chrome flex flex-col gap-3 pb-3 text-sm text-base-content/58">
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <p className="leading-6 text-base-content/55">Need a starting point?</p>
+            <p className="leading-6 text-base-content/55">Want a prompt?</p>
             <div className="flex flex-wrap gap-2">
               <button
                 type="button"
@@ -36,12 +36,12 @@ export function WritingEditorCard({
                 {starterPromptState === 'generating' ? (
                   <>
                     <span className="loading loading-spinner loading-xs" />
-                    Preparing...
+                    Drafting...
                   </>
                 ) : generatedPrompt ? (
-                  'Regenerate'
+                  'Refresh prompt'
                 ) : (
-                  'Generate starter'
+                  'Create prompt'
                 )}
               </button>
               <button type="button" className="btn btn-ghost btn-sm rounded-xl" onClick={onSkipStarterPrompt}>
@@ -55,36 +55,36 @@ export function WritingEditorCard({
               className="cursor-pointer select-none text-xs text-base-content/45 transition hover:text-base-content/70"
               data-e2e="starter-goal-summary"
             >
-              Starter prompt and optional goal
+              Prompt and goal
             </summary>
             <div className="mt-4 grid gap-4">
               {generatedPrompt ? (
-                <p className="max-w-3xl text-sm leading-6 text-base-content/70">{generatedPrompt.text}</p>
+                <p className="selectable-content max-w-3xl text-sm leading-6 text-base-content/70">
+                  {generatedPrompt.text}
+                </p>
               ) : (
                 <p className="max-w-xl text-sm leading-6 text-base-content/50">
-                  Generate a starter topic, skip it, or write from your own intention.
+                  Create a prompt, add a goal, or begin with your own idea.
                 </p>
               )}
               <label className="form-control">
-                <span className="label-text text-sm font-medium text-base-content/70">
-                  Optional goal/topic for review context
-                </span>
+                <span className="label-text text-sm font-medium text-base-content/70">Practice goal</span>
                 <input
                   className="input input-bordered mt-2 w-full bg-base-100/55"
                   value={userGoal}
                   onChange={(event) => onUserGoalChange(event.target.value)}
-                  placeholder="Example: practice giving reasons, describing a memory, or responding to a CET topic."
+                  placeholder="e.g. clarify an argument, describe a memory, or answer a CET topic"
                   data-e2e="writing-goal-input"
                 />
               </label>
             </div>
           </details>
           {starterPromptError ? (
-            <div className="border-l border-error/40 py-1 pl-4 text-sm leading-6 text-error">
-              <span>{starterPromptError}</span>
+            <div className="flex flex-wrap items-center gap-3 py-1 text-sm leading-6 text-error">
+              <span className="selectable-content">{starterPromptError}</span>
               <button
                 type="button"
-                className="btn btn-outline btn-error btn-xs ml-3 rounded-lg"
+                className="btn btn-outline btn-error btn-xs rounded-lg"
                 onClick={onGenerateStarterPrompt}
               >
                 Retry
@@ -94,7 +94,7 @@ export function WritingEditorCard({
         </div>
       ) : null}
 
-      <div className="flex flex-col gap-1 pb-2 text-xs text-base-content/38 sm:flex-row sm:items-center sm:justify-between">
+      <div className="ui-chrome flex flex-col gap-1 pb-2 text-xs text-base-content/38 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex flex-wrap items-center gap-2">
           <details className="group relative text-base-content/45">
             <summary className="flex cursor-pointer list-none items-center gap-2 transition hover:text-base-content/70 [&::-webkit-details-marker]:hidden">
@@ -102,7 +102,7 @@ export function WritingEditorCard({
               <span className="text-primary/70 group-open:hidden">Change</span>
               <span className="hidden text-primary/70 group-open:inline">Close</span>
             </summary>
-            <div className="absolute left-0 z-20 mt-2 grid min-w-36 gap-2 rounded-xl border border-base-300 bg-base-100 p-3 shadow-sm">
+            <div className="absolute left-0 z-20 mt-2 grid min-w-36 gap-2 rounded-xl bg-base-100 p-3 shadow-[0_12px_26px_rgba(72,60,42,0.08)]">
               {templates.map((candidate) => (
                 <button
                   key={candidate.id}
@@ -115,8 +115,8 @@ export function WritingEditorCard({
               ))}
             </div>
           </details>
-          <span aria-hidden="true" className="text-base-content/25">
-            |
+          <span aria-hidden="true" className="text-base-content/22">
+            ·
           </span>
           <h2 id="writing-editor-title" className="font-normal">
             Draft
@@ -132,12 +132,14 @@ export function WritingEditorCard({
         className="writing-practice-surface paper-sheet mt-4 min-h-[38rem] flex-1 resize-none p-10 text-base-content outline-none transition placeholder:text-base-content/35 focus:border-primary/35 lg:min-h-0"
         value={content}
         onChange={(event) => onContentChange(event.target.value)}
-        placeholder="Write in English. No corrections while you write."
+        placeholder="Start drafting in English. The coach waits until you ask for feedback."
         aria-label={`${template.title} writing practice editor`}
         data-e2e="writing-editor"
         spellCheck={false}
       />
-      <p className="mt-3 py-1 text-right text-xs text-base-content/35">Write first. Feedback later.</p>
+      <p className="ui-chrome mt-3 py-1 text-right text-xs text-base-content/35">
+        Feedback is available when your draft is ready.
+      </p>
     </section>
   );
 }
