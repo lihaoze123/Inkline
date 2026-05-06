@@ -155,6 +155,26 @@ describe('learning-assets evidence summaries', () => {
     });
   });
 
+  it('advances to transferred once when a weak D+3 outcome is later recovered to correct', () => {
+    const evidence = derivePatternEvidenceSummaries([
+      completedCheckRow('correct', 10),
+      completedCheckRow('incorrect', 20, {
+        rewriteTaskId: 'rewrite_d3',
+        practiceKind: 'new_context_reuse',
+        spacedStage: 'D+3',
+      }),
+      completedCheckRow('correct', 30, {
+        rewriteTaskId: 'rewrite_d3',
+        practiceKind: 'new_context_reuse',
+        spacedStage: 'D+3',
+      }),
+    ]).get('pattern_tense');
+
+    expect(evidence).toMatchObject({
+      stage: 'transferred_once',
+    });
+  });
+
   it('derives stable after spaced reuse from a latest completed D+7 new-context correct check', () => {
     const evidence = derivePatternEvidenceSummaries([
       completedCheckRow('correct', 10),
@@ -197,6 +217,31 @@ describe('learning-assets evidence summaries', () => {
 
     expect(evidence).toMatchObject({
       stage: 'transferred_once',
+    });
+  });
+
+  it('advances to stable after spaced reuse when a weak D+7 outcome is later recovered to correct', () => {
+    const evidence = derivePatternEvidenceSummaries([
+      completedCheckRow('correct', 10),
+      completedCheckRow('correct', 20, {
+        rewriteTaskId: 'rewrite_d3',
+        practiceKind: 'new_context_reuse',
+        spacedStage: 'D+3',
+      }),
+      completedCheckRow('partly_correct', 30, {
+        rewriteTaskId: 'rewrite_d7',
+        practiceKind: 'new_context_reuse',
+        spacedStage: 'D+7',
+      }),
+      completedCheckRow('correct', 40, {
+        rewriteTaskId: 'rewrite_d7',
+        practiceKind: 'new_context_reuse',
+        spacedStage: 'D+7',
+      }),
+    ]).get('pattern_tense');
+
+    expect(evidence).toMatchObject({
+      stage: 'stable_after_spaced_reuse',
     });
   });
 

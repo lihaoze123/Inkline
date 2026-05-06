@@ -265,7 +265,8 @@ Lifecycle semantics:
 Retry semantics:
 
 - `partly_correct` and `incorrect` do not advance spaced stage.
-- Retry stays within the same rewrite task and creates additional `rewrite_checks` attempts.
+- Learner recovery after a completed `partly_correct` or `incorrect` outcome stays within the same rewrite task and creates additional `rewrite_checks` attempts through `completeRewritePractice` with revised text.
+- Provider retry for `failed` or `retryable` evaluator attempts stays on `retryRewriteCheck` and reuses the saved rewrite text.
 - The first transfer-evidence version should not create a separate retry/drill task.
 - The current evidence state is derived from the latest completed check while preserving attempt history for diagnostics.
 
@@ -343,6 +344,8 @@ rewrite_checks.created_at/updated_at/completed_at Unix milliseconds
 
 - `completeRewritePractice` trims and validates non-empty `userRewriteText`.
 - Submit must persist `rewrite_tasks.user_rewrite_text` and set the task status to `completed` before the evaluator call starts.
+- A completed rewrite task is recoverable only when its latest completed check outcome is `partly_correct` or `incorrect`; recovery updates the saved rewrite text, refreshes `completed_at`, and appends a new `rewrite_checks` attempt on the same task.
+- Completed tasks whose latest completed check outcome is `correct`, plus skipped or expired tasks, remain no-op for `completeRewritePractice`.
 - The evaluator prompt includes the original sentence, focus pattern, native model sentence, practice prompt, and submitted rewrite. Treat all task/user text as delimited untrusted content and require structured JSON output.
 - A successful evaluator attempt writes one `rewrite_checks` row with `status: 'completed'`, non-null `outcome`, feedback, provider/model metadata when available, and no validation errors.
 - Provider configuration, network, timeout, or invalid model-output failures must still create/update a `rewrite_checks` row with `status: 'retryable'`, `outcome: null`, a safe `errorMessage`, and bounded redacted diagnostics.
@@ -385,7 +388,9 @@ D+3/D+7 new-context reuse follows these staged transfer contracts:
 | `userRewriteText` is empty after trim | Return `{ success: false, error }`; do not create a check attempt. |
 | `rewriteTaskId` is unknown | Return `{ success: false, error: 'Rewrite practice was not found.' }`. |
 | Submit receives a pending/in-progress task | Save trimmed rewrite text, mark task `completed`, then run evaluator synchronously. |
-| Submit receives an already terminal task | Return current writing/practice snapshot; do not create another check attempt. |
+| Submit receives a completed task whose latest completed check is `partly_correct` or `incorrect` | Save the revised text on the same task, update `completed_at`, create a new check attempt, and return the updated snapshot. |
+| Submit receives a completed task whose latest completed check is `correct` | Return current writing/practice snapshot; do not create another check attempt. |
+| Submit receives a skipped or expired task | Return current writing/practice snapshot; do not create another check attempt. |
 | Submit mutation is pending | Disable rewrite input and actions; show checking copy. |
 | Persisted check status is `pending` or `in_progress` | Treat the card as checking even after renderer reload. |
 | Evaluator returns `correct`, `partly_correct`, or `incorrect` with feedback | Persist `rewrite_checks.status = 'completed'`, outcome, and feedback; expose it as `latestRewriteCheck`. |
@@ -419,6 +424,9 @@ D+3/D+7 new-context reuse follows these staged transfer contracts:
 - Failure tests: provider/config/network/timeout failure preserves the rewrite and persists a retryable check with redacted diagnostics.
 - Validation test: invalid evaluator output persists a retryable check with validation errors and no outcome.
 - Retry test: retry after failure reuses saved `userRewriteText`, creates a second check attempt, and returns the latest check.
+- Recovery tests: completed `partly_correct` and `incorrect` checks can be revised through `completeRewritePractice`, append check attempts, update saved text, and preserve the same rewrite task.
+- Recovery tests: completed `correct`, skipped, and expired tasks do not create recovery checks.
+- Recovery tests: D+1 and D+3 weak outcomes recovered to `correct` generate D+3/D+7 exactly once; D+7 recovery to `correct` advances evidence without creating later tasks.
 - Contract test: shared schemas reject completed checks without outcomes and non-completed checks with outcomes.
 - Renderer query/cache tests assert completion results write persisted `latestRewriteCheck` feedback into the template-scoped cache.
 - Renderer query/cache tests assert retry results update cached rewrite feedback when the response includes `writing` and `rewritePractice`.

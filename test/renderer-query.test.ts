@@ -328,6 +328,74 @@ describe('renderer query configuration', () => {
     });
   });
 
+  it('updates cached completed rewrite practice after a learner recovery result', () => {
+    const queryClient = createRendererQueryClient();
+    const weakCheck: RewriteCheckSnapshot = {
+      id: 'rewrite-check-weak',
+      rewriteTaskId: 'rewrite-1',
+      status: 'completed',
+      outcome: 'partly_correct',
+      feedback: { message: 'Partly repaired.' },
+      provider: 'OpenAI-compatible',
+      model: 'gpt-4o-mini',
+      validationErrors: null,
+      errorMessage: null,
+      diagnostics: null,
+      createdAt: 1777546800000,
+      updatedAt: 1777546800000,
+      completedAt: 1777546800000,
+    };
+    const recoveryCheck: RewriteCheckSnapshot = {
+      ...weakCheck,
+      id: 'rewrite-check-recovery',
+      outcome: 'correct',
+      feedback: { message: 'The revision repairs the focus pattern.' },
+      updatedAt: 1777546920000,
+      completedAt: 1777546920000,
+    };
+    const recoverableRewritePractice: NonNullable<WritingAttemptSnapshot['pendingRewritePractice']> = {
+      id: 'rewrite-1',
+      reviewRunId: 'review-run-1',
+      originalSentence: 'it can make people more confidence',
+      focusPattern: 'make + object + adjective',
+      nativeModelSentence: 'it can make people more confident',
+      prompt: 'Rewrite the sentence with the adjective form.',
+      practiceKind: 'rewrite_original',
+      spacedStage: 'D+1',
+      status: 'completed',
+      userRewriteText: 'it can make people more confidence',
+      latestRewriteCheck: weakCheck,
+      dueAt: 1777546800000,
+      createdAt: 1777460400000,
+      isOlderThanSevenDays: false,
+    };
+
+    queryClient.setQueryData(queryKeys.writing.attempt('cet4'), {
+      ...makeWritingAttempt(),
+      pendingRewritePractice: recoverableRewritePractice,
+    });
+
+    updateRewritePracticeCache(queryClient, {
+      success: true,
+      rewritePractice: {
+        ...recoverableRewritePractice,
+        userRewriteText: 'it can make people more confident',
+        latestRewriteCheck: recoveryCheck,
+      },
+    });
+
+    expect(queryClient.getQueryData<WritingAttemptSnapshot>(queryKeys.writing.attempt('cet4'))).toMatchObject({
+      pendingRewritePractice: {
+        userRewriteText: 'it can make people more confident',
+        latestRewriteCheck: {
+          status: 'completed',
+          outcome: 'correct',
+          feedback: { message: 'The revision repairs the focus pattern.' },
+        },
+      },
+    });
+  });
+
   it('updates cached latest rewrite check when retry result omits writing snapshot', () => {
     const queryClient = createRendererQueryClient();
     const retryableCheck: RewriteCheckSnapshot = {

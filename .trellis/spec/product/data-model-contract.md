@@ -407,7 +407,7 @@ D+3/D+7 generation must be progressive:
 - Create D+7 only after D+3 `correct`.
 - Do not create future spaced tasks before the prior success signal exists.
 
-`partly_correct` and `incorrect` keep the learner in the same phase and allow retry. Retry remains within the same rewrite task. Each retry appends a `rewrite_checks` attempt; do not generate a separate retry task for the first transfer-evidence version.
+`partly_correct` and `incorrect` keep the learner in the same phase and allow recovery. Learner recovery remains within the same rewrite task, updates the task's saved `user_rewrite_text`, and appends a `rewrite_checks` attempt through `completeRewritePractice`. Provider retry for `failed` or `retryable` checks remains on `retryRewriteCheck` and reuses the saved rewrite text. Do not generate a separate retry task for the first transfer-evidence version.
 
 ## Scenario: D+3/D+7 New-Context Reuse
 
@@ -894,7 +894,8 @@ Future review input comes from the semantic pattern archive owned by the app.
 - Skipping a task sets `status = 'skipped'`, sets `skipped_at`, returns a fresh writing snapshot, and removes the card from the pending Practice slot.
 - Snoozing a task sets `status = 'snoozed'`, moves `due_at` one day forward from the current time, returns a fresh writing snapshot, removes the card from the pending Practice slot, and creates no `rewrite_checks` row.
 - Due snoozed tasks may return to the Practice slot when `due_at <= now`; they remain lifecycle state only and do not advance learning evidence.
-- Terminal tasks (`completed`, `skipped`, `expired`) are no-op for complete/skip/snooze requests: return success with the current task snapshot and do not duplicate transitions or create check attempts.
+- Terminal `skipped` and `expired` tasks are no-op for complete/skip/snooze requests: return success with the current task snapshot and do not duplicate transitions or create check attempts.
+- Terminal `completed` tasks are no-op for skip/snooze. For complete, a completed task is a learner-recovery target only when its latest completed `rewrite_checks.outcome` is `partly_correct` or `incorrect`; recovery updates `user_rewrite_text`, refreshes `completed_at`, and appends a new check attempt on the same task.
 - All timestamp fields crossing IPC are Unix milliseconds numbers, not ISO strings.
 
 ### 4. Validation & Error Matrix
@@ -909,7 +910,9 @@ Future review input comes from the semantic pattern archive owned by the app.
 | Pending/in-progress/snoozed task is older than 7 days | Mark `expired`; do not occupy the main Practice rewrite slot. |
 | Complete input has blank `userRewriteText` | Return `{ success: false, error }`; do not update the task. |
 | Complete/skip/snooze task ID is missing | Return `{ success: false, error: 'Rewrite practice was not found.' }`. |
-| Complete/skip/snooze task is already terminal | Return success with the current task snapshot and no duplicate status transition. |
+| Complete task is completed with latest completed check `partly_correct` or `incorrect` | Save revised text, refresh `completed_at`, append one `rewrite_checks` attempt, and keep task status `completed`. |
+| Complete task is completed with latest completed check `correct` | Return success with the current task snapshot and no duplicate check attempt. |
+| Complete/skip/snooze task is skipped or expired | Return success with the current task snapshot and no duplicate status transition. |
 | Snooze request succeeds | Set status `snoozed`, set `due_at = now + 1 day`, return fresh writing snapshot, and do not create rewrite-check rows. |
 | Snoozed task is not due yet | Do not surface it in `pendingRewritePractice`. |
 | Snoozed task is due | It may occupy the Practice rewrite slot like other actionable D+1 work. |
@@ -1089,6 +1092,7 @@ type RetryRewriteCheckResult = {
 - Good: Completing rewrite practice returns the completed practice snapshot and, when a completed check row exists, `latestRewriteCheck` with outcome, concise feedback, provider, model, and millisecond timestamps.
 - Base: A rewrite task with no checks still completes/skips exactly as before and exposes `latestRewriteCheck: null`.
 - Base: A retryable check stores `status = 'retryable'`, `outcome = null`, and diagnostic/error metadata for later retry/debugging.
+- Base: A completed weak outcome can be followed by a revised learner submission on the same rewrite task, producing a later completed check that becomes decisive for evidence.
 - Bad: Adding `check_outcome` or feedback columns directly to `rewrite_tasks`, so repeated attempts overwrite history.
 - Bad: Treating a `retryable` check as `incorrect`; evaluator failure and learner outcome are different states.
 

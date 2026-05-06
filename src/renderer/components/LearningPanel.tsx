@@ -193,8 +193,10 @@ function RewritePracticeCard({
   const isCompleted = practice.status === 'completed';
   const isTerminal = isCompleted || practice.status === 'skipped' || practice.status === 'expired';
   const isCheckInProgress = isChecking || latestCheck?.status === 'pending' || latestCheck?.status === 'in_progress';
-  const canAct = !isTerminal;
-  const canSubmit = inputValue.trim().length > 0 && canAct && !isCheckInProgress;
+  const isRecoverable = isRecoverableRewritePractice(practice);
+  const canEditAnswer = (!isTerminal || isRecoverable) && !isCheckInProgress;
+  const canLifecycleAct = !isTerminal;
+  const canSubmit = inputValue.trim().length > 0 && canEditAnswer;
   const showNativeModel = !isNewContextReuse && isCompleted && Boolean(practice.userRewriteText);
 
   return (
@@ -228,7 +230,7 @@ function RewritePracticeCard({
           placeholder={
             isNewContextReuse ? 'Write a fresh sentence in a new context.' : 'Rewrite the sentence in your own words.'
           }
-          disabled={!canAct || isCheckInProgress}
+          disabled={!canEditAnswer}
           data-e2e="rewrite-practice-input"
         />
         <div className="mt-4 flex flex-wrap gap-2">
@@ -243,15 +245,19 @@ function RewritePracticeCard({
               ? isNewContextReuse
                 ? 'Checking transfer...'
                 : 'Checking rewrite...'
-              : isCompleted
+              : isRecoverable
                 ? isNewContextReuse
-                  ? 'Answer submitted'
-                  : 'Rewrite submitted'
-                : isNewContextReuse
-                  ? 'Submit answer'
-                  : 'Submit rewrite'}
+                  ? 'Revise new-context answer and check again'
+                  : 'Revise and check again'
+                : isCompleted
+                  ? isNewContextReuse
+                    ? 'Answer submitted'
+                    : 'Rewrite submitted'
+                  : isNewContextReuse
+                    ? 'Submit answer'
+                    : 'Submit rewrite'}
           </button>
-          {canAct ? (
+          {canLifecycleAct ? (
             <>
               <button
                 type="button"
@@ -285,7 +291,7 @@ function RewritePracticeCard({
           <p className="selectable-content mt-4 rounded-xl bg-base-100/55 p-3 text-sm leading-6">
             <strong>Reference sentence:</strong> {practice.nativeModelSentence}
           </p>
-        ) : canAct && !isNewContextReuse ? (
+        ) : canLifecycleAct && !isNewContextReuse ? (
           <p className="ui-chrome mt-4 text-sm text-base-content/50">Reference sentence appears after you submit.</p>
         ) : null}
         {practice.status === 'expired' ? (
@@ -372,6 +378,17 @@ function RewriteCheckFeedbackCard({
   }
 
   return null;
+}
+
+function isRecoverableRewritePractice(
+  practice: NonNullable<WritingAttemptSnapshot['pendingRewritePractice']>,
+): boolean {
+  const latestCheck = practice.latestRewriteCheck;
+  return (
+    practice.status === 'completed' &&
+    latestCheck?.status === 'completed' &&
+    (latestCheck.outcome === 'partly_correct' || latestCheck.outcome === 'incorrect')
+  );
 }
 
 function rewriteOutcomeCopy(

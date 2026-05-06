@@ -24,7 +24,11 @@ function writingWithPractice(
   };
 }
 
-function renderLearningPanel(writing: WritingAttemptSnapshot, rewritePracticeInput = ''): string {
+function renderLearningPanel(
+  writing: WritingAttemptSnapshot,
+  rewritePracticeInput = '',
+  completedRewritePractice: WritingAttemptSnapshot['pendingRewritePractice'] = null,
+): string {
   return renderToStaticMarkup(
     <LearningPanel
       writing={writing}
@@ -37,7 +41,7 @@ function renderLearningPanel(writing: WritingAttemptSnapshot, rewritePracticeInp
       preview={null}
       onOpenFeedback={() => undefined}
       rewritePracticeInput={rewritePracticeInput}
-      completedRewritePractice={null}
+      completedRewritePractice={completedRewritePractice}
       rewritePracticeError={null}
       isRewritePracticeChecking={false}
       onRewritePracticeInputChange={() => undefined}
@@ -48,6 +52,45 @@ function renderLearningPanel(writing: WritingAttemptSnapshot, rewritePracticeInp
       onReviewCurrentVersion={() => undefined}
     />,
   );
+}
+
+function completedPracticeWithOutcome(
+  outcome: 'correct' | 'partly_correct' | 'incorrect',
+  practiceKind: NonNullable<WritingAttemptSnapshot['pendingRewritePractice']>['practiceKind'] = 'rewrite_original',
+): NonNullable<WritingAttemptSnapshot['pendingRewritePractice']> {
+  const isNewContextReuse = practiceKind === 'new_context_reuse';
+  return {
+    id: isNewContextReuse ? 'rewrite_d3' : 'rewrite_1',
+    reviewRunId: 'review_1',
+    originalSentence: isNewContextReuse ? 'New-context reuse practice' : 'I go home.',
+    focusPattern: 'Use past tense for completed actions.',
+    nativeModelSentence: isNewContextReuse ? '' : 'I went home.',
+    prompt: isNewContextReuse
+      ? 'Write one or two fresh English lines in a new everyday situation.'
+      : 'Rewrite the original sentence.',
+    practiceKind,
+    spacedStage: isNewContextReuse ? 'D+3' : 'D+1',
+    status: 'completed',
+    userRewriteText: isNewContextReuse ? 'Last week I visit my cousin.' : 'I go home.',
+    latestRewriteCheck: {
+      id: `check_${outcome}`,
+      rewriteTaskId: isNewContextReuse ? 'rewrite_d3' : 'rewrite_1',
+      status: 'completed',
+      outcome,
+      feedback: { message: `${outcome} feedback.` },
+      provider: 'test-provider',
+      model: 'test-model',
+      validationErrors: null,
+      errorMessage: null,
+      diagnostics: null,
+      createdAt: now,
+      updatedAt: now,
+      completedAt: now,
+    },
+    dueAt: now,
+    createdAt: now,
+    isOlderThanSevenDays: false,
+  };
 }
 
 describe('LearningPanel rewrite practice rendering', () => {
@@ -81,4 +124,45 @@ describe('LearningPanel rewrite practice rendering', () => {
       expect(html).not.toContain('Rewrite the sentence in your own words.');
     },
   );
+
+  it('keeps a completed recoverable D+1 card visible while a revised answer is edited', () => {
+    const completedPractice = completedPracticeWithOutcome('partly_correct');
+    const html = renderLearningPanel(
+      { ...writingWithPractice(completedPractice), pendingRewritePractice: null },
+      'I went home.',
+      completedPractice,
+    );
+
+    expect(html).toContain('Rewrite practice');
+    expect(html).toContain('value="I went home."');
+    expect(html).toContain('Revise and check again');
+    expect(html).not.toContain('disabled=""');
+  });
+
+  it('uses new-context recovery action copy for weak transfer outcomes', () => {
+    const completedPractice = completedPracticeWithOutcome('incorrect', 'new_context_reuse');
+    const html = renderLearningPanel(
+      { ...writingWithPractice(completedPractice), pendingRewritePractice: null },
+      'Last week I visited my cousin.',
+      completedPractice,
+    );
+
+    expect(html).toContain('Transfer practice');
+    expect(html).toContain('Revise new-context answer and check again');
+    expect(html).not.toContain('Retry check');
+    expect(html).not.toContain('Reference sentence');
+  });
+
+  it('keeps completed correct practice read-only instead of offering recovery', () => {
+    const completedPractice = completedPracticeWithOutcome('correct');
+    const html = renderLearningPanel(
+      { ...writingWithPractice(completedPractice), pendingRewritePractice: null },
+      'I went home again.',
+      completedPractice,
+    );
+
+    expect(html).toContain('Rewrite submitted');
+    expect(html).toContain('disabled=""');
+    expect(html).not.toContain('Revise and check again');
+  });
 });

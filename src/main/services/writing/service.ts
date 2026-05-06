@@ -185,14 +185,28 @@ function parseDiagnosticsJson(value: string | null): Record<string, unknown> | n
   }
 }
 
+function rewriteCheckRecencyMillis(check: RewriteCheckRow): number {
+  return Math.max(check.completedAt?.getTime() ?? 0, check.updatedAt?.getTime() ?? 0, check.createdAt?.getTime() ?? 0);
+}
+
+function getRewriteChecksForTaskByRecency(rewriteTaskId: string): RewriteCheckRow[] {
+  return db
+    .select()
+    .from(rewriteChecks)
+    .where(eq(rewriteChecks.rewriteTaskId, rewriteTaskId))
+    .all()
+    .sort((left, right) => rewriteCheckRecencyMillis(right) - rewriteCheckRecencyMillis(left));
+}
+
 function getLatestRewriteCheck(rewriteTaskId: string): RewriteCheckRow | null {
+  return getRewriteChecksForTaskByRecency(rewriteTaskId)[0] ?? null;
+}
+
+function getLatestCompletedRewriteCheck(rewriteTaskId: string): RewriteCheckRow | null {
   return (
-    db
-      .select()
-      .from(rewriteChecks)
-      .where(eq(rewriteChecks.rewriteTaskId, rewriteTaskId))
-      .orderBy(desc(rewriteChecks.completedAt), desc(rewriteChecks.updatedAt), desc(rewriteChecks.createdAt))
-      .get() ?? null
+    getRewriteChecksForTaskByRecency(rewriteTaskId).find(
+      (check) => check.status === 'completed' && check.outcome !== null,
+    ) ?? null
   );
 }
 
@@ -270,6 +284,15 @@ function rewriteTaskSnapshotSpacedStage(task: RewriteTaskRow): RewriteSpacedStag
 
 function isTerminalRewriteTask(task: RewriteTaskRow): boolean {
   return task.status === 'completed' || task.status === 'skipped' || task.status === 'expired';
+}
+
+function isRecoverableCompletedRewriteTask(task: RewriteTaskRow): boolean {
+  if (task.status !== 'completed') {
+    return false;
+  }
+
+  const latestCompletedCheck = getLatestCompletedRewriteCheck(task.id);
+  return latestCompletedCheck?.outcome === 'partly_correct' || latestCompletedCheck?.outcome === 'incorrect';
 }
 
 function isActionableRewriteTask(task: RewriteTaskRow): boolean {
@@ -1038,7 +1061,7 @@ export async function completeRewritePractice(
 
   const currentWriting = getWritingForRewriteTask(task);
 
-  if (isTerminalRewriteTask(task)) {
+  if (isTerminalRewriteTask(task) && !isRecoverableCompletedRewriteTask(task)) {
     return { success: true, writing: currentWriting, rewritePractice: rewriteTaskToSnapshot(task) };
   }
 

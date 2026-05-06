@@ -267,6 +267,10 @@ class FakeWritingDatabase {
     });
   }
 
+  seedRewriteCheck(check: RewriteCheckRow): void {
+    this.store.rewriteChecks.push(check);
+  }
+
   rewriteTask(id: string): RewriteTaskRow | undefined {
     return this.store.rewriteTasks.find((task) => task.id === id);
   }
@@ -376,6 +380,7 @@ async function loadGetDueRewritePracticeForPractice(): Promise<typeof getDueRewr
 
 describe('rewrite practice service updates', () => {
   beforeEach(() => {
+    vi.setSystemTime(now);
     vi.clearAllMocks();
     mocks.getSettingsSnapshot.mockResolvedValue(createSettingsSnapshot());
     mocks.buildAiRuntimeConfigForFeature.mockResolvedValue({
@@ -525,6 +530,172 @@ describe('rewrite practice service updates', () => {
 
       expect(fakeDatabase.rewriteTasks().filter((task) => task.kind === 'new_context_reuse')).toHaveLength(0);
     }
+  });
+
+  it.each(['partly_correct', 'incorrect'] as const)(
+    'allows learner recovery after a completed D+1 %s check and appends a new check',
+    async (initialOutcome) => {
+      const previousCheckTime = new Date(now.getTime() - 60_000);
+      const recoveryTime = new Date(now.getTime() + 60_000);
+      fakeDatabase.reset();
+      fakeDatabase.seedPracticeWithPendingRewrite({
+        ...createPendingRewriteTask('rewrite_1'),
+        status: 'completed',
+        userRewriteText: 'I go home.',
+        completedAt: previousCheckTime,
+      });
+      fakeDatabase.seedRewriteCheck(
+        createCompletedRewriteCheck({
+          id: 'rewrite_check_initial',
+          outcome: initialOutcome,
+          feedback: `${initialOutcome} feedback.`,
+          at: previousCheckTime,
+        }),
+      );
+      mocks.generateStructuredObject.mockResolvedValueOnce({
+        output: { outcome: 'incorrect', feedback: 'The revision still needs the past tense.' },
+        rawOutput: {},
+        providerDiagnostics: null,
+        provider: 'openai-compatible',
+        model: 'test-model',
+      });
+      vi.setSystemTime(recoveryTime);
+      const completeRewritePractice = await loadCompleteRewritePractice();
+
+      const result = await completeRewritePractice({ rewriteTaskId: 'rewrite_1', userRewriteText: ' I went home. ' });
+
+      expect(result.success).toBe(true);
+      expect(result.rewritePractice).toMatchObject({
+        id: 'rewrite_1',
+        status: 'completed',
+        userRewriteText: 'I went home.',
+        latestRewriteCheck: {
+          status: 'completed',
+          outcome: 'incorrect',
+          feedback: { message: 'The revision still needs the past tense.' },
+        },
+      });
+      expect(fakeDatabase.rewriteTask('rewrite_1')).toMatchObject({
+        status: 'completed',
+        userRewriteText: 'I went home.',
+        completedAt: recoveryTime,
+      });
+      expect(fakeDatabase.rewriteChecks()).toHaveLength(2);
+      expect(fakeDatabase.rewriteChecks().map((check) => check.id)).toEqual([
+        'rewrite_check_initial',
+        expect.any(String),
+      ]);
+    },
+  );
+
+  it('does not create a recovery check after the latest completed D+1 outcome is correct', async () => {
+    const previousCheckTime = new Date(now.getTime() - 60_000);
+    fakeDatabase.reset();
+    fakeDatabase.seedPracticeWithPendingRewrite({
+      ...createPendingRewriteTask('rewrite_1'),
+      status: 'completed',
+      userRewriteText: 'I went home.',
+      completedAt: previousCheckTime,
+    });
+    fakeDatabase.seedRewriteCheck(
+      createCompletedRewriteCheck({
+        id: 'rewrite_check_correct',
+        outcome: 'correct',
+        feedback: 'Good repair.',
+        at: previousCheckTime,
+      }),
+    );
+    const completeRewritePractice = await loadCompleteRewritePractice();
+
+    const result = await completeRewritePractice({
+      rewriteTaskId: 'rewrite_1',
+      userRewriteText: 'I revised this again.',
+    });
+
+    expect(result.success).toBe(true);
+    expect(result.rewritePractice).toMatchObject({
+      id: 'rewrite_1',
+      userRewriteText: 'I went home.',
+      latestRewriteCheck: { outcome: 'correct' },
+    });
+    expect(fakeDatabase.rewriteChecks()).toHaveLength(1);
+    expect(mocks.generateStructuredObject).not.toHaveBeenCalled();
+  });
+
+  it.each(['skipped', 'expired'] as const)(
+    'does not create recovery checks for %s rewrite tasks even when an older weak check exists',
+    async (status) => {
+      const previousCheckTime = new Date(now.getTime() - 60_000);
+      fakeDatabase.reset();
+      fakeDatabase.seedPracticeWithPendingRewrite({
+        ...createPendingRewriteTask('rewrite_1'),
+        status,
+        userRewriteText: 'I go home.',
+        completedAt: null,
+      });
+      fakeDatabase.seedRewriteCheck(
+        createCompletedRewriteCheck({
+          id: 'rewrite_check_weak',
+          outcome: 'partly_correct',
+          feedback: 'Partly repaired.',
+          at: previousCheckTime,
+        }),
+      );
+      const completeRewritePractice = await loadCompleteRewritePractice();
+
+      const result = await completeRewritePractice({
+        rewriteTaskId: 'rewrite_1',
+        userRewriteText: 'I went home.',
+      });
+
+      expect(result.success).toBe(true);
+      expect(result.rewritePractice).toMatchObject({
+        id: 'rewrite_1',
+        status,
+        userRewriteText: 'I go home.',
+      });
+      expect(fakeDatabase.rewriteChecks()).toHaveLength(1);
+      expect(mocks.generateStructuredObject).not.toHaveBeenCalled();
+    },
+  );
+
+  it('creates D+3 exactly once when a weak D+1 outcome is recovered to correct', async () => {
+    const previousCheckTime = new Date(now.getTime() - 60_000);
+    const recoveryTime = new Date(now.getTime() + 60_000);
+    fakeDatabase.reset();
+    fakeDatabase.seedPracticeWithPendingRewrite({
+      ...createPendingRewriteTask('rewrite_1'),
+      status: 'completed',
+      userRewriteText: 'I go home.',
+      completedAt: previousCheckTime,
+    });
+    fakeDatabase.seedFocusPatternFingerprint();
+    fakeDatabase.seedRewriteCheck(
+      createCompletedRewriteCheck({
+        id: 'rewrite_check_weak',
+        outcome: 'incorrect',
+        feedback: 'The tense is still not repaired.',
+        at: previousCheckTime,
+      }),
+    );
+    vi.setSystemTime(recoveryTime);
+    const completeRewritePractice = await loadCompleteRewritePractice();
+
+    const result = await completeRewritePractice({ rewriteTaskId: 'rewrite_1', userRewriteText: 'I went home.' });
+    const secondResult = await completeRewritePractice({
+      rewriteTaskId: 'rewrite_1',
+      userRewriteText: 'I went home again.',
+    });
+
+    const d3Tasks = fakeDatabase.rewriteTasks().filter((task) => task.kind === 'new_context_reuse');
+    expect(result.success).toBe(true);
+    expect(secondResult.success).toBe(true);
+    expect(fakeDatabase.rewriteChecks()).toHaveLength(2);
+    expect(d3Tasks).toHaveLength(1);
+    expect(d3Tasks[0]).toMatchObject({
+      spacedStage: 'D+3',
+      dueAt: new Date(recoveryTime.getTime() + 3 * ONE_DAY_MS),
+    });
   });
 
   it('does not fail D+1 completion or create D+3 when the saved fingerprint is missing or invalid', async () => {
@@ -761,6 +932,46 @@ describe('rewrite practice service updates', () => {
     }
   });
 
+  it('creates D+7 when a weak D+3 outcome is recovered to correct', async () => {
+    const previousCheckTime = new Date(now.getTime() - 60_000);
+    const recoveryTime = new Date(now.getTime() + 60_000);
+    fakeDatabase.reset();
+    fakeDatabase.seedPracticeWithPendingRewrite({
+      ...createD3RewriteTask('rewrite_d3'),
+      status: 'completed',
+      userRewriteText: 'I visit my cousin.',
+      completedAt: previousCheckTime,
+    });
+    fakeDatabase.seedRewriteCheck(
+      createCompletedRewriteCheck({
+        id: 'rewrite_check_d3_weak',
+        rewriteTaskId: 'rewrite_d3',
+        outcome: 'partly_correct',
+        feedback: 'Transfer is close but incomplete.',
+        at: previousCheckTime,
+      }),
+    );
+    vi.setSystemTime(recoveryTime);
+    const completeRewritePractice = await loadCompleteRewritePractice();
+
+    const result = await completeRewritePractice({
+      rewriteTaskId: 'rewrite_d3',
+      userRewriteText: 'Last week I visited my cousin.',
+    });
+
+    const d7Tasks = fakeDatabase.rewriteTasks().filter((task) => task.spacedStage === 'D+7');
+    expect(result.success).toBe(true);
+    expect(result.rewritePractice).toMatchObject({
+      id: 'rewrite_d3',
+      latestRewriteCheck: { status: 'completed', outcome: 'correct' },
+    });
+    expect(d7Tasks).toHaveLength(1);
+    expect(d7Tasks[0]).toMatchObject({
+      spacedStage: 'D+7',
+      dueAt: new Date(recoveryTime.getTime() + SEVEN_DAYS_MS),
+    });
+  });
+
   it('does not fail D+3 completion transport or create D+7 when the prompt contract is invalid', async () => {
     fakeDatabase.reset();
     fakeDatabase.seedPracticeWithPendingRewrite({
@@ -810,6 +1021,40 @@ describe('rewrite practice service updates', () => {
     expect(evaluationInput.userPrompt).toContain('Evaluate this D+7 new-context reuse submission.');
     expect(evaluationInput.userPrompt).toContain('spaced reuse check');
     expect(evaluationInput.userPrompt).toContain('Last month I finished the report.');
+    expect(fakeDatabase.rewriteTasks().filter((task) => task.kind === 'new_context_reuse')).toHaveLength(1);
+  });
+
+  it('allows D+7 recovery checks without creating any later task', async () => {
+    const previousCheckTime = new Date(now.getTime() - 60_000);
+    fakeDatabase.reset();
+    fakeDatabase.seedPracticeWithPendingRewrite({
+      ...createD7RewriteTask('rewrite_d7'),
+      status: 'completed',
+      userRewriteText: 'I finish the report.',
+      completedAt: previousCheckTime,
+    });
+    fakeDatabase.seedRewriteCheck(
+      createCompletedRewriteCheck({
+        id: 'rewrite_check_d7_weak',
+        rewriteTaskId: 'rewrite_d7',
+        outcome: 'incorrect',
+        feedback: 'The spaced reuse was not shown yet.',
+        at: previousCheckTime,
+      }),
+    );
+    const completeRewritePractice = await loadCompleteRewritePractice();
+
+    const result = await completeRewritePractice({
+      rewriteTaskId: 'rewrite_d7',
+      userRewriteText: 'Last month I finished the report.',
+    });
+
+    expect(result.success).toBe(true);
+    expect(result.rewritePractice).toMatchObject({
+      id: 'rewrite_d7',
+      latestRewriteCheck: { status: 'completed', outcome: 'correct' },
+    });
+    expect(fakeDatabase.rewriteChecks()).toHaveLength(2);
     expect(fakeDatabase.rewriteTasks().filter((task) => task.kind === 'new_context_reuse')).toHaveLength(1);
   });
 
@@ -1019,6 +1264,36 @@ function createPendingRewriteTask(id: string): RewriteTaskRow {
     completedAt: null,
     skippedAt: null,
     createdAt: new Date(now.getTime() - 24 * 60 * 60 * 1000),
+  };
+}
+
+function createCompletedRewriteCheck({
+  id,
+  rewriteTaskId = 'rewrite_1',
+  outcome,
+  feedback,
+  at,
+}: {
+  id: string;
+  rewriteTaskId?: string;
+  outcome: 'correct' | 'partly_correct' | 'incorrect';
+  feedback: string;
+  at: Date;
+}): RewriteCheckRow {
+  return {
+    id,
+    rewriteTaskId,
+    status: 'completed',
+    outcome,
+    feedback,
+    provider: 'test-provider',
+    model: 'test-model',
+    validationErrorsJson: null,
+    errorMessage: null,
+    diagnosticsJson: null,
+    createdAt: at,
+    updatedAt: at,
+    completedAt: at,
   };
 }
 

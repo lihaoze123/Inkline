@@ -530,7 +530,8 @@ function PracticePage({ initialWriting, settings, startup }: PracticePageProps):
   }, [modelAnswerRevealed, reviewPreview, saveReviewMutation, selfRepairAttempt, updateWritingCache]);
 
   const completePendingRewritePractice = useCallback(async (): Promise<void> => {
-    if (!writing.pendingRewritePractice) {
+    const rewritePractice = completedRewritePractice ?? writing.pendingRewritePractice;
+    if (!rewritePractice) {
       return;
     }
 
@@ -538,7 +539,7 @@ function PracticePage({ initialWriting, settings, startup }: PracticePageProps):
 
     try {
       const result = await completeRewritePracticeMutation({
-        rewriteTaskId: writing.pendingRewritePractice.id,
+        rewriteTaskId: rewritePractice.id,
         userRewriteText: rewritePracticeInput,
       });
 
@@ -560,7 +561,13 @@ function PracticePage({ initialWriting, settings, startup }: PracticePageProps):
     } catch (error) {
       setRewritePracticeError(getErrorMessage(error, 'Unable to complete rewrite practice.'));
     }
-  }, [completeRewritePracticeMutation, updateWritingCache, writing.pendingRewritePractice, rewritePracticeInput]);
+  }, [
+    completedRewritePractice,
+    completeRewritePracticeMutation,
+    updateWritingCache,
+    writing.pendingRewritePractice,
+    rewritePracticeInput,
+  ]);
 
   const retryCompletedRewriteCheck = useCallback(async (): Promise<void> => {
     const rewritePractice = completedRewritePractice ?? writing.pendingRewritePractice;
@@ -912,7 +919,6 @@ function PracticePage({ initialWriting, settings, startup }: PracticePageProps):
                       isRewritePracticeChecking={isCompleteRewritePracticePending || isRetryRewriteCheckPending}
                       onRewritePracticeInputChange={(value) => {
                         setRewritePracticeInput(value);
-                        setCompletedRewritePractice(null);
                       }}
                       onCompleteRewritePractice={() => {
                         void completePendingRewritePractice();
@@ -954,7 +960,6 @@ function PracticePage({ initialWriting, settings, startup }: PracticePageProps):
                 }}
                 onRewritePracticeInputChange={(value) => {
                   setRewritePracticeInput(value);
-                  setCompletedRewritePractice(null);
                 }}
               />
             ) : null}
