@@ -1,11 +1,17 @@
 import { z } from 'zod';
 import {
   validationStatusSchema,
-  reviewOutputSchema,
   correctionCategorySchema,
   confidenceSchema,
   correctionStatusSchema,
+  inputBridgeSchema,
   newPatternSuggestionSchema,
+  patternFingerprintSchema,
+  referenceRewriteSchema,
+  reviewCorrectionSchema,
+  rewriteTaskSchema,
+  selfRepairTaskSchema,
+  upgradeOpportunitySchema,
 } from '../review-contract/schemas';
 import { aiProviderDiagnosticsSchema } from './ai';
 import { writingAttemptSnapshotSchema } from './writing';
@@ -102,77 +108,114 @@ export const anchoredCorrectionOperationSchema = z.object({
   lowConfidenceReason: z.string().optional(),
 });
 
+const reusePatternOperationSchema = z.object({
+  kind: z.literal('reuse_pattern'),
+  correctionIndex: z.number().int().nonnegative(),
+  patternId: z.string().min(1),
+  updatesLongTermStats: z.literal(false),
+});
+
+const suggestNewPatternOperationSchema = z.object({
+  kind: z.literal('suggest_new_pattern'),
+  correctionIndex: z.number().int().nonnegative(),
+  category: correctionCategorySchema,
+  rule: z.string().min(1),
+  canonicalExample: z.string().min(1),
+  patternKey: z.string().min(1),
+  duplicateOfPatternId: z.string().min(1).optional(),
+  updatesLongTermStats: z.literal(false),
+});
+
 export const patternOperationSchema = z.discriminatedUnion('kind', [
-  z.object({
-    kind: z.literal('reuse_pattern'),
-    correctionIndex: z.number().int().nonnegative(),
-    patternId: z.string().min(1),
-    updatesLongTermStats: z.literal(false),
+  reusePatternOperationSchema,
+  suggestNewPatternOperationSchema,
+]);
+
+export const persistedPatternOperationSchema = z.discriminatedUnion('kind', [
+  reusePatternOperationSchema.extend({
+    fingerprint: patternFingerprintSchema.optional(),
   }),
-  z.object({
-    kind: z.literal('suggest_new_pattern'),
-    correctionIndex: z.number().int().nonnegative(),
-    category: correctionCategorySchema,
-    rule: z.string().min(1),
-    canonicalExample: z.string().min(1),
-    patternKey: z.string().min(1),
-    duplicateOfPatternId: z.string().min(1).optional(),
-    updatesLongTermStats: z.literal(false),
+  suggestNewPatternOperationSchema.extend({
+    fingerprint: patternFingerprintSchema.optional(),
   }),
 ]);
+
+const referenceRewriteOperationSchema = z.object({
+  rewriteIndex: z.number().int().nonnegative(),
+  text: z.string().min(1),
+  noticeTheGap: z.string().min(1),
+  updatesLongTermStats: z.literal(false),
+});
+
+const selfRepairOperationSchema = z
+  .object({
+    correctionIndex: z.number().int().nonnegative(),
+    prompt: z.string().min(1),
+    hint: z.string().min(1),
+    updatesLongTermStats: z.literal(false),
+  })
+  .nullable();
+
+const rewritePracticeOperationSchema = z.object({
+  taskIndex: z.number().int().nonnegative(),
+  kind: z.literal('rewrite_original'),
+  prompt: z.string().min(1),
+  focusCorrectionIndexes: z.array(z.number().int().nonnegative()),
+  dueOffsetDays: z.number().int().positive(),
+  revealNativeModelAfterSubmit: z.boolean(),
+  updatesLongTermStats: z.literal(false),
+});
+
+const upgradeOpportunityOperationSchema = z.object({
+  opportunityIndex: z.number().int().nonnegative(),
+  sourceText: z.string().min(1),
+  suggestedAlternatives: z.array(z.string().min(1)).min(1).max(3),
+  reason: z.string().nullable(),
+  updatesLongTermStats: z.literal(false),
+});
+
+const inputBridgeOperationSchema = z
+  .object({
+    correctionIndex: z.number().int().nonnegative(),
+    examples: z.array(z.string().min(1)),
+    updatesLongTermStats: z.literal(false),
+  })
+  .nullable();
 
 export const previewOperationsSnapshotSchema = z.object({
   corrections: z.array(anchoredCorrectionOperationSchema),
   patternOperations: z.array(patternOperationSchema),
-  referenceRewrites: z.array(
-    z.object({
-      rewriteIndex: z.number().int().nonnegative(),
-      text: z.string().min(1),
-      noticeTheGap: z.string().min(1),
-      updatesLongTermStats: z.literal(false),
-    }),
-  ),
-  selfRepair: z
-    .object({
+  referenceRewrites: z.array(referenceRewriteOperationSchema),
+  selfRepair: selfRepairOperationSchema,
+  rewritePractice: z.array(rewritePracticeOperationSchema),
+  upgradeOpportunities: z.array(upgradeOpportunityOperationSchema),
+  inputBridge: inputBridgeOperationSchema,
+});
+
+export const persistedPreviewOperationsSnapshotSchema = previewOperationsSnapshotSchema.extend({
+  patternOperations: z.array(persistedPatternOperationSchema),
+});
+
+export const reviewOutputSnapshotSchema = z.object({
+  corrections: z.array(reviewCorrectionSchema),
+  summary: z.object({
+    focusPattern: z.object({
       correctionIndex: z.number().int().nonnegative(),
-      prompt: z.string().min(1),
-      hint: z.string().min(1),
-      updatesLongTermStats: z.literal(false),
-    })
-    .nullable(),
-  rewritePractice: z.array(
-    z.object({
-      taskIndex: z.number().int().nonnegative(),
-      kind: z.literal('rewrite_original'),
-      prompt: z.string().min(1),
-      focusCorrectionIndexes: z.array(z.number().int().nonnegative()),
-      dueOffsetDays: z.number().int().positive(),
-      revealNativeModelAfterSubmit: z.boolean(),
-      updatesLongTermStats: z.literal(false),
+      reason: z.string().min(1),
     }),
-  ),
-  upgradeOpportunities: z.array(
-    z.object({
-      opportunityIndex: z.number().int().nonnegative(),
-      sourceText: z.string().min(1),
-      suggestedAlternatives: z.array(z.string().min(1)).min(1).max(3),
-      reason: z.string().nullable(),
-      updatesLongTermStats: z.literal(false),
-    }),
-  ),
-  inputBridge: z
-    .object({
-      correctionIndex: z.number().int().nonnegative(),
-      examples: z.array(z.string().min(1)),
-      updatesLongTermStats: z.literal(false),
-    })
-    .nullable(),
+    whatWentWell: z.array(z.string().min(1)),
+  }),
+  selfRepairTask: selfRepairTaskSchema,
+  inputBridge: inputBridgeSchema,
+  referenceRewrites: z.array(referenceRewriteSchema),
+  rewriteTasks: z.array(rewriteTaskSchema),
+  upgradeOpportunities: z.array(upgradeOpportunitySchema).optional().default([]),
 });
 
 export const reviewPreviewSnapshotSchema = z.object({
   reviewRun: reviewRunSnapshotSchema,
   reviewedContent: z.string(),
-  parsedOutput: reviewOutputSchema,
+  parsedOutput: reviewOutputSnapshotSchema,
   operations: previewOperationsSnapshotSchema,
   currentWritingContentHash: z.string().min(1).nullable(),
   isStaleForCurrentWriting: z.boolean(),
@@ -215,7 +258,10 @@ export type ReviewProgressEvent = z.infer<typeof reviewProgressEventSchema>;
 export type ReviewRunSnapshot = z.infer<typeof reviewRunSnapshotSchema>;
 export type AnchoredCorrectionOperationSnapshot = z.infer<typeof anchoredCorrectionOperationSchema>;
 export type PatternOperationSnapshot = z.infer<typeof patternOperationSchema>;
+export type PersistedPatternOperationSnapshot = z.infer<typeof persistedPatternOperationSchema>;
 export type PreviewOperationsSnapshot = z.infer<typeof previewOperationsSnapshotSchema>;
+export type PersistedPreviewOperationsSnapshot = z.infer<typeof persistedPreviewOperationsSnapshotSchema>;
+export type ReviewOutputSnapshot = z.infer<typeof reviewOutputSnapshotSchema>;
 export type ReviewPreviewSnapshot = z.infer<typeof reviewPreviewSnapshotSchema>;
 export type GetReviewPreviewInput = z.infer<typeof getReviewPreviewInputSchema>;
 export type SaveReviewInput = z.infer<typeof saveReviewInputSchema>;

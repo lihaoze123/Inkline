@@ -58,6 +58,16 @@ const mockAgentOutput = {
     focusPattern: {
       correctionIndex: 0,
       reason: 'Past tense for completed events is high learning value and reusable.',
+      fingerprint: {
+        patternType: 'grammar',
+        learnerError: 'uses present tense for a completed library visit',
+        targetCorrection: 'use past tense for the completed library visit',
+        abstractRule: 'Use past tense when describing completed events.',
+        positiveExamples: ['Yesterday I went to the library.'],
+        negativeExample: 'Yesterday I go to the library.',
+        transferBoundary: 'Applies to completed events, not habits or current routines.',
+        forbiddenLeakageTerms: ['went', 'past tense'],
+      },
     },
     whatWentWell: ['You used a clear time word, Today, to set the scene.'],
   },

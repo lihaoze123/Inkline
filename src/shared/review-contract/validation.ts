@@ -5,6 +5,7 @@ import {
   reviewOutputSchema,
   type CorrectionStatus,
   type ErrorPattern,
+  type PatternFingerprint,
   type ReviewInput,
   type ReviewOutput,
   type ValidationStatus,
@@ -40,6 +41,7 @@ export type PatternOperation =
       kind: 'reuse_pattern';
       correctionIndex: number;
       patternId: string;
+      fingerprint?: PatternFingerprint;
       updatesLongTermStats: false;
     }
   | {
@@ -50,6 +52,7 @@ export type PatternOperation =
       canonicalExample: string;
       patternKey: string;
       duplicateOfPatternId?: string;
+      fingerprint?: PatternFingerprint;
       updatesLongTermStats: false;
     };
 
@@ -471,7 +474,14 @@ function buildPreviewOperations(
 ): PreviewOperations {
   return {
     corrections,
-    patternOperations: corrections.flatMap((correction) => patternOperation(correction, existingPatterns)),
+    patternOperations: corrections.flatMap((correction) =>
+      patternOperation(
+        correction,
+        existingPatterns,
+        output.summary.focusPattern.correctionIndex,
+        output.summary.focusPattern.fingerprint,
+      ),
+    ),
     referenceRewrites: output.referenceRewrites.map((rewrite, rewriteIndex) => ({
       rewriteIndex,
       text: rewrite.text,
@@ -518,10 +528,15 @@ function buildPreviewOperations(
 function patternOperation(
   correction: AnchoredCorrectionOperation,
   existingPatterns: ErrorPattern[],
+  focusCorrectionIndex: number,
+  focusFingerprint: PatternFingerprint,
 ): PatternOperation[] {
   if (correction.status === 'low_confidence') {
     return [];
   }
+
+  const fingerprint = correction.correctionIndex === focusCorrectionIndex ? focusFingerprint : undefined;
+  const focusFingerprintFields = fingerprint ? { fingerprint } : {};
 
   if (correction.matchedPatternId) {
     return [
@@ -529,6 +544,7 @@ function patternOperation(
         kind: 'reuse_pattern',
         correctionIndex: correction.correctionIndex,
         patternId: correction.matchedPatternId,
+        ...focusFingerprintFields,
         updatesLongTermStats: false,
       },
     ];
@@ -554,6 +570,7 @@ function patternOperation(
         canonicalExample: correction.newPatternSuggestion.canonicalExample,
         patternKey,
         duplicateOfPatternId: duplicate?.id,
+        ...focusFingerprintFields,
         updatesLongTermStats: false,
       },
     ];

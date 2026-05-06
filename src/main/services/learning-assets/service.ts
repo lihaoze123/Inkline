@@ -3,8 +3,11 @@ import { and, desc, eq, inArray } from 'drizzle-orm';
 import { db } from '../../db/client';
 import { corrections, errorPatterns, notebookEntries, rewriteChecks, rewriteTasks } from '../../db/schema';
 import { arePatternRulesSimilar, normalizePatternKey } from '../../../shared/review-contract/patterns';
-import type { ErrorPattern } from '../../../shared/review-contract/schemas';
-import type { PatternOperationSnapshot, PreviewOperationsSnapshot } from '../../../shared/types/review';
+import type { ErrorPattern, PatternFingerprint } from '../../../shared/review-contract/schemas';
+import type {
+  PersistedPatternOperationSnapshot,
+  PersistedPreviewOperationsSnapshot,
+} from '../../../shared/types/review';
 import {
   listErrorPatternsOutputSchema,
   listNotebookEntriesOutputSchema,
@@ -329,11 +332,12 @@ export function selectActiveReviewPatterns(database: typeof db = db, limit = 30)
 
 export function persistPatternOperations(params: {
   tx: LearningAssetTx;
-  operations: PreviewOperationsSnapshot;
+  operations: PersistedPreviewOperationsSnapshot;
   reviewRunId: string;
   dateKey: string;
 }): Map<number, PersistedPatternLink> {
   const links = new Map<number, PersistedPatternLink>();
+  const focusCorrectionIndex = params.operations.selfRepair?.correctionIndex ?? null;
 
   params.operations.patternOperations.forEach((operation) => {
     const correction = params.operations.corrections.find(
@@ -344,7 +348,8 @@ export function persistPatternOperations(params: {
     }
 
     const example = `${correction.originalText} -> ${correction.correctedText}`;
-    const pattern = persistOnePatternOperation(params.tx, operation, params.dateKey, example);
+    const fingerprint = operation.correctionIndex === focusCorrectionIndex ? operation.fingerprint : undefined;
+    const pattern = persistOnePatternOperation(params.tx, operation, params.dateKey, example, fingerprint);
     links.set(operation.correctionIndex, { patternId: pattern.id, rule: pattern.rule });
   });
 
@@ -353,7 +358,7 @@ export function persistPatternOperations(params: {
 
 export function persistNotebookEntries(params: {
   tx: LearningAssetTx;
-  operations: PreviewOperationsSnapshot;
+  operations: PersistedPreviewOperationsSnapshot;
   reviewRunId: string;
   dateKey: string;
   templateId: WritingTemplateId;
@@ -376,9 +381,10 @@ export function persistNotebookEntries(params: {
 
 function persistOnePatternOperation(
   tx: LearningAssetTx,
-  operation: PatternOperationSnapshot,
+  operation: PersistedPatternOperationSnapshot,
   dateKey: string,
   example: string,
+  fingerprint: PatternFingerprint | undefined,
 ): ErrorPatternRow {
   if (operation.kind === 'reuse_pattern') {
     const pattern = tx.select().from(errorPatterns).where(eq(errorPatterns.id, operation.patternId)).get();
@@ -386,7 +392,7 @@ function persistOnePatternOperation(
       throw new Error(`Matched error pattern was not found: ${operation.patternId}`);
     }
 
-    return incrementPattern(tx, pattern, dateKey, example);
+    return incrementPattern(tx, pattern, dateKey, example, fingerprint);
   }
 
   const existingPatternId = operation.duplicateOfPatternId;
@@ -396,7 +402,7 @@ function persistOnePatternOperation(
       : undefined) ?? findPatternForSuggestion(tx, operation);
 
   if (existingPattern) {
-    return incrementPattern(tx, existingPattern, dateKey, example);
+    return incrementPattern(tx, existingPattern, dateKey, example, fingerprint);
   }
 
   return tx
@@ -411,6 +417,7 @@ function persistOnePatternOperation(
       firstSeenDateKey: dateKey,
       lastSeenDateKey: dateKey,
       recentExamplesJson: JSON.stringify([example]),
+      fingerprintJson: fingerprint ? JSON.stringify(fingerprint) : null,
       active: true,
     })
     .returning()
@@ -419,7 +426,7 @@ function persistOnePatternOperation(
 
 function findPatternForSuggestion(
   tx: LearningAssetTx,
-  operation: Extract<PatternOperationSnapshot, { kind: 'suggest_new_pattern' }>,
+  operation: Extract<PersistedPatternOperationSnapshot, { kind: 'suggest_new_pattern' }>,
 ): ErrorPatternRow | undefined {
   const exactPattern = tx.select().from(errorPatterns).where(eq(errorPatterns.patternKey, operation.patternKey)).get();
   if (exactPattern) {
@@ -438,6 +445,7 @@ function incrementPattern(
   pattern: ErrorPatternRow,
   dateKey: string,
   example: string,
+  fingerprint: PatternFingerprint | undefined,
 ): ErrorPatternRow {
   const recentExamples = [
     example,
@@ -450,6 +458,7 @@ function incrementPattern(
       count: pattern.count + 1,
       lastSeenDateKey: dateKey,
       recentExamplesJson: JSON.stringify(recentExamples),
+      fingerprintJson: pattern.fingerprintJson ?? (fingerprint ? JSON.stringify(fingerprint) : null),
       active: true,
       updatedAt: new Date(),
     })

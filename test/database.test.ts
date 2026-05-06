@@ -60,4 +60,10 @@ describe('database foundation migration', () => {
     expect(migrationSql).toContain('`validation_errors_json` text');
     expect(migrationSql).toContain('`error_message` text');
   });
+
+  it('adds nullable fingerprint storage to durable error patterns', () => {
+    const migrationSql = readFileSync(path.resolve(process.cwd(), 'drizzle/0008_pattern_fingerprints.sql'), 'utf8');
+
+    expect(migrationSql).toContain('ALTER TABLE `error_patterns` ADD `fingerprint_json` text');
+  });
 });

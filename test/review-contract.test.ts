@@ -5,8 +5,10 @@ import {
   locateAnchor,
   validateReviewResult,
   type ErrorPattern,
+  type PatternFingerprint,
   type ReviewInput,
 } from '../src/shared/review-contract';
+import { previewOperationsSnapshotSchema, reviewOutputSnapshotSchema } from '../src/shared/types/review';
 
 const existingPatterns: ErrorPattern[] = [
   {
@@ -34,6 +36,17 @@ const existingPatterns: ErrorPattern[] = [
     active: true,
   },
 ];
+
+const focusFingerprint: PatternFingerprint = {
+  patternType: 'grammar',
+  learnerError: 'uses present tense for a finished action',
+  targetCorrection: 'use past tense for the finished action',
+  abstractRule: 'Use past tense when describing a completed event in the past.',
+  positiveExamples: ['Yesterday I went to school.'],
+  negativeExample: 'Yesterday I go to school.',
+  transferBoundary: 'Applies to completed actions, not habits or current routines.',
+  forbiddenLeakageTerms: ['went', 'past tense'],
+};
 
 function contentHash(content: string): string {
   return createHash('sha256').update(content.replace(/\r\n/g, '\n').replace(/\r/g, '\n')).digest('hex');
@@ -82,7 +95,11 @@ function validOutputFor(
       },
     ],
     summary: {
-      focusPattern: { correctionIndex: 0, reason: 'This is the most reusable correction.' },
+      focusPattern: {
+        correctionIndex: 0,
+        reason: 'This is the most reusable correction.',
+        fingerprint: focusFingerprint,
+      },
       whatWentWell: ['You wrote a clear sequence of events.'],
     },
     selfRepairTask: {
@@ -211,6 +228,7 @@ describe('review contract validation harness', () => {
         kind: 'reuse_pattern',
         correctionIndex: 0,
         patternId: 'tense_past_for_finished_time',
+        fingerprint: focusFingerprint,
         updatesLongTermStats: false,
       },
     ]);
@@ -387,6 +405,56 @@ describe('review contract validation harness', () => {
     expect(result.validationStatus).toBe('invalid');
   });
 
+  it('rejects output missing a focus pattern fingerprint at schema validation', () => {
+    const journal = 'Today I go to school.';
+    const output = validOutputFor(journal, 'I go to school', 'Today ', '.', 0);
+    const invalidOutput = {
+      ...(output as Record<string, unknown>),
+      summary: {
+        ...(output as { summary: Record<string, unknown> }).summary,
+        focusPattern: { correctionIndex: 0, reason: 'Focus without fingerprint.' },
+      },
+    };
+
+    const result = validateReviewResult(inputFor(journal), invalidOutput);
+
+    expect(result.schemaValid).toBe(false);
+    expect(result.validationStatus).toBe('invalid');
+  });
+
+  it('rejects invalid focus fingerprints before preview operations are generated', () => {
+    const journal = 'Today I go to school.';
+    const output = validOutputFor(journal, 'I go to school', 'Today ', '.', 0);
+    const invalidOutput = {
+      ...(output as Record<string, unknown>),
+      summary: {
+        ...(output as { summary: Record<string, unknown> }).summary,
+        focusPattern: {
+          correctionIndex: 0,
+          reason: 'Focus with invalid fingerprint.',
+          fingerprint: { ...focusFingerprint, positiveExamples: [], forbiddenLeakageTerms: [] },
+        },
+      },
+    };
+
+    const result = validateReviewResult(inputFor(journal), invalidOutput);
+
+    expect(result.schemaValid).toBe(false);
+    expect(result.operations.patternOperations).toHaveLength(0);
+  });
+
+  it('strips focus fingerprint internals from renderer-facing review snapshots', () => {
+    const journal = 'Today I go to school.';
+    const output = validOutputFor(journal, 'I go to school', 'Today ', '.', 0);
+    const result = validateReviewResult(inputFor(journal), output);
+
+    const publicOutput = reviewOutputSnapshotSchema.parse(output);
+    const publicOperations = previewOperationsSnapshotSchema.parse(result.operations);
+
+    expect(publicOutput.summary.focusPattern).not.toHaveProperty('fingerprint');
+    expect(publicOperations.patternOperations[0]).not.toHaveProperty('fingerprint');
+  });
+
   it('rejects self-repair hints that leak the full corrected text', () => {
     const journal = 'Today I go to school.';
     const output = validOutputFor(journal, 'I go to school', 'Today ', '.', 0);
@@ -409,7 +477,10 @@ describe('review contract validation harness', () => {
     const output = validOutputFor(journal, 'I go to school', 'Today ', '.', 0);
     const invalidOutput = {
       ...(output as Record<string, unknown>),
-      summary: { focusPattern: { correctionIndex: 0, reason: 'Focus.' }, whatWentWell: [] },
+      summary: {
+        focusPattern: { correctionIndex: 0, reason: 'Focus.', fingerprint: focusFingerprint },
+        whatWentWell: [],
+      },
     };
 
     const result = validateReviewResult(inputFor(journal), invalidOutput);

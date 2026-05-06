@@ -6,7 +6,7 @@ import { buildReviewUserPrompt, REVIEW_SYSTEM_PROMPT } from '../src/main/service
 import { buildBoundedReviewInput } from '../src/main/services/review/lib/review-input';
 import { V0_1_REVIEW_CAPS } from '../src/main/services/review/types';
 import { selectActiveReviewPatterns } from '../src/main/services/learning-assets/service';
-import type { ReviewInput } from '../src/shared/review-contract';
+import type { PatternFingerprint, ReviewInput } from '../src/shared/review-contract';
 import type { db as appDatabase } from '../src/main/db/client';
 
 vi.mock('../src/main/db/client', () => ({
@@ -18,6 +18,17 @@ vi.mock('../src/main/db/client', () => ({
 function contentHash(content: string): string {
   return createHash('sha256').update(content.replace(/\r\n/g, '\n').replace(/\r/g, '\n')).digest('hex');
 }
+
+const focusFingerprint: PatternFingerprint = {
+  patternType: 'grammar',
+  learnerError: 'uses present tense for a completed trip home',
+  targetCorrection: 'use past tense for the completed trip home',
+  abstractRule: 'Use past tense for finished actions.',
+  positiveExamples: ['Yesterday I went home.'],
+  negativeExample: 'Yesterday I go home.',
+  transferBoundary: 'Applies to finished events, not present habits.',
+  forbiddenLeakageTerms: ['went', 'past tense'],
+};
 
 function validOutputFor(writingContent: string): unknown {
   return {
@@ -38,7 +49,7 @@ function validOutputFor(writingContent: string): unknown {
       },
     ],
     summary: {
-      focusPattern: { correctionIndex: 0, reason: 'This tense pattern is reusable.' },
+      focusPattern: { correctionIndex: 0, reason: 'This tense pattern is reusable.', fingerprint: focusFingerprint },
       whatWentWell: ['You expressed the main event clearly.'],
     },
     selfRepairTask: {
@@ -253,6 +264,7 @@ describe('review agent integration contracts', () => {
         firstSeenDateKey: '2026-04-18',
         lastSeenDateKey: '2026-04-29',
         recentExamplesJson: JSON.stringify(['I go home -> I went home']),
+        fingerprintJson: null,
         active: true,
         createdAt: now,
         updatedAt: now,
@@ -267,6 +279,7 @@ describe('review agent integration contracts', () => {
         firstSeenDateKey: '2026-04-18',
         lastSeenDateKey: '2026-04-29',
         recentExamplesJson: JSON.stringify(['bewteen -> between']),
+        fingerprintJson: null,
         active: true,
         createdAt: now,
         updatedAt: now,
@@ -281,6 +294,7 @@ describe('review agent integration contracts', () => {
         firstSeenDateKey: '2026-04-18',
         lastSeenDateKey: '2026-04-19',
         recentExamplesJson: JSON.stringify(['a inactive -> an inactive']),
+        fingerprintJson: null,
         active: false,
         createdAt: now,
         updatedAt: now,
@@ -295,6 +309,7 @@ describe('review agent integration contracts', () => {
         firstSeenDateKey: '2026-04-20',
         lastSeenDateKey: '2026-04-28',
         recentExamplesJson: JSON.stringify(['for the class -> for class']),
+        fingerprintJson: null,
         active: true,
         createdAt: now,
         updatedAt: now,

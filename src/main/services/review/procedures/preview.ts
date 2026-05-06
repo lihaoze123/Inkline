@@ -3,7 +3,7 @@ import { db } from '../../../db/client';
 import { writingAttempts, writingRevisions, reviewRuns } from '../../../db/schema';
 import {
   getReviewPreviewInputSchema,
-  previewOperationsSnapshotSchema,
+  persistedPreviewOperationsSnapshotSchema,
   reviewPreviewSnapshotSchema,
   type GetReviewPreviewInput,
   type ReviewPreviewSnapshot,
@@ -43,7 +43,7 @@ export function getReviewPreview(input: GetReviewPreviewInput): ReviewPreviewSna
     reviewRun: reviewRunToSnapshot(reviewRun),
     reviewedContent: revision.content,
     parsedOutput: reviewOutputSchema.parse(JSON.parse(reviewRun.parsedOutputJson) as unknown),
-    operations: previewOperationsSnapshotSchema.parse(JSON.parse(reviewRun.previewOperationsJson) as unknown),
+    operations: persistedPreviewOperationsSnapshotSchema.parse(JSON.parse(reviewRun.previewOperationsJson) as unknown),
     currentWritingContentHash: activeRevision?.contentHash ?? null,
     isStaleForCurrentWriting: activeRevision?.contentHash !== reviewRun.contentHash,
   });

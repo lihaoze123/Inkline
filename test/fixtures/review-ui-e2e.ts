@@ -34,6 +34,16 @@ export const E2E_UI_REVIEW_OUTPUT = {
     focusPattern: {
       correctionIndex: 0,
       reason: 'The tense shift is the most reusable pattern in this draft.',
+      fingerprint: {
+        patternType: 'grammar',
+        learnerError: 'uses present tense for a finished library visit',
+        targetCorrection: 'use past tense for the finished library visit',
+        abstractRule: 'Use past tense for finished actions.',
+        positiveExamples: ['Yesterday I went to the library.'],
+        negativeExample: 'Yesterday I go to the library.',
+        transferBoundary: 'Applies to finished actions, not present habits or routines.',
+        forbiddenLeakageTerms: ['went', 'past tense'],
+      },
     },
     whatWentWell: ['You gave a clear sequence with a concrete place and object.'],
   },

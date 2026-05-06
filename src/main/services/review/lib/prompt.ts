@@ -19,6 +19,7 @@ Rules:
 - Return only JSON, with no Markdown wrapper or prose.
 - Use no more than the provided caps.
 - Provide exactly one focus pattern by setting summary.focusPattern.correctionIndex to one correction.
+- Include summary.focusPattern.fingerprint for that focus correction only.
 - Include 1-${input.maxWhatWentWell} concrete summary.whatWentWell items.
 - Include exactly one selfRepairTask for the focus correction, and keep its hint from revealing the full corrected text.
 - Include at most ${input.maxReferenceRewrites} referenceRewrites item with a concrete noticeTheGap.
@@ -26,6 +27,8 @@ Rules:
 - Include at most ${input.maxUpgradeOpportunities} upgradeOpportunities for reusable phrase upgrades that are not grammar corrections.
 - Use quote anchors whose exact field is a verbatim substring of writing_content.
 - For non-spelling corrections above low confidence, either reuse a matchedPatternId from existing patterns or provide newPatternSuggestion with category, rule, and canonicalExample only.
+- Fingerprint patternType must be one of grammar, collocation, word_choice, phrase_structure, register, sentence_logic.
+- Fingerprint forbiddenLeakageTerms must include at least one target-expression leakage term from the target correction.
 
 JSON shape:
 {
@@ -41,7 +44,23 @@ JSON shape:
       "newPatternSuggestion": { "category": "tense", "rule": "transferable rule", "canonicalExample": "example" }
     }
   ],
-  "summary": { "focusPattern": { "correctionIndex": 0, "reason": "why this pattern matters" }, "whatWentWell": ["concrete positive evidence"] },
+  "summary": {
+    "focusPattern": {
+      "correctionIndex": 0,
+      "reason": "why this pattern matters",
+      "fingerprint": {
+        "patternType": "grammar",
+        "learnerError": "the learner's recurring error pattern",
+        "targetCorrection": "the target correction pattern",
+        "abstractRule": "portable rule without overfitting to this topic",
+        "positiveExamples": ["short reusable example using the same pattern"],
+        "negativeExample": "short example showing the learner error",
+        "transferBoundary": "what counts as same-pattern transfer and what does not",
+        "forbiddenLeakageTerms": ["target expression or keyword not to leak in future prompts"]
+      }
+    },
+    "whatWentWell": ["concrete positive evidence"]
+  },
   "selfRepairTask": { "correctionIndex": 0, "prompt": "try fixing this", "hint": "hint without full answer" },
   "inputBridge": { "correctionIndex": 0, "examples": ["short reusable example"] },
   "referenceRewrites": [{ "text": "one native reference rewrite", "noticeTheGap": "what changed and why" }],

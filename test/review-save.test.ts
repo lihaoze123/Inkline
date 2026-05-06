@@ -23,7 +23,8 @@ import type {
 } from '../src/main/db/schema';
 import type { db as appDatabase } from '../src/main/db/client';
 import type { saveReviewRun as saveReviewRunFunction } from '../src/main/services/review/procedures/save';
-import type { PreviewOperationsSnapshot, SaveReviewOutput } from '../src/shared/types/review';
+import type { PatternFingerprint } from '../src/shared/review-contract';
+import type { PersistedPreviewOperationsSnapshot, SaveReviewOutput } from '../src/shared/types/review';
 
 type AppDatabase = typeof appDatabase;
 
@@ -79,6 +80,28 @@ vi.mock('../src/main/db/client', () => ({
 
 const now = new Date('2026-04-29T12:00:00.000Z');
 vi.setSystemTime(now);
+const focusFingerprint: PatternFingerprint = {
+  patternType: 'grammar',
+  learnerError: 'uses present tense for a completed trip home',
+  targetCorrection: 'use past tense for the completed trip home',
+  abstractRule: 'Use past tense for finished actions.',
+  positiveExamples: ['Yesterday I went home.'],
+  negativeExample: 'Yesterday I go home.',
+  transferBoundary: 'Applies to completed events, not habits or current routines.',
+  forbiddenLeakageTerms: ['went', 'past tense'],
+};
+
+const existingFingerprint: PatternFingerprint = {
+  patternType: 'grammar',
+  learnerError: 'old learner error',
+  targetCorrection: 'old target correction',
+  abstractRule: 'Old durable rule.',
+  positiveExamples: ['Last week I ate dinner.'],
+  negativeExample: 'Last week I eat dinner.',
+  transferBoundary: 'Old boundary.',
+  forbiddenLeakageTerms: ['ate'],
+};
+
 const tableNames = new Map<object, TableName>([
   [writingAttempts, 'writingAttempts'],
   [writingRevisions, 'writingRevisions'],
@@ -195,7 +218,7 @@ class FakeReviewDatabase {
     }
   }
 
-  seedReadyReview(operations: PreviewOperationsSnapshot): void {
+  seedReadyReview(operations: PersistedPreviewOperationsSnapshot): void {
     this.store.reviewRuns.push({
       id: 'review_1',
       writingAttemptId: 'journal_1',
@@ -227,6 +250,7 @@ class FakeReviewDatabase {
       firstSeenDateKey: '2026-04-28',
       lastSeenDateKey: '2026-04-28',
       recentExamplesJson: JSON.stringify(['I eat dinner -> I ate dinner']),
+      fingerprintJson: null,
       active: true,
       createdAt: now,
       updatedAt: now,
@@ -377,7 +401,9 @@ function currentWriting(): NonNullable<SaveReviewOutput['writing']> {
   };
 }
 
-function baseOperations(overrides: Partial<PreviewOperationsSnapshot> = {}): PreviewOperationsSnapshot {
+function baseOperations(
+  overrides: Partial<PersistedPreviewOperationsSnapshot> = {},
+): PersistedPreviewOperationsSnapshot {
   return {
     corrections: [
       {
@@ -391,11 +417,26 @@ function baseOperations(overrides: Partial<PreviewOperationsSnapshot> = {}): Pre
         startOffset: 6,
         endOffset: 15,
         contentHash: 'hash_a',
-        matchedPatternId: 'tense_pattern',
-        newPatternSuggestion: null,
+        matchedPatternId: null,
+        newPatternSuggestion: {
+          category: 'tense',
+          rule: 'Use past tense for completed actions.',
+          canonicalExample: 'I go home -> I went home',
+        },
       },
     ],
-    patternOperations: [],
+    patternOperations: [
+      {
+        kind: 'suggest_new_pattern',
+        correctionIndex: 0,
+        category: 'tense',
+        rule: 'Use past tense for completed actions.',
+        canonicalExample: 'I go home -> I went home',
+        patternKey: 'tense:use_past_tense_for_completed_actions',
+        fingerprint: focusFingerprint,
+        updatesLongTermStats: false,
+      },
+    ],
     referenceRewrites: [
       {
         rewriteIndex: 0,
@@ -458,7 +499,7 @@ describe('saveReviewRun transaction', () => {
     expect(database.count('rewriteTasks')).toBe(1);
     expect(database.savedRewriteTasks()[0]).toMatchObject({
       originalSentence: 'I go home',
-      focusPattern: 'tense_pattern',
+      focusPattern: 'Use past tense for completed actions.',
       nativeModelSentence: 'I went home',
       kind: 'rewrite_original',
       spacedStage: 'D+1',
@@ -486,6 +527,7 @@ describe('saveReviewRun transaction', () => {
             kind: 'reuse_pattern',
             correctionIndex: 0,
             patternId: 'pattern_tense',
+            fingerprint: focusFingerprint,
             updatesLongTermStats: false,
           },
         ],
@@ -508,6 +550,7 @@ describe('saveReviewRun transaction', () => {
       id: 'pattern_tense',
       count: 3,
       lastSeenDateKey: '2026-04-29',
+      fingerprintJson: JSON.stringify(focusFingerprint),
     });
     expect(JSON.parse(database.savedErrorPatterns()[0].recentExamplesJson)).toEqual([
       'I go home -> I went home',
@@ -543,6 +586,7 @@ describe('saveReviewRun transaction', () => {
             rule: 'Use past tense for completed actions.',
             canonicalExample: 'I go home -> I went home',
             patternKey: 'tense:use_past_tense_for_completed_actions',
+            fingerprint: focusFingerprint,
             updatesLongTermStats: false,
           },
         ],
@@ -571,6 +615,7 @@ describe('saveReviewRun transaction', () => {
       count: 1,
       firstSeenDateKey: '2026-04-29',
       lastSeenDateKey: '2026-04-29',
+      fingerprintJson: JSON.stringify(focusFingerprint),
     });
     expect(database.savedCorrections()[0].patternId).toBe(database.savedErrorPatterns()[0].id);
     expect(database.savedNotebookEntries()).toHaveLength(1);
@@ -609,6 +654,7 @@ describe('saveReviewRun transaction', () => {
             rule: 'Choose past tense instead of present tense for completed actions.',
             canonicalExample: 'I go home -> I went home',
             patternKey: 'tense:choose_past_tense_instead_of_present_tense_for_completed_actions',
+            fingerprint: focusFingerprint,
             updatesLongTermStats: false,
           },
         ],
@@ -627,11 +673,168 @@ describe('saveReviewRun transaction', () => {
       id: 'pattern_tense',
       count: 3,
       lastSeenDateKey: '2026-04-29',
+      fingerprintJson: JSON.stringify(focusFingerprint),
     });
     expect(database.savedCorrections()[0]).toMatchObject({
       patternId: 'pattern_tense',
       pattern: 'Use past tense for completed actions.',
     });
+  });
+
+  it('does not overwrite an existing matched pattern fingerprint', async () => {
+    const database = new FakeReviewDatabase();
+    database.seedWriting();
+    database.seedErrorPattern({ fingerprintJson: JSON.stringify(existingFingerprint) });
+    database.seedReadyReview(
+      baseOperations({
+        corrections: [
+          {
+            ...baseOperations().corrections[0],
+            matchedPatternId: 'pattern_tense',
+          },
+        ],
+        patternOperations: [
+          {
+            kind: 'reuse_pattern',
+            correctionIndex: 0,
+            patternId: 'pattern_tense',
+            fingerprint: focusFingerprint,
+            updatesLongTermStats: false,
+          },
+        ],
+      }),
+    );
+    const saveReviewRun = await loadSaveReviewRun();
+
+    const result = saveReviewRun(
+      { reviewRunId: 'review_1', selfRepairAttemptText: 'I went home', revealedWithoutAttempt: false },
+      { database: database.asAppDatabase(), getWritingAttemptSnapshot: currentWriting },
+    );
+
+    expect(result.success).toBe(true);
+    expect(database.savedErrorPatterns()[0].fingerprintJson).toBe(JSON.stringify(existingFingerprint));
+  });
+
+  it('rejects focus pattern persistence when the focus fingerprint is missing from preview operations', async () => {
+    const database = new FakeReviewDatabase();
+    database.seedWriting();
+    database.seedErrorPattern();
+    database.seedReadyReview(
+      baseOperations({
+        corrections: [
+          {
+            ...baseOperations().corrections[0],
+            matchedPatternId: 'pattern_tense',
+          },
+        ],
+        patternOperations: [
+          {
+            kind: 'reuse_pattern',
+            correctionIndex: 0,
+            patternId: 'pattern_tense',
+            updatesLongTermStats: false,
+          },
+        ],
+      }),
+    );
+    const saveReviewRun = await loadSaveReviewRun();
+
+    const result = saveReviewRun(
+      { reviewRunId: 'review_1', selfRepairAttemptText: 'I went home', revealedWithoutAttempt: false },
+      { database: database.asAppDatabase(), getWritingAttemptSnapshot: currentWriting },
+    );
+
+    expect(result.success).toBe(false);
+    expect(result.error).toBe('Review focus pattern fingerprint is missing.');
+    expect(database.savedErrorPatterns()[0]).toMatchObject({ count: 2, fingerprintJson: null });
+    expect(database.count('corrections')).toBe(0);
+  });
+
+  it('rejects focus pattern persistence when the focus pattern operation is missing', async () => {
+    const database = new FakeReviewDatabase();
+    database.seedWriting();
+    database.seedReadyReview(baseOperations({ patternOperations: [] }));
+    const saveReviewRun = await loadSaveReviewRun();
+
+    const result = saveReviewRun(
+      { reviewRunId: 'review_1', selfRepairAttemptText: 'I went home', revealedWithoutAttempt: false },
+      { database: database.asAppDatabase(), getWritingAttemptSnapshot: currentWriting },
+    );
+
+    expect(result.success).toBe(false);
+    expect(result.error).toBe('Review focus pattern fingerprint is missing.');
+    expect(database.count('errorPatterns')).toBe(0);
+    expect(database.count('corrections')).toBe(0);
+  });
+
+  it('ignores non-focus fingerprints during pattern persistence', async () => {
+    const database = new FakeReviewDatabase();
+    database.seedWriting();
+    database.seedErrorPattern();
+    database.seedErrorPattern({
+      id: 'pattern_article',
+      patternKey: 'article:use_an_before_vowel_sound',
+      category: 'article',
+      rule: 'Use an before a vowel sound.',
+      canonicalExample: 'a office -> an office',
+      count: 1,
+      recentExamplesJson: JSON.stringify(['a apple -> an apple']),
+    });
+    database.seedReadyReview(
+      baseOperations({
+        corrections: [
+          {
+            ...baseOperations().corrections[0],
+            matchedPatternId: 'pattern_tense',
+            newPatternSuggestion: null,
+          },
+          {
+            correctionIndex: 1,
+            originalText: 'a office',
+            correctedText: 'an office',
+            explanation: 'Use an before a vowel sound.',
+            category: 'article',
+            confidence: 'high',
+            status: 'suggested',
+            startOffset: 20,
+            endOffset: 28,
+            contentHash: 'hash_a',
+            matchedPatternId: 'pattern_article',
+            newPatternSuggestion: null,
+          },
+        ],
+        patternOperations: [
+          {
+            kind: 'reuse_pattern',
+            correctionIndex: 0,
+            patternId: 'pattern_tense',
+            fingerprint: focusFingerprint,
+            updatesLongTermStats: false,
+          },
+          {
+            kind: 'reuse_pattern',
+            correctionIndex: 1,
+            patternId: 'pattern_article',
+            fingerprint: existingFingerprint,
+            updatesLongTermStats: false,
+          },
+        ],
+      }),
+    );
+    const saveReviewRun = await loadSaveReviewRun();
+
+    const result = saveReviewRun(
+      { reviewRunId: 'review_1', selfRepairAttemptText: 'I went home', revealedWithoutAttempt: false },
+      { database: database.asAppDatabase(), getWritingAttemptSnapshot: currentWriting },
+    );
+
+    expect(result.success).toBe(true);
+    expect(database.savedErrorPatterns().find((pattern) => pattern.id === 'pattern_tense')?.fingerprintJson).toBe(
+      JSON.stringify(focusFingerprint),
+    );
+    expect(
+      database.savedErrorPatterns().find((pattern) => pattern.id === 'pattern_article')?.fingerprintJson,
+    ).toBeNull();
   });
 
   it('rolls back partial writes when one transaction step fails', async () => {
@@ -702,7 +905,7 @@ describe('saveReviewRun transaction', () => {
     }
     expect(result).toMatchObject({ success: true });
     expect(database.savedCorrections()).toHaveLength(1);
-    expect(database.savedCorrections()[0].pattern).toBe('tense_pattern');
+    expect(database.savedCorrections()[0].pattern).toBe('Use past tense for completed actions.');
     expect(database.count('rewriteTasks')).toBe(0);
   });
 

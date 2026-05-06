@@ -15,6 +15,27 @@ export const confidenceSchema = z.enum(['high', 'medium', 'low']);
 export const validationStatusSchema = z.enum(['valid', 'valid_with_warnings', 'invalid']);
 export const correctionStatusSchema = z.enum(['suggested', 'kept', 'dismissed', 'stale', 'low_confidence']);
 export const rewritePracticeKindSchema = z.enum(['rewrite_original']);
+export const patternTypeSchema = z.enum([
+  'grammar',
+  'collocation',
+  'word_choice',
+  'phrase_structure',
+  'register',
+  'sentence_logic',
+]);
+
+const fingerprintTextSchema = z.string().trim().min(1);
+
+export const patternFingerprintSchema = z.object({
+  patternType: patternTypeSchema,
+  learnerError: fingerprintTextSchema,
+  targetCorrection: fingerprintTextSchema,
+  abstractRule: fingerprintTextSchema,
+  positiveExamples: z.array(fingerprintTextSchema).min(1),
+  negativeExample: fingerprintTextSchema,
+  transferBoundary: fingerprintTextSchema,
+  forbiddenLeakageTerms: z.array(fingerprintTextSchema).min(1),
+});
 
 export const errorPatternSchema = z.object({
   id: z.string().min(1),
@@ -107,6 +128,7 @@ export const reviewCorrectionSchema = z
 export const focusPatternSchema = z.object({
   correctionIndex: z.number().int().nonnegative(),
   reason: z.string().min(1),
+  fingerprint: patternFingerprintSchema,
 });
 
 export const summarySchema = z.object({
@@ -155,6 +177,8 @@ export const reviewOutputSchema = z.object({
 });
 
 export type CorrectionCategory = z.infer<typeof correctionCategorySchema>;
+export type PatternType = z.infer<typeof patternTypeSchema>;
+export type PatternFingerprint = z.infer<typeof patternFingerprintSchema>;
 export type ErrorPattern = z.infer<typeof errorPatternSchema>;
 export type ReviewInput = z.infer<typeof reviewInputSchema>;
 export type CorrectionAnchor = z.infer<typeof correctionAnchorSchema>;

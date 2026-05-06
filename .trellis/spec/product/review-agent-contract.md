@@ -109,6 +109,7 @@ MVP internal target: anchoring success >= 95%; formal experience must not be bel
 - They cannot both be non-null.
 - They also cannot both be null unless `category = spelling` or `confidence = low`.
 - `summary.focusPattern` must exist exactly once and should reference the highest learning-value correction.
+- `summary.focusPattern.fingerprint` must contain one schema-valid `PatternFingerprint` for the focus correction.
 - `summary.whatWentWell` must contain at least one concrete item and at most `maxWhatWentWell` items.
 - v0.1 `selfRepairTask` must be non-null and its `correctionIndex` must match `summary.focusPattern.correctionIndex`.
 - `selfRepairTask.hint` must not reveal the full corrected text.
@@ -139,9 +140,11 @@ type PatternFingerprint = {
 
 Rules:
 
-- Generate the fingerprint at review/save time from the validated focus correction and review context.
+- Generate the fingerprint at review time from the validated focus correction and review context.
+- Put the fingerprint at `summary.focusPattern.fingerprint`; do not attach fingerprints to every correction.
 - Use `transferBoundary` to define what counts as same-pattern transfer and what does not.
 - Use `forbiddenLeakageTerms` to prevent new-context reuse prompts from exposing the target expression or original-keyword answer.
+- Valid review output must include at least one `positiveExamples` item and at least one `forbiddenLeakageTerms` item.
 - Later D+3/D+7 prompt generation and transfer evaluation must consume the saved fingerprint instead of reconstructing the pattern ad hoc.
 - Do not expose fingerprint internals as normal learner UI; Progress should translate them into plain-language evidence.
 
@@ -150,6 +153,7 @@ Rules:
 Before preview or save, validate:
 
 - JSON matches the Zod schema.
+- Focus-pattern fingerprint exists and matches the `PatternFingerprint` schema.
 - Quote anchoring succeeds or the correction is downgraded.
 - `matchedPatternId` exists.
 - New pattern suggestions do not provide final IDs.

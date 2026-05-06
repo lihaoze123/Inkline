@@ -28,6 +28,104 @@ notebook_entries
 
 The app may keep fields needed by later revisions, but it must not expose future workflows unless the task requires them.
 
+## Scenario: Pattern Fingerprint Persistence
+
+### 1. Scope / Trigger
+
+- Trigger: Any task that changes review focus-pattern validation, pattern persistence, `error_patterns`, or future transfer prompt/evaluator inputs.
+- This is a shared review-contract -> main-process save -> SQLite contract. Renderer Progress/Notebook read models must not expose fingerprint internals.
+
+### 2. Signatures
+
+Shared review output:
+
+```ts
+type PatternFingerprint = {
+  patternType: 'grammar' | 'collocation' | 'word_choice' | 'phrase_structure' | 'register' | 'sentence_logic';
+  learnerError: string;
+  targetCorrection: string;
+  abstractRule: string;
+  positiveExamples: string[];
+  negativeExample: string;
+  transferBoundary: string;
+  forbiddenLeakageTerms: string[];
+};
+
+type ReviewOutput = {
+  summary: {
+    focusPattern: {
+      correctionIndex: number;
+      reason: string;
+      fingerprint: PatternFingerprint;
+    };
+  };
+};
+```
+
+SQLite field:
+
+```text
+error_patterns.fingerprint_json text null
+```
+
+### 3. Contracts
+
+- `summary.focusPattern.fingerprint` is required for valid review output.
+- Save persists `fingerprint_json` only for the durable pattern linked to `summary.focusPattern.correctionIndex`.
+- New focus pattern rows are inserted with `fingerprint_json`.
+- Matched or duplicate focus pattern rows fill `fingerprint_json` only when the existing value is `null`.
+- Existing non-null `fingerprint_json` is not overwritten during review save.
+- Non-focus pattern operations must not receive or persist fingerprints.
+- Public renderer snapshots, including `ReviewPreviewSnapshot`, `ErrorPatternSnapshot`, Notebook snapshots, and normal Progress UI responses, do not include fingerprint internals.
+- Persisted review operations may keep the focus fingerprint in main-process storage so `saveReviewRun` can write `error_patterns.fingerprint_json`; public preview schemas must strip it before crossing IPC.
+
+### 4. Validation & Error Matrix
+
+| Condition | Behavior |
+| --- | --- |
+| Focus fingerprint is missing from review output | Shared schema validation fails; no preview operations are produced. |
+| Fingerprint string fields are blank | Shared schema validation fails. |
+| `positiveExamples` or `forbiddenLeakageTerms` is empty | Shared schema validation fails. |
+| Saved focus pattern operation lacks a fingerprint | `saveReviewRun` rejects before writing durable learning assets. |
+| Matched pattern has `fingerprint_json = null` | Save fills it from the focus fingerprint. |
+| Matched pattern already has `fingerprint_json` | Save keeps the existing value. |
+
+### 5. Good/Base/Bad Cases
+
+- Good: A valid focus correction with a new pattern suggestion inserts one `error_patterns` row with `fingerprint_json`.
+- Good: A valid matched focus correction fills a missing fingerprint without changing pattern de-dup behavior.
+- Base: Existing historical pattern rows keep `fingerprint_json = null` until reused as a saved focus pattern.
+- Bad: A review preview saves pattern counts while the focus pattern operation has no fingerprint.
+- Bad: Progress exposes raw `learnerError`, `targetCorrection`, `transferBoundary`, or `forbiddenLeakageTerms`.
+
+### 6. Tests Required
+
+- Review contract test: valid output with `summary.focusPattern.fingerprint` passes validation and carries the fingerprint on the focus pattern operation.
+- Review contract test: missing or invalid fingerprint returns `schemaValid: false` and empty operations.
+- Save test: new focus pattern persists `fingerprint_json`.
+- Save test: matched focus pattern fills missing `fingerprint_json`.
+- Save test: matched focus pattern with existing `fingerprint_json` does not overwrite it.
+- Migration test: Drizzle journal registers the migration and SQL adds `error_patterns.fingerprint_json`.
+- Renderer/read-model test: public review/Progress/Notebook snapshots do not include fingerprint fields.
+
+### 7. Wrong vs Correct
+
+#### Wrong
+
+```ts
+patternOperations.push({ correctionIndex: nonFocusIndex, fingerprint });
+```
+
+This can persist a fingerprint for a secondary correction that was not selected as the learning focus.
+
+#### Correct
+
+```ts
+const fingerprint = correctionIndex === summary.focusPattern.correctionIndex ? summary.focusPattern.fingerprint : undefined;
+```
+
+Only the selected focus pattern receives the hidden transfer contract.
+
 ## Scenario: Writing Attempt, Template, and Starter Prompt Contract
 
 ### 1. Scope / Trigger

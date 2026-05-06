@@ -81,6 +81,7 @@ export const errorPatterns = sqliteTable(
     firstSeenDateKey: text('first_seen_date_key').notNull(),
     lastSeenDateKey: text('last_seen_date_key').notNull(),
     recentExamplesJson: text('recent_examples_json').notNull().default('[]'),
+    fingerprintJson: text('fingerprint_json'),
     active: integer('active', { mode: 'boolean' }).notNull().default(true),
     createdAt: integer('created_at', { mode: 'timestamp_ms' })
       .notNull()

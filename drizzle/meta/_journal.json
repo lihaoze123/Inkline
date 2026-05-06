@@ -57,6 +57,13 @@
       "when": 1777410000007,
       "tag": "0007_rewrite_checks",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1777410000008,
+      "tag": "0008_pattern_fingerprints",
+      "breakpoints": true
     }
   ]
 }

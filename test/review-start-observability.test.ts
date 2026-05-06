@@ -11,6 +11,7 @@ import type {
 import type { db as appDatabase } from '../src/main/db/client';
 import type { startReview as startReviewFunction } from '../src/main/services/review/procedures/start';
 import type { ReviewAgent } from '../src/main/services/review/types';
+import type { PatternFingerprint } from '../src/shared/review-contract';
 import type { AiProviderDiagnostics } from '../src/shared/types/ai';
 import type { ReviewProgressEvent, ReviewRunSummary } from '../src/shared/types/review';
 
@@ -33,6 +34,16 @@ type RowStore = {
 };
 
 const now = new Date('2026-04-29T12:00:00.000Z');
+const focusFingerprint: PatternFingerprint = {
+  patternType: 'grammar',
+  learnerError: 'uses present tense for a completed trip home',
+  targetCorrection: 'use past tense for the completed trip home',
+  abstractRule: 'Use past tense for finished actions.',
+  positiveExamples: ['Yesterday I went home.'],
+  negativeExample: 'Yesterday I go home.',
+  transferBoundary: 'Applies to finished events, not present habits.',
+  forbiddenLeakageTerms: ['went', 'past tense'],
+};
 const tableNames = new Map<object, TableName>([
   [writingAttempts, 'writingAttempts'],
   [writingRevisions, 'writingRevisions'],
@@ -230,7 +241,7 @@ function successfulAgent(): ReviewAgent {
         },
       ],
       summary: {
-        focusPattern: { correctionIndex: 0, reason: 'This tense pattern is reusable.' },
+        focusPattern: { correctionIndex: 0, reason: 'This tense pattern is reusable.', fingerprint: focusFingerprint },
         whatWentWell: ['You expressed the main event clearly.'],
       },
       selfRepairTask: {

@@ -11,7 +11,7 @@ import {
   selfRepairAttempts,
 } from '../../../db/schema';
 import {
-  previewOperationsSnapshotSchema,
+  persistedPreviewOperationsSnapshotSchema,
   saveReviewInputSchema,
   type SaveReviewInput,
   type SaveReviewOutput,
@@ -68,7 +68,9 @@ export function saveReviewRun(input: SaveReviewInput, options: SaveReviewOptions
         throw new Error('Review preview operations are missing.');
       }
 
-      const operations = previewOperationsSnapshotSchema.parse(JSON.parse(reviewRun.previewOperationsJson) as unknown);
+      const operations = persistedPreviewOperationsSnapshotSchema.parse(
+        JSON.parse(reviewRun.previewOperationsJson) as unknown,
+      );
       const focusCorrectionIndex = operations.selfRepair?.correctionIndex;
       const focusCorrections = operations.corrections.filter(
         (correction) => correction.correctionIndex === focusCorrectionIndex,
@@ -79,6 +81,13 @@ export function saveReviewRun(input: SaveReviewInput, options: SaveReviewOptions
         focusCorrections[0].status === 'low_confidence'
       ) {
         throw new Error('Review must contain exactly one anchored focus correction.');
+      }
+
+      const focusPatternOperations = operations.patternOperations.filter(
+        (operation) => operation.correctionIndex === focusCorrectionIndex,
+      );
+      if (focusPatternOperations.length !== 1 || !focusPatternOperations[0].fingerprint) {
+        throw new Error('Review focus pattern fingerprint is missing.');
       }
 
       const activeEntry = tx
