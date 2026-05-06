@@ -1,0 +1,4 @@
+{"file": ".trellis/spec/shared/index.md", "reason": "Shared quality and documentation rules for final verification."}
+{"file": ".trellis/spec/shared/git-conventions.md", "reason": "Verify release commit/tag conventions."}
+{"file": ".trellis/spec/shared/pnpm-electron-setup.md", "reason": "Verify package manager and Electron packaging assumptions were preserved."}
+{"file": ".trellis/spec/product/index.md", "reason": "Verify changelog claims remain scoped to implemented behavior."}
