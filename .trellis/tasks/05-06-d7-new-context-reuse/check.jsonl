@@ -1,0 +1,20 @@
+{"file":".trellis/tasks/05-06-d7-new-context-reuse/prd.md","reason":"Acceptance criteria and explicit out-of-scope boundaries for D+7 new-context reuse."}
+{"file":".trellis/spec/product/index.md","reason":"Verify product checklist compliance for learning-flow changes."}
+{"file":".trellis/spec/product/roadmap.md","reason":"Verify implementation follows PR #25 Milestone 5 sequencing without post-D+7 scope creep."}
+{"file":".trellis/spec/product/learning-flow.md","reason":"Verify lifecycle, repair/transfer semantics, and evaluator branching."}
+{"file":".trellis/spec/product/data-model-contract.md","reason":"Verify persistence, prompt-contract, and evidence contracts."}
+{"file":".trellis/spec/product/review-agent-contract.md","reason":"Verify outcome vocabulary and prompt/evaluator boundaries remain consistent."}
+{"file":".trellis/spec/product/validation-and-testing.md","reason":"Verify appropriate test coverage and harness compatibility."}
+{"file":".trellis/spec/backend/index.md","reason":"Check backend guideline coverage for service/persistence changes."}
+{"file":".trellis/spec/backend/database.md","reason":"Check migration/schema conventions if touched."}
+{"file":".trellis/spec/backend/error-handling.md","reason":"Check transaction and error-handling behavior."}
+{"file":".trellis/spec/backend/type-safety.md","reason":"Check Zod/type-safety conventions."}
+{"file":".trellis/spec/backend/quality.md","reason":"Check main-process import and quality conventions."}
+{"file":".trellis/spec/frontend/index.md","reason":"Check renderer product-context compliance for practice UI changes."}
+{"file":".trellis/spec/frontend/components.md","reason":"Check practice card UI and copy conventions."}
+{"file":".trellis/spec/frontend/hooks.md","reason":"Check React Query cache invalidation/update behavior."}
+{"file":".trellis/spec/frontend/react-pitfalls.md","reason":"Check React implementation avoids common state/rendering pitfalls."}
+{"file":".trellis/spec/shared/index.md","reason":"Check shared schema/type contract compliance."}
+{"file":".trellis/spec/shared/code-quality.md","reason":"Check cross-layer code quality rules."}
+{"file":".trellis/spec/shared/typescript.md","reason":"Check TypeScript union/schema changes."}
+{"file":".trellis/spec/shared/timestamp.md","reason":"Check timestamp handling for D+7 due dates."}
