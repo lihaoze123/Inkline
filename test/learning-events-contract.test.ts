@@ -107,6 +107,7 @@ describe('learning event contracts', () => {
       'rewrite_snoozed',
       'rewrite_expired',
       'pattern_merged',
+      'correction_applied',
     ]);
   });
 

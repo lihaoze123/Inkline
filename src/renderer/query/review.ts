@@ -7,6 +7,8 @@ import {
   type UseQueryResult,
 } from '@tanstack/react-query';
 import type {
+  ApplyReviewCorrectionInput,
+  ApplyReviewCorrectionOutput,
   GetReviewPreviewInput,
   ReviewPreviewSnapshot,
   SaveReviewInput,
@@ -101,5 +103,29 @@ export function useSaveReview(): UseMutationResult<SaveReviewOutput, Error, Save
         void queryClient.invalidateQueries({ queryKey: queryKeys.learningAssets.notebookEntries });
       }
     },
+  });
+}
+
+export function updateApplyCorrectionCache(queryClient: QueryClient, result: ApplyReviewCorrectionOutput): void {
+  if (result.success !== true) {
+    return;
+  }
+
+  queryClient.setQueryData(queryKeys.review.run(result.reviewRun.id), result.reviewRun);
+  updateWritingAttemptCache(queryClient, result.writing);
+  void invalidateReviewPreview(queryClient, result.reviewRun.id);
+  void queryClient.invalidateQueries({ queryKey: queryKeys.learningAssets.learningEvents });
+}
+
+export function useApplyReviewCorrection(): UseMutationResult<
+  ApplyReviewCorrectionOutput,
+  Error,
+  ApplyReviewCorrectionInput
+> {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (input: ApplyReviewCorrectionInput) => window.api.review.applyCorrection(input),
+    onSuccess: (result) => updateApplyCorrectionCache(queryClient, result),
   });
 }

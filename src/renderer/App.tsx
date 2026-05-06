@@ -25,7 +25,7 @@ import type { ReviewProgressModel, ReviewState, SaveState } from './components/t
 import { useFoundationState } from './query/foundation';
 import { queryKeys } from './query/keys';
 import { useErrorPatterns, useMergeErrorPatterns, useNotebookEntries } from './query/learning-assets';
-import { setReviewPreviewCache, useSaveReview, useStartReview } from './query/review';
+import { setReviewPreviewCache, useApplyReviewCorrection, useSaveReview, useStartReview } from './query/review';
 import {
   useDeleteProviderApiKey,
   useSetDefaultProvider,
@@ -193,6 +193,8 @@ function PracticePage({ initialWriting, settings, startup }: PracticePageProps):
   const { mutateAsync: saveWritingAttempt } = useSaveWritingAttempt();
   const { mutateAsync: startReview } = useStartReview();
   const { mutateAsync: saveReviewMutation } = useSaveReview();
+  const { mutateAsync: applyReviewCorrectionMutation, isPending: isApplyReviewCorrectionPending } =
+    useApplyReviewCorrection();
   const { mutateAsync: generateStarterPromptMutation } = useGenerateStarterPrompt();
   const { mutateAsync: completeRewritePracticeMutation, isPending: isCompleteRewritePracticePending } =
     useCompleteRewritePractice();
@@ -219,6 +221,7 @@ function PracticePage({ initialWriting, settings, startup }: PracticePageProps):
   const [saveError, setSaveError] = useState<string | null>(null);
   const [reviewState, setReviewState] = useState<ReviewState>('idle');
   const [reviewError, setReviewError] = useState<string | null>(null);
+  const [applyCorrectionError, setApplyCorrectionError] = useState<string | null>(null);
   const [reviewProgress, setReviewProgress] = useState<ReviewProgressModel>(() => emptyReviewProgress());
   const [latestReviewRun, setLatestReviewRun] = useState<ReviewRunSnapshot | null>(null);
   const [reviewPreview, setReviewPreview] = useState<ReviewPreviewSnapshot | null>(null);
@@ -314,6 +317,7 @@ function PracticePage({ initialWriting, settings, startup }: PracticePageProps):
       setLatestReviewRun(null);
       setReviewState('idle');
       setReviewError(null);
+      setApplyCorrectionError(null);
       setCompletedRewritePractice(null);
       setRewritePracticeInput('');
       setStarterPromptError(null);
@@ -339,6 +343,7 @@ function PracticePage({ initialWriting, settings, startup }: PracticePageProps):
         if (savedWriting.staleReview) {
           setReviewPreview(null);
           setLatestReviewRun(null);
+          setApplyCorrectionError(null);
         }
         setSaveState('saved');
       } catch (error) {
@@ -374,6 +379,7 @@ function PracticePage({ initialWriting, settings, startup }: PracticePageProps):
       activeReviewRef.current = true;
       setReviewState('reviewing');
       setReviewError(null);
+      setApplyCorrectionError(null);
       setReviewProgress(emptyReviewProgress());
       setLatestReviewRun(null);
       setReviewPreview(null);
@@ -508,6 +514,7 @@ function PracticePage({ initialWriting, settings, startup }: PracticePageProps):
 
     setReviewState('saving');
     setReviewError(null);
+    setApplyCorrectionError(null);
 
     try {
       const result = await saveReviewMutation({
@@ -519,6 +526,7 @@ function PracticePage({ initialWriting, settings, startup }: PracticePageProps):
       if (result.success && result.writing) {
         updateWritingCache(result.writing);
         setReviewState('saved');
+        setApplyCorrectionError(null);
         return;
       }
 
@@ -529,6 +537,50 @@ function PracticePage({ initialWriting, settings, startup }: PracticePageProps):
       setReviewError(getErrorMessage(error, 'Unable to save review.'));
     }
   }, [modelAnswerRevealed, reviewPreview, saveReviewMutation, selfRepairAttempt, updateWritingCache]);
+
+  const applyFocusCorrectionToDraft = useCallback(async (): Promise<void> => {
+    if (!reviewPreview) {
+      return;
+    }
+
+    const focusCorrection = getFocusCorrection(reviewPreview);
+    const activeRevision = writing.activeRevision;
+    if (!focusCorrection || !activeRevision) {
+      setApplyCorrectionError('No safe focus correction is available for this draft.');
+      return;
+    }
+
+    setApplyCorrectionError(null);
+
+    try {
+      const result = await applyReviewCorrectionMutation({
+        reviewRunId: reviewPreview.reviewRun.id,
+        correctionIndex: focusCorrection.correctionIndex,
+        writingRevisionId: activeRevision.id,
+      });
+
+      if (result.success === true) {
+        updateWritingCache(result.writing);
+        setContent(result.writing.activeRevision?.content ?? '');
+        setUserGoal(result.writing.userGoal ?? '');
+        lastSavedContentRef.current = result.writing.activeRevision?.content ?? '';
+        lastSavedUserGoalRef.current = result.writing.userGoal ?? '';
+        setLatestReviewRun(result.reviewRun);
+        setReviewPreview(null);
+        setReviewState('idle');
+        setSelfRepairAttempt('');
+        setModelAnswerRevealed(false);
+        setRewritePracticeInput('');
+        setSaveState('saved');
+        setActiveArea('write');
+        return;
+      }
+
+      setApplyCorrectionError(result.error);
+    } catch (error) {
+      setApplyCorrectionError(getErrorMessage(error, 'Unable to create revised draft.'));
+    }
+  }, [applyReviewCorrectionMutation, reviewPreview, updateWritingCache, writing.activeRevision]);
 
   const completePendingRewritePractice = useCallback(async (): Promise<void> => {
     const rewritePractice = completedRewritePractice ?? writing.pendingRewritePractice;
@@ -652,6 +704,7 @@ function PracticePage({ initialWriting, settings, startup }: PracticePageProps):
 
   const acknowledgeDisclosureAndReview = useCallback(async (): Promise<void> => {
     setReviewError(null);
+    setApplyCorrectionError(null);
     try {
       await window.api.review.acknowledgeDisclosure({ acknowledged: true });
       setShowDisclosure(false);
@@ -950,10 +1003,16 @@ function PracticePage({ initialWriting, settings, startup }: PracticePageProps):
                 modelAnswerRevealed={modelAnswerRevealed}
                 rewritePracticeInput={rewritePracticeInput}
                 saveState={saveState}
+                activeWritingRevisionId={writing.activeRevision?.id ?? null}
+                applyCorrectionError={applyCorrectionError}
+                isApplyCorrectionPending={isApplyReviewCorrectionPending}
                 onSelfRepairAttemptChange={setSelfRepairAttempt}
                 onRevealModelAnswer={requestRevealModelAnswer}
                 onSaveReview={() => {
                   void saveReview();
+                }}
+                onApplyFocusCorrection={() => {
+                  void applyFocusCorrectionToDraft();
                 }}
                 onBackToDraft={() => setActiveArea('write')}
                 onReviewCurrentVersion={() => {
@@ -1277,16 +1336,20 @@ function templateTitleFor(templateId: WritingTemplateId): string {
   return WRITING_TEMPLATES.find((template) => template.id === templateId)?.title ?? 'Writing Practice';
 }
 
-function FeedbackRewritePage({
+export function FeedbackRewritePage({
   preview,
   reviewState,
   selfRepairAttempt,
   modelAnswerRevealed,
   rewritePracticeInput,
   saveState,
+  activeWritingRevisionId,
+  applyCorrectionError,
+  isApplyCorrectionPending,
   onSelfRepairAttemptChange,
   onRevealModelAnswer,
   onSaveReview,
+  onApplyFocusCorrection,
   onBackToDraft,
   onReviewCurrentVersion,
   onRewritePracticeInputChange,
@@ -1297,9 +1360,13 @@ function FeedbackRewritePage({
   modelAnswerRevealed: boolean;
   rewritePracticeInput: string;
   saveState: SaveState;
+  activeWritingRevisionId: string | null;
+  applyCorrectionError: string | null;
+  isApplyCorrectionPending: boolean;
   onSelfRepairAttemptChange: (value: string) => void;
   onRevealModelAnswer: () => void;
   onSaveReview: () => void;
+  onApplyFocusCorrection: () => void;
   onBackToDraft: () => void;
   onReviewCurrentVersion: () => void;
   onRewritePracticeInputChange: (value: string) => void;
@@ -1339,6 +1406,14 @@ function FeedbackRewritePage({
     : 'One focus pattern';
   const referenceRewrite = preview.operations.referenceRewrites[0];
   const rewriteText = rewritePracticeInput || selfRepairAttempt;
+  const isReviewSavedForApply = reviewState === 'saved' || preview.reviewRun.status === 'review_saved';
+  const hasCurrentApprovedRevision =
+    activeWritingRevisionId !== null && activeWritingRevisionId === preview.reviewRun.writingRevisionId;
+  const canApplyFocusCorrection =
+    Boolean(focusCorrection) &&
+    isReviewSavedForApply &&
+    !preview.isStaleForCurrentWriting &&
+    hasCurrentApprovedRevision;
 
   return (
     <section
@@ -1456,6 +1531,49 @@ function FeedbackRewritePage({
                 Show reference answer
               </button>
             ) : null}
+            <div className="ui-chrome mt-5 rounded-lg bg-base-100/45 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.65)]">
+              {preview.isStaleForCurrentWriting || !hasCurrentApprovedRevision ? (
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <p className="m-0 text-sm leading-6 text-base-content/62">
+                    This review is based on an earlier draft.
+                  </p>
+                  <button
+                    type="button"
+                    className="btn btn-warning btn-sm rounded-[0.6rem]"
+                    onClick={onReviewCurrentVersion}
+                  >
+                    Review current draft
+                  </button>
+                </div>
+              ) : (
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <p className="m-0 text-sm leading-6 text-base-content/62">
+                    Create a new draft revision with the focus correction.
+                  </p>
+                  <button
+                    type="button"
+                    className="btn btn-secondary btn-sm rounded-[0.6rem]"
+                    disabled={!canApplyFocusCorrection || isApplyCorrectionPending}
+                    data-e2e="apply-focus-correction-button"
+                    onClick={onApplyFocusCorrection}
+                  >
+                    {isApplyCorrectionPending
+                      ? 'Creating revised draft...'
+                      : isReviewSavedForApply
+                        ? 'Create revised draft'
+                        : 'Save review before applying to draft'}
+                  </button>
+                </div>
+              )}
+              {applyCorrectionError ? (
+                <p className="selectable-content m-0 mt-3 text-sm text-error">{applyCorrectionError}</p>
+              ) : null}
+              {!focusCorrection ? (
+                <p className="selectable-content m-0 mt-3 text-sm text-error">
+                  No safe focus correction is available for this review.
+                </p>
+              ) : null}
+            </div>
           </section>
         </div>
       </div>

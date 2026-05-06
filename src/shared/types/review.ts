@@ -14,7 +14,7 @@ import {
   upgradeOpportunitySchema,
 } from '../review-contract/schemas';
 import { aiProviderDiagnosticsSchema } from './ai';
-import { writingAttemptSnapshotSchema } from './writing';
+import { writingAttemptSnapshotSchema, writingRevisionSchema } from './writing';
 
 export const acknowledgeReviewDisclosureInputSchema = z.object({
   acknowledged: z.literal(true),
@@ -238,6 +238,25 @@ export const saveReviewOutputSchema = z.object({
   error: z.string().optional(),
 });
 
+export const applyReviewCorrectionInputSchema = z.object({
+  reviewRunId: z.string().min(1),
+  correctionIndex: z.number().int().nonnegative(),
+  writingRevisionId: z.string().min(1),
+});
+
+export const applyReviewCorrectionOutputSchema = z.discriminatedUnion('success', [
+  z.object({
+    success: z.literal(true),
+    writing: writingAttemptSnapshotSchema,
+    reviewRun: reviewRunSnapshotSchema,
+    appliedRevision: writingRevisionSchema,
+  }),
+  z.object({
+    success: z.literal(false),
+    error: z.string().min(1),
+  }),
+]);
+
 export const startReviewOutputSchema = z.object({
   success: z.boolean(),
   reviewRun: reviewRunSnapshotSchema.optional(),
@@ -266,4 +285,6 @@ export type ReviewPreviewSnapshot = z.infer<typeof reviewPreviewSnapshotSchema>;
 export type GetReviewPreviewInput = z.infer<typeof getReviewPreviewInputSchema>;
 export type SaveReviewInput = z.infer<typeof saveReviewInputSchema>;
 export type SaveReviewOutput = z.infer<typeof saveReviewOutputSchema>;
+export type ApplyReviewCorrectionInput = z.infer<typeof applyReviewCorrectionInputSchema>;
+export type ApplyReviewCorrectionOutput = z.infer<typeof applyReviewCorrectionOutputSchema>;
 export type StartReviewOutput = z.infer<typeof startReviewOutputSchema>;

@@ -18,5 +18,6 @@ export const queryKeys = {
   learningAssets: {
     errorPatterns: ['learning-assets', 'error-patterns'] as const,
     notebookEntries: ['learning-assets', 'notebook-entries'] as const,
+    learningEvents: ['learning-assets', 'learning-events'] as const,
   },
 } as const;

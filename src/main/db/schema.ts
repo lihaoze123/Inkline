@@ -224,6 +224,7 @@ export const learningEvents = sqliteTable(
         'rewrite_snoozed',
         'rewrite_expired',
         'pattern_merged',
+        'correction_applied',
       ],
     }).notNull(),
     occurredAt: integer('occurred_at', { mode: 'timestamp_ms' }).notNull(),

@@ -1,9 +1,10 @@
 import type { RewriteCheckSnapshot, WritingAttemptSnapshot } from '@shared/types/writing';
+import type { ReviewRunSnapshot } from '@shared/types/review';
 import { describe, expect, it } from 'vitest';
 import { createRendererQueryClient } from '../src/renderer/query/client';
 import { queryKeys } from '../src/renderer/query/keys';
 import { invalidateErrorPatterns } from '../src/renderer/query/learning-assets';
-import { setReviewPreviewCache } from '../src/renderer/query/review';
+import { setReviewPreviewCache, updateApplyCorrectionCache } from '../src/renderer/query/review';
 import { updateSettingsCache } from '../src/renderer/query/settings';
 import { updateRewritePracticeCache, updateWritingAttemptCache } from '../src/renderer/query/writing';
 import type { SettingsSnapshot } from '../src/shared/types/settings';
@@ -16,6 +17,7 @@ describe('renderer query configuration', () => {
     expect(queryKeys.app.startupStatus).toEqual(['app', 'startup-status']);
     expect(queryKeys.review.run('review-run-1')).toEqual(['review', 'run', 'review-run-1']);
     expect(queryKeys.review.preview('review-run-1')).toEqual(['review', 'preview', 'review-run-1']);
+    expect(queryKeys.learningAssets.learningEvents).toEqual(['learning-assets', 'learning-events']);
   });
 
   it('disables network-style retries and focus refetching for local IPC calls', () => {
@@ -498,6 +500,95 @@ describe('renderer query configuration', () => {
 
     expect(queryClient.getQueryData(queryKeys.review.preview('review-run-1'))).toEqual(preview);
     expect(queryClient.getQueryData(queryKeys.review.preview('review-run-2'))).toBeUndefined();
+  });
+
+  it('writes apply-correction results into review and writing caches', () => {
+    const queryClient = createRendererQueryClient();
+    const savedWriting = makeWritingAttempt();
+    const appliedWriting: WritingAttemptSnapshot = {
+      ...savedWriting,
+      activeRevision: {
+        id: 'revision_applied',
+        writingAttemptId: savedWriting.attemptId,
+        content: 'Today I went home.',
+        contentHash: 'hash_applied',
+        createdAt: 1777546800000,
+      },
+      lastReviewRunId: null,
+      staleReview: {
+        id: 'review-run-1',
+        reviewedContentHash: 'hash_reviewed',
+        createdAt: 1777460400000,
+      },
+    };
+    const staleReviewRun: ReviewRunSnapshot = {
+      id: 'review-run-1',
+      writingAttemptId: savedWriting.attemptId,
+      writingRevisionId: 'revision_reviewed',
+      contentHash: 'hash_reviewed',
+      status: 'stale',
+      validationStatus: 'valid',
+      provider: 'test-provider',
+      model: 'test-model',
+      validationErrors: [],
+      summary: null,
+      createdAt: 1777460400000,
+      updatedAt: 1777546800000,
+    };
+
+    queryClient.setQueryData(queryKeys.learningAssets.learningEvents, []);
+    queryClient.setQueryData(queryKeys.review.preview('review-run-1'), {
+      reviewRun: staleReviewRun,
+      reviewedContent: 'Today I go home.',
+      parsedOutput: {
+        corrections: [],
+        summary: {
+          focusPattern: { correctionIndex: 0, reason: 'Use past tense.' },
+          whatWentWell: ['Clear subject.'],
+        },
+        selfRepairTask: {
+          correctionIndex: 0,
+          prompt: 'Rewrite in past tense.',
+          hint: 'Use the past verb form.',
+        },
+        inputBridge: {
+          correctionIndex: 0,
+          examples: ['I went home yesterday.'],
+        },
+        referenceRewrites: [],
+        rewriteTasks: [],
+        upgradeOpportunities: [],
+      },
+      operations: {
+        corrections: [],
+        patternOperations: [],
+        referenceRewrites: [],
+        selfRepair: null,
+        rewritePractice: [],
+        upgradeOpportunities: [],
+        inputBridge: null,
+      },
+      currentWritingContentHash: 'hash_applied',
+      isStaleForCurrentWriting: true,
+    });
+
+    updateApplyCorrectionCache(queryClient, {
+      success: true,
+      writing: appliedWriting,
+      reviewRun: staleReviewRun,
+      appliedRevision: {
+        id: 'revision_applied',
+        writingAttemptId: savedWriting.attemptId,
+        content: 'Today I went home.',
+        contentHash: 'hash_applied',
+        createdAt: 1777546800000,
+      },
+    });
+
+    expect(queryClient.getQueryData(queryKeys.writing.attempt(appliedWriting.templateId))).toEqual(appliedWriting);
+    expect(queryClient.getQueryData(queryKeys.review.run('review-run-1'))).toEqual(staleReviewRun);
+    expect(queryClient.getQueryState(queryKeys.review.preview('review-run-1'))?.isInvalidated).toBe(true);
+    expect(queryClient.getQueryState(queryKeys.learningAssets.learningEvents)?.isInvalidated).toBe(true);
   });
 });
 

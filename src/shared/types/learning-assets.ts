@@ -12,6 +12,7 @@ export const learningEventTypeSchema = z.enum([
   'rewrite_snoozed',
   'rewrite_expired',
   'pattern_merged',
+  'correction_applied',
 ]);
 
 export const learningEventPayloadSchema = z.record(z.string(), z.unknown());

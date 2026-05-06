@@ -9,7 +9,143 @@ Corrections are anchored to the reviewed writing content version, not necessaril
 - `review_runs.input_snapshot_json` must contain the complete normalized `writingContent` used for review.
 - `corrections.start_offset` and `corrections.end_offset` are relative to the content version identified by `review_runs.content_hash`.
 - Editing the active writing revision makes old reviews stale but does not delete them.
-- Accepting corrections is out of scope for v0.1; future apply-correction behavior must create a new user-approved revision and never mutate historical snapshots.
+- Applying a saved focus correction must create a new user-approved revision and never mutate historical writing snapshots, correction offsets, or provider output.
+
+## Scenario: User-Approved Apply-Correction Revisions
+
+### 1. Scope / Trigger
+
+- Trigger: Any task that changes correction application, `window.api.review.applyCorrection`, `ApplyReviewCorrectionInput`, `writing_revisions`, correction anchor validation, review stale behavior after apply, or `learning_events.event_type = 'correction_applied'`.
+- Apply-correction is a user-approved draft revision workflow. It is not an auto-correction flow, not a bulk-apply flow, and not a mutation of the reviewed historical revision.
+
+### 2. Signatures
+
+Preload API:
+
+```ts
+window.api.review.applyCorrection(input: ApplyReviewCorrectionInput): Promise<ApplyReviewCorrectionOutput>;
+```
+
+Shared input/output:
+
+```ts
+type ApplyReviewCorrectionInput = {
+  reviewRunId: string;
+  correctionIndex: number;
+  writingRevisionId: string;
+};
+
+type ApplyReviewCorrectionOutput =
+  | {
+      success: true;
+      writing: WritingAttemptSnapshot;
+      reviewRun: ReviewRunSnapshot;
+      appliedRevision: WritingRevisionSnapshot;
+    }
+  | {
+      success: false;
+      error: string;
+    };
+```
+
+Durable writes on success:
+
+```text
+writing_revisions insert:
+  id text primary key
+  writing_attempt_id = review_runs.writing_attempt_id
+  content = active content with the saved focus correction replacement
+  content_hash = sha256(normalizeWritingContent(content))
+
+writing_attempts update:
+  active_revision_id = inserted revision id
+  last_review_run_id = null
+  reviewed_at = null
+
+review_runs update:
+  status = 'stale'
+
+learning_events insert:
+  event_type = 'correction_applied'
+```
+
+### 3. Contracts
+
+- The review must already be saved. Applying corrections from `review_ready` previews is forbidden.
+- Only the saved focus correction is applyable in the first version. The focus correction is identified by `previewOperations.selfRepair.correctionIndex`.
+- The caller must pass the active `writingRevisionId` being approved by the user. The service must reject if the active revision changed before the mutation runs.
+- The active revision `content_hash` must match `review_runs.content_hash`.
+- The selected correction must be anchored, not low-confidence, and have valid `startOffset` / `endOffset`.
+- The active revision content slice at `[startOffset, endOffset)` must equal `correction.originalText` before replacement.
+- Successful apply creates a new writing revision and updates the active attempt pointer in the same transaction as the review-stale update and learning-event append.
+- Historical rows are immutable for this workflow: do not update old `writing_revisions.content`, `review_runs.input_snapshot_json`, `review_runs.parsed_output_json`, `review_runs.preview_operations_json`, `corrections.start_offset`, `corrections.end_offset`, or provider raw output.
+- `correction_applied` payloads may include correction index, previous/next content hashes, and applied revision id. They must not include full writing content, original/corrected text, provider output, or hidden prompt/fingerprint internals.
+
+### 4. Validation & Error Matrix
+
+| Condition | Behavior |
+| --- | --- |
+| `reviewRunId` is unknown | Return `{ success: false, error }`; do not write a revision or event. |
+| Review status is `review_ready` | Return a save-first error; do not apply preview corrections. |
+| Review status is `stale` | Ask the user to review the current draft first. |
+| Review status is not `review_saved` | Reject; only saved reviews can apply corrections. |
+| `correctionIndex` does not identify exactly one saved correction | Reject as not found. |
+| Correction is not the saved focus correction | Reject; do not apply secondary suggestions in this flow. |
+| Correction is low-confidence or unanchored | Reject as not safely anchored. |
+| Caller `writingRevisionId` does not equal the active revision id | Reject as draft-changed-before-apply. |
+| Active revision hash differs from `review_runs.content_hash` | Reject as stale; review current draft first. |
+| Active content slice no longer equals `correction.originalText` | Reject as anchor mismatch. |
+| Replacement produces the same content hash | Reject as already applied; do not create another revision. |
+| Successful apply | Insert revision, update active attempt, stale review, append compact event, return fresh writing snapshot. |
+
+### 5. Good/Base/Bad Cases
+
+- Good: A learner saves a review, clicks `Create revised draft`, and the app inserts a new revision with the focus correction while preserving the reviewed revision.
+- Good: The returned writing snapshot points at the applied revision, clears `lastReviewRunId`, and exposes the source review as stale.
+- Base: The user edits the draft after review; apply rejects because the approved revision/hash no longer matches.
+- Base: The saved review contains multiple corrections; only the focus correction can be applied.
+- Bad: Applying a correction mutates the historical `writing_revisions.content` row that was reviewed.
+- Bad: Applying from an unsaved preview creates a draft revision before the user crosses the save-review learning-history boundary.
+- Bad: Event payload stores the old sentence, corrected sentence, full draft text, raw provider output, or hidden pattern fingerprint.
+
+### 6. Tests Required
+
+- Shared schema test: `ApplyReviewCorrectionInput` and success/failure output schemas parse expected payloads.
+- Service success test: saved current focus correction creates one new revision, stales the review, clears current review pointers, and logs one compact `correction_applied` event.
+- Service rejection tests: unsaved review, stale review, unknown correction, non-focus correction, low-confidence/unanchored correction, active revision mismatch, hash mismatch, text mismatch, and already-applied no-op.
+- Transaction test: event append or revision/update failure rolls back the apply mutation.
+- Migration/schema test: `learning_events` accepts `correction_applied` in the event-type check.
+- Renderer query test: apply success updates writing/review caches and invalidates preview/event queries.
+- Feedback UI test: apply is disabled before save, enabled after saved current review, and replaced by review-current-draft action for stale/mismatched reviews.
+
+### 7. Wrong vs Correct
+
+#### Wrong
+
+```ts
+await db.update(writingRevisions).set({ content: correctedContent }).where(eq(writingRevisions.id, reviewedRevisionId));
+```
+
+This rewrites the historical draft that review anchors, correction offsets, and provider output refer to.
+
+#### Correct
+
+```ts
+const appliedRevision = tx.insert(writingRevisions).values({
+  id: createId('revision'),
+  writingAttemptId,
+  content: correctedContent,
+  contentHash: computeWritingContentHash(correctedContent),
+});
+
+tx.update(writingAttempts).set({
+  activeRevisionId: appliedRevision.id,
+  lastReviewRunId: null,
+  reviewedAt: null,
+});
+```
+
+The approved correction becomes a new draft revision while the reviewed version remains intact for auditability.
 
 ## Required Tables
 
@@ -67,7 +203,8 @@ type LearningEventType =
   | 'rewrite_skipped'
   | 'rewrite_snoozed'
   | 'rewrite_expired'
-  | 'pattern_merged';
+  | 'pattern_merged'
+  | 'correction_applied';
 
 type LearningEventSnapshot = {
   id: string;
@@ -97,6 +234,7 @@ window.api.learningAssets.listLearningEvents(): Promise<LearningEventSnapshot[]>
 - Parent links use `on delete set null` so historical events remain readable if a future cleanup removes a parent row.
 - Payloads may contain compact metadata such as status, stage, kind, outcome, source/target pattern IDs, and due timestamps.
 - Payloads must not contain raw provider output, API keys, hidden fingerprints/prompt contracts, or full user writing/rewrite text.
+- `correction_applied` payloads may include correction index, previous/next content hashes, and the applied revision ID, but must not include original/corrected text or full writing content.
 - Read APIs return recent events newest-first with parsed payload objects and a bounded limit.
 - Progress and evidence read models remain derived from durable patterns, tasks, and checks; never derive learning success directly from event rows.
 
@@ -118,6 +256,7 @@ window.api.learningAssets.listLearningEvents(): Promise<LearningEventSnapshot[]>
 - Good: A rewrite submit appends `rewrite_submitted`, appends `rewrite_check_recorded`, and appends `rewrite_task_created` only if a D+3/D+7 task is actually inserted.
 - Base: A retryable evaluator failure still appends `rewrite_check_recorded` with `checkStatus: 'retryable'`, without treating it as a learner outcome.
 - Base: Pattern merge appends one `pattern_merged` event after a successful merge and no event after rejected validation.
+- Base: Applying a saved focus correction appends one `correction_applied` event after the new revision and active-attempt pointer update commit together.
 - Bad: Event payload stores the submitted rewrite text, raw model JSON, hidden prompt contract, or provider key material.
 - Bad: Progress uses `learning_events` counts or event types to claim repair, transfer, stability, or mastery.
 

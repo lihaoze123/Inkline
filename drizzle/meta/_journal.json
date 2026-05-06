@@ -85,6 +85,13 @@
       "when": 1777410000011,
       "tag": "0011_learning_events",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1777410000012,
+      "tag": "0012_correction_applied_event",
+      "breakpoints": true
     }
   ]
 }

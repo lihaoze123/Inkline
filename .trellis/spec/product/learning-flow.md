@@ -200,6 +200,7 @@ Do not use a vague `Save` label for the review-save action.
 - Pattern counts, rewrite practice, reference rewrite, and self-repair attempts are persisted only after save.
 - If the user edits the writing after a review is saved, the old review becomes stale relative to the active revision.
 - A stale review may remain visible as history, but current highlighting must be driven only by the active saved review.
+- Applying the saved focus correction is a separate user-approved action after save. It must create a new draft revision, stale the source review, and clear current-review pointers instead of mutating the reviewed revision or provider output.
 
 Stale review copy:
 

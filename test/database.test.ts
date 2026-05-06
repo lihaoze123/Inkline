@@ -98,4 +98,16 @@ describe('database foundation migration', () => {
     expect(migrationSql).toContain('CREATE UNIQUE INDEX `learning_events_dedupe_key_unique`');
     expect(migrationSql).toContain("'rewrite_retry_requested'");
   });
+
+  it('adds correction-applied support to durable learning events', () => {
+    const migrationSql = readFileSync(path.resolve(process.cwd(), 'drizzle/0012_correction_applied_event.sql'), 'utf8');
+
+    expect(migrationSql).toContain('CREATE TABLE `__new_learning_events`');
+    expect(migrationSql).toContain('CHECK (`event_type` IN');
+    expect(migrationSql).toContain("'correction_applied'");
+    expect(migrationSql).toContain('INSERT INTO `__new_learning_events`');
+    expect(migrationSql).toContain('DROP TABLE `learning_events`');
+    expect(migrationSql).toContain('ALTER TABLE `__new_learning_events` RENAME TO `learning_events`');
+    expect(migrationSql).toContain('CREATE UNIQUE INDEX `learning_events_dedupe_key_unique`');
+  });
 });

@@ -16,6 +16,8 @@ import {
 } from '../../shared/types/settings';
 import {
   acknowledgeReviewDisclosureInputSchema,
+  applyReviewCorrectionInputSchema,
+  applyReviewCorrectionOutputSchema,
   getReviewPreviewInputSchema,
   reviewPreviewSnapshotSchema,
   reviewProgressEventSchema,
@@ -73,6 +75,7 @@ import {
   mergeErrorPatterns,
 } from '../services/learning-assets/service';
 import { getReviewPreview } from '../services/review/procedures/preview';
+import { applyReviewCorrection } from '../services/review/procedures/apply-correction';
 import { saveReviewRun } from '../services/review/procedures/save';
 import { startReview } from '../services/review/procedures/start';
 import {
@@ -238,6 +241,11 @@ export function registerIpcHandlers(migrationResult: MigrationResult): void {
   ipcMain.handle(IPC_CHANNELS.REVIEW.SAVE, (_event, input: unknown): unknown => {
     const parsedInput = saveReviewInputSchema.parse(input);
     return saveReviewOutputSchema.parse(saveReviewRun(parsedInput));
+  });
+
+  ipcMain.handle(IPC_CHANNELS.REVIEW.APPLY_CORRECTION, (_event, input: unknown): unknown => {
+    const parsedInput = applyReviewCorrectionInputSchema.parse(input);
+    return applyReviewCorrectionOutputSchema.parse(applyReviewCorrection(parsedInput));
   });
 
   ipcMain.handle(IPC_CHANNELS.LEARNING_ASSETS.LIST_ERROR_PATTERNS, (): unknown => {

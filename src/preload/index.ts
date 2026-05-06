@@ -24,6 +24,8 @@ import type {
 } from '../shared/types/writing';
 import type {
   AcknowledgeReviewDisclosureInput,
+  ApplyReviewCorrectionInput,
+  ApplyReviewCorrectionOutput,
   GetReviewPreviewInput,
   ReviewPreviewSnapshot,
   ReviewProgressEvent,
@@ -106,6 +108,8 @@ const api = {
     getPreview: (input: GetReviewPreviewInput): Promise<ReviewPreviewSnapshot | null> =>
       ipcRenderer.invoke(IPC_CHANNELS.REVIEW.GET_PREVIEW, input),
     save: (input: SaveReviewInput): Promise<SaveReviewOutput> => ipcRenderer.invoke(IPC_CHANNELS.REVIEW.SAVE, input),
+    applyCorrection: (input: ApplyReviewCorrectionInput): Promise<ApplyReviewCorrectionOutput> =>
+      ipcRenderer.invoke(IPC_CHANNELS.REVIEW.APPLY_CORRECTION, input),
   },
   learningAssets: {
     listErrorPatterns: (): Promise<ListErrorPatternsOutput> =>

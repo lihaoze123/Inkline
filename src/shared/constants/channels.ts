@@ -32,6 +32,7 @@ export const IPC_CHANNELS = {
     PROGRESS: 'review:progress',
     GET_PREVIEW: 'review:getPreview',
     SAVE: 'review:save',
+    APPLY_CORRECTION: 'review:applyCorrection',
   },
   LEARNING_ASSETS: {
     LIST_ERROR_PATTERNS: 'learningAssets:listErrorPatterns',
