@@ -1,0 +1,15 @@
+{"file": ".trellis/spec/product/roadmap.md", "reason": "Verify event-log scope stays in Horizon 2 without mastery/gamification drift."}
+{"file": ".trellis/spec/product/learning-flow.md", "reason": "Verify rewrite lifecycle and transfer evidence semantics remain unchanged."}
+{"file": ".trellis/spec/product/data-model-contract.md", "reason": "Verify new durable table fits local learning data contracts."}
+{"file": ".trellis/spec/product/validation-and-testing.md", "reason": "Verify changed behavior has appropriate tests and commands."}
+{"file": ".trellis/spec/backend/database.md", "reason": "Verify migration, Drizzle schema, timestamp, and FK rules."}
+{"file": ".trellis/spec/backend/error-handling.md", "reason": "Verify failures are safe and not swallowed incorrectly."}
+{"file": ".trellis/spec/backend/type-safety.md", "reason": "Verify Zod-first public types and TypeScript safety."}
+{"file": ".trellis/spec/shared/code-quality.md", "reason": "Verify implementation stays cohesive and maintainable."}
+{"file": ".trellis/spec/shared/timestamp.md", "reason": "Verify timestamps cross API as Unix milliseconds."}
+{"file": ".trellis/spec/shared/typescript.md", "reason": "Verify TS style and no unsafe shortcuts."}
+{"file": ".trellis/spec/frontend/ipc-electron.md", "reason": "Verify preload/IPC exposure remains safe and typed."}
+{"file": ".trellis/spec/guides/db-schema-change-guide.md", "reason": "Verify schema-change checklist."}
+{"file": ".trellis/spec/guides/transaction-consistency-guide.md", "reason": "Verify event rows are transactionally consistent."}
+{"file": ".trellis/spec/guides/semantic-change-checklist.md", "reason": "Verify no unintended product semantics changed."}
+

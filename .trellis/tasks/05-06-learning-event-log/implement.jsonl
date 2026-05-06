@@ -1,0 +1,19 @@
+{"file": ".trellis/spec/product/index.md", "reason": "Product-layer routing and current product constraints."}
+{"file": ".trellis/spec/product/roadmap.md", "reason": "Horizon 2 event-log scope and transfer-evidence semantics."}
+{"file": ".trellis/spec/product/learning-flow.md", "reason": "Rewrite lifecycle, retry, transfer, and evidence semantics that events must preserve."}
+{"file": ".trellis/spec/product/data-model-contract.md", "reason": "Durable learning data contracts and future apply-correction/import-export boundaries."}
+{"file": ".trellis/spec/product/validation-and-testing.md", "reason": "Required validation commands and changed-behavior testing expectations."}
+{"file": ".trellis/spec/backend/index.md", "reason": "Backend layer overview and service conventions."}
+{"file": ".trellis/spec/backend/api-module.md", "reason": "IPC/service API module conventions for adding listLearningEvents."}
+{"file": ".trellis/spec/backend/database.md", "reason": "Drizzle/SQLite schema, migration, foreign-key, and timestamp rules."}
+{"file": ".trellis/spec/backend/error-handling.md", "reason": "Service error behavior and user-safe failures."}
+{"file": ".trellis/spec/backend/type-safety.md", "reason": "Zod-first type safety and discriminated-union narrowing rules."}
+{"file": ".trellis/spec/shared/code-quality.md", "reason": "Shared maintainability and reuse expectations."}
+{"file": ".trellis/spec/shared/timestamp.md", "reason": "Unix millisecond timestamp contract across DB and IPC."}
+{"file": ".trellis/spec/shared/typescript.md", "reason": "TypeScript style and safety rules."}
+{"file": ".trellis/spec/frontend/ipc-electron.md", "reason": "Preload/renderer boundary guidance for exposing a read-only API."}
+{"file": ".trellis/spec/guides/cross-layer-thinking-guide.md", "reason": "Cross-layer consistency checklist for DB, shared types, IPC, and tests."}
+{"file": ".trellis/spec/guides/db-schema-change-guide.md", "reason": "Schema/migration update checklist."}
+{"file": ".trellis/spec/guides/transaction-consistency-guide.md", "reason": "Event rows must align with the mutations they describe."}
+{"file": ".trellis/spec/guides/semantic-change-checklist.md", "reason": "Ensure event logging does not alter learning evidence semantics."}
+
