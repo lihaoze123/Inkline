@@ -1,0 +1,14 @@
+{"file": ".trellis/spec/product/roadmap.md", "reason": "Roadmap source for Horizon 3 CET/scenario sequencing and shared-engine constraints."}
+{"file": ".trellis/spec/product/mvp-scope.md", "reason": "Defines out-of-scope exam-mode behavior such as timers, word-count pressure, scores, and mock-exam flow."}
+{"file": ".trellis/spec/product/learning-flow.md", "reason": "Practice template flow, selected-template chrome, starter prompt, review, and CET no-exam-mode contracts."}
+{"file": ".trellis/spec/product/review-agent-contract.md", "reason": "Template-aware review input contract and validation boundaries for CET templates."}
+{"file": ".trellis/spec/frontend/index.md", "reason": "Frontend implementation entrypoint and mandatory guideline routing."}
+{"file": ".trellis/spec/frontend/react-pitfalls.md", "reason": "React state/dependency/loading patterns for Practice UI changes."}
+{"file": ".trellis/spec/frontend/components.md", "reason": "Semantic HTML, empty/scroll/layout patterns for renderer component additions."}
+{"file": ".trellis/spec/frontend/type-safety.md", "reason": "Shared type imports and explicit exported function type guidance."}
+{"file": ".trellis/spec/frontend/css-design.md", "reason": "Inkline editorial UI contract and visual constraints for quiet Practice guidance."}
+{"file": ".trellis/spec/frontend/quality.md", "reason": "Frontend quality bar and forbidden patterns."}
+{"file": ".trellis/spec/shared/code-quality.md", "reason": "Shared no-any/no-non-null assertion and testing rules."}
+{"file": ".trellis/spec/shared/typescript.md", "reason": "TypeScript explicit return type and type import guidance."}
+{"file": ".trellis/spec/guides/pre-implementation-checklist.md", "reason": "Checklist for reuse, scope, and edge cases before implementation."}
+{"file": ".trellis/tasks/05-06-cet-practice-refinements/info.md", "reason": "Task-specific implementation notes and risk constraints."}
