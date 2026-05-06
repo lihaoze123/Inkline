@@ -193,6 +193,8 @@
 
             makeWrapper "${lib.getExe electron}" "$out/bin/inkline" \
               --inherit-argv0 \
+              --set INKLINE_RUNTIME_IS_PACKAGED 1 \
+              --set INKLINE_RESOURCES_PATH "$out/lib/inkline/resources" \
               --add-flags "$out/lib/inkline/resources/app.asar" \
               --add-flags "\''${NIXOS_OZONE_WL:+\''${WAYLAND_DISPLAY:+--ozone-platform-hint=auto --enable-features=WaylandWindowDecorations --enable-wayland-ime=true}}"
 

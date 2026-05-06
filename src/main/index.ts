@@ -3,6 +3,7 @@ import type { BrowserWindowConstructorOptions } from 'electron';
 import './env-setup';
 import path from 'node:path';
 import { runMigrations } from './db/migrate';
+import { getPackagedResourcesPath, isPackagedRuntime } from './runtime';
 import { registerIpcHandlers } from './ipc/handlers';
 
 const WINDOW_BACKGROUND_COLOR = '#faf8f3';
@@ -12,8 +13,8 @@ const WINDOW_TITLE_BAR_HEIGHT = 40;
 let mainWindow: BrowserWindow | null = null;
 
 function getWindowIconPath(): string {
-  if (app.isPackaged) {
-    return path.join(process.resourcesPath, 'resources', 'icon.png');
+  if (isPackagedRuntime(app.isPackaged)) {
+    return path.join(getPackagedResourcesPath(), 'resources', 'icon.png');
   }
 
   return path.join(app.getAppPath(), 'resources', 'icon.png');
