@@ -4,6 +4,19 @@ All notable changes to Writing Practice are documented here.
 
 This project uses a simple Keep a Changelog style. Versions follow the app version in `package.json`.
 
+## [0.1.6] - 2026-05-06
+
+### Added
+
+- Added provider-specific AI model settings affordances, including clearer model entry and curated suggested models.
+- Added a headless e2e command and CI coverage path for release-relevant provider settings and review UI validation.
+
+### Changed
+
+- Polished Inkline app chrome, onboarding, practice, review, rewrite, and settings copy for a more cohesive product experience.
+- Clarified AI provider settings flow, connection state, and credential setup messaging.
+- Refreshed product roadmap/spec guidance around evidence semantics, learning assets, and validation boundaries.
+
 ## [0.1.0] - 2026-04-29
 
 ### Added
