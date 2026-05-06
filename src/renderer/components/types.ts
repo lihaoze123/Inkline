@@ -35,6 +35,7 @@ export type SettingsPageProps = {
   openAiCompatibleBaseUrlInput: string;
   providerModelInputs: Record<AiProviderId, string>;
   apiKeyInputs: Record<AiProviderId, string>;
+  includeRawProviderOutputInHistoryExport: boolean;
   message: string | null;
   error: string | null;
   onDefaultProviderChange: (providerId: AiProviderId) => void;
@@ -45,6 +46,10 @@ export type SettingsPageProps = {
   onDeleteApiKey: (providerId: AiProviderId) => void;
   onRawResponseStorageChange: (enabled: boolean) => void;
   onReviewThinkingChange: (enabled: boolean) => void;
+  onIncludeRawProviderOutputInHistoryExportChange: (enabled: boolean) => void;
+  onExportLearningHistory: () => void;
+  onCreateLearningHistoryBackup: () => void;
+  onPreviewLearningHistoryImport: () => void;
   onViewWelcomeIntro: () => void;
 };
 

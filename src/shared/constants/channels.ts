@@ -39,5 +39,8 @@ export const IPC_CHANNELS = {
     LIST_NOTEBOOK_ENTRIES: 'learningAssets:listNotebookEntries',
     LIST_LEARNING_EVENTS: 'learningAssets:listLearningEvents',
     MERGE_ERROR_PATTERNS: 'learningAssets:mergeErrorPatterns',
+    EXPORT_LEARNING_HISTORY: 'learningAssets:exportLearningHistory',
+    CREATE_LEARNING_HISTORY_BACKUP: 'learningAssets:createLearningHistoryBackup',
+    PREVIEW_LEARNING_HISTORY_IMPORT: 'learningAssets:previewLearningHistoryImport',
   },
 } as const;

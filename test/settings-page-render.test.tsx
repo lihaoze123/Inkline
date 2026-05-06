@@ -163,6 +163,7 @@ async function renderSettingsPage(
       openAiCompatibleBaseUrlInput="https://provider.example/v1"
       providerModelInputs={providerModelInputs}
       apiKeyInputs={providerTextInputMap}
+      includeRawProviderOutputInHistoryExport={false}
       message={null}
       error={null}
       onDefaultProviderChange={() => undefined}
@@ -173,6 +174,10 @@ async function renderSettingsPage(
       onDeleteApiKey={() => undefined}
       onRawResponseStorageChange={() => undefined}
       onReviewThinkingChange={() => undefined}
+      onIncludeRawProviderOutputInHistoryExportChange={() => undefined}
+      onExportLearningHistory={() => undefined}
+      onCreateLearningHistoryBackup={() => undefined}
+      onPreviewLearningHistoryImport={() => undefined}
       onViewWelcomeIntro={() => undefined}
     />,
   );
@@ -215,5 +220,16 @@ describe('SettingsPage provider flow', () => {
     expect(html).toContain('Enter the exact model ID you want Inkline to use.');
     expect(html).not.toContain('data-e2e="openai-compatible-model-select"');
     expect(html).not.toContain('__custom_model__');
+  });
+
+  it('renders learning history export and backup controls without enabling raw output by default', async () => {
+    const html = await renderSettingsPage('openai-compatible');
+
+    expect(html).toContain('Learning history');
+    expect(html).toContain('data-e2e="learning-history-export"');
+    expect(html).toContain('data-e2e="learning-history-backup"');
+    expect(html).toContain('data-e2e="learning-history-preview-import"');
+    expect(html).toContain('data-e2e="learning-history-raw-output-toggle"');
+    expect(html).not.toContain('data-e2e="learning-history-raw-output-toggle" checked');
   });
 });

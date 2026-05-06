@@ -34,6 +34,7 @@ export function SettingsPage({
   openAiCompatibleBaseUrlInput,
   providerModelInputs,
   apiKeyInputs,
+  includeRawProviderOutputInHistoryExport,
   message,
   error,
   onDefaultProviderChange,
@@ -44,6 +45,10 @@ export function SettingsPage({
   onDeleteApiKey,
   onRawResponseStorageChange,
   onReviewThinkingChange,
+  onIncludeRawProviderOutputInHistoryExportChange,
+  onExportLearningHistory,
+  onCreateLearningHistoryBackup,
+  onPreviewLearningHistoryImport,
   onViewWelcomeIntro,
 }: SettingsPageProps): React.JSX.Element {
   const aiModelSettings = settings.aiModelSettings;
@@ -166,6 +171,62 @@ export function SettingsPage({
                   <span className="font-medium">Keep raw model responses</span>
                 </label>
               </FormRow>
+            </div>
+          </section>
+
+          <section>
+            <h2 className="editorial-copy text-2xl text-base-content">Learning history</h2>
+            <p className="ui-chrome mt-2 max-w-2xl text-sm leading-6 text-base-content/55">
+              Export user-owned writing history as JSON, create a local backup, or preview a selected export before any
+              restore flow exists. Raw provider output is excluded unless you explicitly include it here.
+            </p>
+            <div className="mt-5 grid gap-5">
+              <FormRow
+                label="Raw output"
+                htmlFor="learning-history-raw-output-toggle"
+                helperText="Leave off for normal exports and backups."
+              >
+                <label className="flex max-w-xl cursor-pointer items-start gap-3 rounded-lg bg-base-100/25 p-3">
+                  <input
+                    id="learning-history-raw-output-toggle"
+                    className="toggle toggle-warning mt-1"
+                    type="checkbox"
+                    checked={includeRawProviderOutputInHistoryExport}
+                    data-e2e="learning-history-raw-output-toggle"
+                    onChange={(event) => onIncludeRawProviderOutputInHistoryExportChange(event.target.checked)}
+                  />
+                  <span className="font-medium">Include raw provider output</span>
+                </label>
+              </FormRow>
+              <div className="grid gap-2 md:grid-cols-[10rem_minmax(0,36rem)] md:items-start">
+                <div aria-hidden="true" />
+                <div className="flex max-w-xl flex-wrap gap-2">
+                  <button
+                    type="button"
+                    className="btn btn-outline rounded-[0.7rem]"
+                    data-e2e="learning-history-export"
+                    onClick={onExportLearningHistory}
+                  >
+                    Export JSON
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-outline rounded-[0.7rem]"
+                    data-e2e="learning-history-backup"
+                    onClick={onCreateLearningHistoryBackup}
+                  >
+                    Create backup
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-ghost rounded-[0.7rem] text-base-content/65"
+                    data-e2e="learning-history-preview-import"
+                    onClick={onPreviewLearningHistoryImport}
+                  >
+                    Preview import
+                  </button>
+                </div>
+              </div>
             </div>
           </section>
 

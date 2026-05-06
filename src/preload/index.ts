@@ -35,11 +35,14 @@ import type {
   StartReviewOutput,
 } from '../shared/types/review';
 import type {
+  ExportLearningHistoryInput,
+  LearningHistoryExportResult,
   ListErrorPatternsOutput,
   ListLearningEventsOutput,
   ListNotebookEntriesOutput,
   MergeErrorPatternsInput,
   MergeErrorPatternsResult,
+  PreviewLearningHistoryImportResult,
 } from '../shared/types/learning-assets';
 import type {
   SettingsSnapshot,
@@ -120,6 +123,12 @@ const api = {
       ipcRenderer.invoke(IPC_CHANNELS.LEARNING_ASSETS.LIST_LEARNING_EVENTS),
     mergeErrorPatterns: (input: MergeErrorPatternsInput): Promise<MergeErrorPatternsResult> =>
       ipcRenderer.invoke(IPC_CHANNELS.LEARNING_ASSETS.MERGE_ERROR_PATTERNS, input),
+    exportLearningHistory: (input?: ExportLearningHistoryInput): Promise<LearningHistoryExportResult> =>
+      ipcRenderer.invoke(IPC_CHANNELS.LEARNING_ASSETS.EXPORT_LEARNING_HISTORY, input),
+    createLearningHistoryBackup: (input?: ExportLearningHistoryInput): Promise<LearningHistoryExportResult> =>
+      ipcRenderer.invoke(IPC_CHANNELS.LEARNING_ASSETS.CREATE_LEARNING_HISTORY_BACKUP, input),
+    previewLearningHistoryImport: (): Promise<PreviewLearningHistoryImportResult> =>
+      ipcRenderer.invoke(IPC_CHANNELS.LEARNING_ASSETS.PREVIEW_LEARNING_HISTORY_IMPORT),
   },
 };
 

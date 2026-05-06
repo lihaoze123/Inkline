@@ -7,10 +7,13 @@ import {
   type UseQueryResult,
 } from '@tanstack/react-query';
 import type {
+  ExportLearningHistoryInput,
+  LearningHistoryExportResult,
   ListErrorPatternsOutput,
   ListNotebookEntriesOutput,
   MergeErrorPatternsInput,
   MergeErrorPatternsResult,
+  PreviewLearningHistoryImportResult,
 } from '@shared/types/learning-assets';
 import { queryKeys } from './keys';
 
@@ -44,5 +47,31 @@ export function useMergeErrorPatterns(): UseMutationResult<MergeErrorPatternsRes
         void invalidateErrorPatterns(queryClient);
       }
     },
+  });
+}
+
+export function useExportLearningHistory(): UseMutationResult<
+  LearningHistoryExportResult,
+  Error,
+  ExportLearningHistoryInput | undefined
+> {
+  return useMutation({
+    mutationFn: (input) => window.api.learningAssets.exportLearningHistory(input),
+  });
+}
+
+export function useCreateLearningHistoryBackup(): UseMutationResult<
+  LearningHistoryExportResult,
+  Error,
+  ExportLearningHistoryInput | undefined
+> {
+  return useMutation({
+    mutationFn: (input) => window.api.learningAssets.createLearningHistoryBackup(input),
+  });
+}
+
+export function usePreviewLearningHistoryImport(): UseMutationResult<PreviewLearningHistoryImportResult, Error, void> {
+  return useMutation({
+    mutationFn: () => window.api.learningAssets.previewLearningHistoryImport(),
   });
 }

@@ -27,10 +27,13 @@ import {
   startReviewOutputSchema,
 } from '../../shared/types/review';
 import {
+  exportLearningHistoryInputSchema,
+  learningHistoryExportResultSchema,
   listLearningEventsOutputSchema,
   listErrorPatternsOutputSchema,
   listNotebookEntriesOutputSchema,
   mergeErrorPatternsResultSchema,
+  previewLearningHistoryImportResultSchema,
 } from '../../shared/types/learning-assets';
 import { startupStatusSchema, type StartupStatus } from '../../shared/types/app';
 import {
@@ -74,6 +77,11 @@ import {
   listNotebookEntries,
   mergeErrorPatterns,
 } from '../services/learning-assets/service';
+import {
+  createLearningHistoryBackup,
+  exportLearningHistory,
+  previewLearningHistoryImport,
+} from '../services/learning-assets/export-history';
 import { getReviewPreview } from '../services/review/procedures/preview';
 import { applyReviewCorrection } from '../services/review/procedures/apply-correction';
 import { saveReviewRun } from '../services/review/procedures/save';
@@ -262,5 +270,25 @@ export function registerIpcHandlers(migrationResult: MigrationResult): void {
 
   ipcMain.handle(IPC_CHANNELS.LEARNING_ASSETS.MERGE_ERROR_PATTERNS, (_event, input: unknown): unknown => {
     return mergeErrorPatternsResultSchema.parse(mergeErrorPatterns(input));
+  });
+
+  ipcMain.handle(
+    IPC_CHANNELS.LEARNING_ASSETS.EXPORT_LEARNING_HISTORY,
+    async (_event, input: unknown): Promise<unknown> => {
+      const parsedInput = exportLearningHistoryInputSchema.parse(input ?? {});
+      return learningHistoryExportResultSchema.parse(await exportLearningHistory(parsedInput));
+    },
+  );
+
+  ipcMain.handle(
+    IPC_CHANNELS.LEARNING_ASSETS.CREATE_LEARNING_HISTORY_BACKUP,
+    async (_event, input: unknown): Promise<unknown> => {
+      const parsedInput = exportLearningHistoryInputSchema.parse(input ?? {});
+      return learningHistoryExportResultSchema.parse(await createLearningHistoryBackup(parsedInput));
+    },
+  );
+
+  ipcMain.handle(IPC_CHANNELS.LEARNING_ASSETS.PREVIEW_LEARNING_HISTORY_IMPORT, async (): Promise<unknown> => {
+    return previewLearningHistoryImportResultSchema.parse(await previewLearningHistoryImport());
   });
 }

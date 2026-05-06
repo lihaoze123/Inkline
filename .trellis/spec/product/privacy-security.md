@@ -162,6 +162,113 @@ Rules:
 - Debug export excludes `raw_output_json` by default.
 - Debug export includes raw output only after explicit user opt-in.
 
+## Scenario: Learning History Export, Backup, and Import Preview
+
+### 1. Scope / Trigger
+
+- Trigger: Any task that changes learning-history export, local backup, import preview, export file format, Settings learning-history controls, or `window.api.learningAssets` file APIs.
+- These flows move private user-owned learning data across a filesystem boundary, so the main process owns dialogs, filesystem access, SQLite reads, and export validation.
+
+### 2. Signatures
+
+Preload APIs:
+
+```ts
+window.api.learningAssets.exportLearningHistory(input?: {
+  includeRawProviderOutput?: boolean;
+}): Promise<LearningHistoryExportResult>;
+
+window.api.learningAssets.createLearningHistoryBackup(input?: {
+  includeRawProviderOutput?: boolean;
+}): Promise<LearningHistoryExportResult>;
+
+window.api.learningAssets.previewLearningHistoryImport(): Promise<PreviewLearningHistoryImportResult>;
+```
+
+Export envelope:
+
+```ts
+type LearningHistoryExportDocument = {
+  format: 'inkline-learning-history';
+  formatVersion: 1;
+  appName: 'Inkline';
+  appVersion: string;
+  exportedAt: number;
+  manifest: {
+    formatVersion: 1;
+    exportedAt: number;
+    includeRawProviderOutput: boolean;
+    counts: Record<LearningHistoryTableName, number>;
+    tablesChecksum: `sha256:${string}`;
+  };
+  tables: LearningHistoryExportTables;
+};
+```
+
+### 3. Contracts
+
+- Export and backup may include user-owned writing, rewrite, notebook, pattern, correction, review, check, and learning-event rows from SQLite.
+- Export and backup must not query or serialize settings snapshots, keychain data, provider API keys, request headers, credential status objects, or Electron-store settings.
+- `review_runs.raw_output_json` is excluded by default. Including it requires the separate explicit `includeRawProviderOutput: true` export input and must not be inferred from the raw-response-storage setting alone.
+- Backup files are written under the Electron `userData` backup directory.
+- Renderer code must call the narrow preload APIs only. It must not import Electron dialog APIs, Node filesystem APIs, database modules, keychain modules, or provider SDKs.
+- Import preview validates a selected JSON export, verifies manifest counts and checksum, and returns metadata only. It must not insert, update, delete, merge, or otherwise mutate SQLite rows.
+
+### 4. Validation & Error Matrix
+
+| Condition | Behavior |
+| --- | --- |
+| User cancels export save dialog | Return a successful canceled result; do not write a file. |
+| User creates backup | Create `userData/backups` if needed and write a timestamped JSON export file. |
+| Export input omits `includeRawProviderOutput` | Export `review_runs.raw_output_json` as `null`. |
+| Export input sets `includeRawProviderOutput: true` | Include locally stored raw provider output in `reviewRuns` rows. |
+| Selected import file is not JSON | Return a validation failure; do not mutate SQLite. |
+| Selected import file has unsupported format/version or invalid table shape | Return a validation failure; do not mutate SQLite. |
+| Manifest counts or checksum do not match table payload | Return a validation failure; do not mutate SQLite. |
+| Renderer tries to use `fs`, `dialog`, database, keychain, or provider SDKs | Contract violation; use preload IPC only. |
+
+### 5. Good/Base/Bad Cases
+
+- Good: Settings calls `window.api.learningAssets.exportLearningHistory({ includeRawProviderOutput: false })`; main opens a save dialog, snapshots SQLite tables, redacts raw output, writes JSON, and returns manifest metadata.
+- Good: Settings calls `createLearningHistoryBackup`; main writes the same redacted export format under `userData/backups`.
+- Base: A user explicitly enables raw-output inclusion for troubleshooting; the export records `manifest.includeRawProviderOutput = true`.
+- Base: A user selects a valid export in import preview; the app returns counts/version/path and performs no restore.
+- Bad: Export serializes API keys, settings snapshots, credential statuses, provider request headers, or keychain values.
+- Bad: Import preview restores, merges, deduplicates, or deletes rows in the active database.
+- Bad: Renderer imports `electron`, `node:fs`, `better-sqlite3`, `keytar`, or provider SDKs for export/import.
+
+### 6. Tests Required
+
+- Shared schema test: export document/result and import preview result parse expected success, canceled, and failure payloads.
+- Service test: every learning-history table is included with millisecond timestamps and manifest counts.
+- Privacy test: raw output is redacted by default and appears only with explicit `includeRawProviderOutput: true`.
+- Backup test: backup writes under `userData/backups` with a timestamped JSON filename.
+- Import preview tests: reject invalid JSON, unsupported version, invalid table shape, and checksum tampering without database mutation.
+- Boundary test: renderer imports no Electron dialog, filesystem, database, keychain, or provider modules.
+- IPC/preload test: learning-history file APIs are exposed only through the narrow `learningAssets` preload methods.
+
+### 7. Wrong vs Correct
+
+#### Wrong
+
+```ts
+await window.api.learningAssets.exportLearningHistory({
+  includeRawProviderOutput: settings.rawResponseStorageEnabled,
+});
+```
+
+Raw-output export consent must be separate from the storage setting.
+
+#### Correct
+
+```ts
+await window.api.learningAssets.exportLearningHistory({
+  includeRawProviderOutput: includeRawProviderOutputInHistoryExport,
+});
+```
+
+The renderer sends an explicit export choice, and the main process owns file dialogs, filesystem writes, SQLite reads, and redaction.
+
 ## Provider Diagnostics
 
 - `review_runs.summary_json.providerDiagnostics` is allowed even when raw response storage is off.

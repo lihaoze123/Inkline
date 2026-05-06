@@ -24,7 +24,14 @@ import feedbackInkLandscapeUrl from './assets/feedback-ink-landscape.png';
 import type { ReviewProgressModel, ReviewState, SaveState } from './components/types';
 import { useFoundationState } from './query/foundation';
 import { queryKeys } from './query/keys';
-import { useErrorPatterns, useMergeErrorPatterns, useNotebookEntries } from './query/learning-assets';
+import {
+  useCreateLearningHistoryBackup,
+  useErrorPatterns,
+  useExportLearningHistory,
+  useMergeErrorPatterns,
+  useNotebookEntries,
+  usePreviewLearningHistoryImport,
+} from './query/learning-assets';
 import { setReviewPreviewCache, useApplyReviewCorrection, useSaveReview, useStartReview } from './query/review';
 import {
   useDeleteProviderApiKey,
@@ -141,6 +148,10 @@ function providerLabel(providerId: AiProviderId): string {
   }
 }
 
+function learningHistoryCountTotal(counts: Record<string, number>): number {
+  return Object.values(counts).reduce((total, count) => total + count, 0);
+}
+
 export function App(): React.JSX.Element {
   const foundationState = useFoundationState();
 
@@ -210,6 +221,9 @@ function PracticePage({ initialWriting, settings, startup }: PracticePageProps):
   const { mutateAsync: setRawResponseStorageMutation } = useSetRawResponseStorage();
   const { mutateAsync: setReviewThinkingMutation } = useSetReviewThinking();
   const { mutateAsync: mergeErrorPatternsMutation, isPending: isMergeErrorPatternsPending } = useMergeErrorPatterns();
+  const { mutateAsync: exportLearningHistoryMutation } = useExportLearningHistory();
+  const { mutateAsync: createLearningHistoryBackupMutation } = useCreateLearningHistoryBackup();
+  const { mutateAsync: previewLearningHistoryImportMutation } = usePreviewLearningHistoryImport();
   const writing = writingQuery.data ?? initialWriting;
   const [content, setContent] = useState(initialWriting.activeRevision?.content ?? '');
   const [userGoal, setUserGoal] = useState(initialWriting.userGoal ?? '');
@@ -246,6 +260,7 @@ function PracticePage({ initialWriting, settings, startup }: PracticePageProps):
   const [providerApiKeyInputs, setProviderApiKeyInputs] = useState<Record<AiProviderId, string>>(() =>
     emptyProviderTextInputMap(),
   );
+  const [includeRawProviderOutputInHistoryExport, setIncludeRawProviderOutputInHistoryExport] = useState(false);
   const [settingsMessage, setSettingsMessage] = useState<string | null>(null);
   const [settingsError, setSettingsError] = useState<string | null>(null);
   const [isWelcomeIntroReplayOpen, setIsWelcomeIntroReplayOpen] = useState(false);
@@ -824,6 +839,82 @@ function PracticePage({ initialWriting, settings, startup }: PracticePageProps):
     [setReviewThinkingMutation],
   );
 
+  const exportLearningHistoryFromSettings = useCallback(async (): Promise<void> => {
+    setSettingsError(null);
+    setSettingsMessage(null);
+
+    try {
+      const result = await exportLearningHistoryMutation({
+        includeRawProviderOutput: includeRawProviderOutputInHistoryExport,
+      });
+
+      if (result.success === true && result.canceled === true) {
+        return;
+      }
+
+      if (result.success === true) {
+        setSettingsMessage(
+          `Learning history exported (${learningHistoryCountTotal(result.manifest.counts)} records) to ${result.filePath}.`,
+        );
+        return;
+      }
+
+      setSettingsError(result.error);
+    } catch (error) {
+      setSettingsError(getErrorMessage(error, 'Unable to export learning history.'));
+    }
+  }, [exportLearningHistoryMutation, includeRawProviderOutputInHistoryExport]);
+
+  const createLearningHistoryBackupFromSettings = useCallback(async (): Promise<void> => {
+    setSettingsError(null);
+    setSettingsMessage(null);
+
+    try {
+      const result = await createLearningHistoryBackupMutation({
+        includeRawProviderOutput: includeRawProviderOutputInHistoryExport,
+      });
+
+      if (result.success === true && result.canceled === true) {
+        return;
+      }
+
+      if (result.success === true) {
+        setSettingsMessage(
+          `Learning history backup created (${learningHistoryCountTotal(result.manifest.counts)} records) at ${result.filePath}.`,
+        );
+        return;
+      }
+
+      setSettingsError(result.error);
+    } catch (error) {
+      setSettingsError(getErrorMessage(error, 'Unable to create learning history backup.'));
+    }
+  }, [createLearningHistoryBackupMutation, includeRawProviderOutputInHistoryExport]);
+
+  const previewLearningHistoryImportFromSettings = useCallback(async (): Promise<void> => {
+    setSettingsError(null);
+    setSettingsMessage(null);
+
+    try {
+      const result = await previewLearningHistoryImportMutation();
+
+      if (result.success === true && result.canceled === true) {
+        return;
+      }
+
+      if (result.success === true) {
+        setSettingsMessage(
+          `Import preview valid: ${learningHistoryCountTotal(result.counts)} records in ${result.filePath}. No data was imported.`,
+        );
+        return;
+      }
+
+      setSettingsError(result.error);
+    } catch (error) {
+      setSettingsError(getErrorMessage(error, 'Unable to preview learning history import.'));
+    }
+  }, [previewLearningHistoryImportMutation]);
+
   const dismissWelcomeIntro = useCallback(async (): Promise<void> => {
     setWelcomeIntroError(null);
 
@@ -1053,6 +1144,7 @@ function PracticePage({ initialWriting, settings, startup }: PracticePageProps):
                 openAiCompatibleBaseUrlInput={openAiCompatibleBaseUrlInput}
                 providerModelInputs={providerModelInputs}
                 apiKeyInputs={providerApiKeyInputs}
+                includeRawProviderOutputInHistoryExport={includeRawProviderOutputInHistoryExport}
                 message={settingsMessage}
                 error={settingsError}
                 onDefaultProviderChange={(providerId) => {
@@ -1072,6 +1164,16 @@ function PracticePage({ initialWriting, settings, startup }: PracticePageProps):
                 }}
                 onReviewThinkingChange={(enabled) => {
                   void toggleReviewThinking(enabled);
+                }}
+                onIncludeRawProviderOutputInHistoryExportChange={setIncludeRawProviderOutputInHistoryExport}
+                onExportLearningHistory={() => {
+                  void exportLearningHistoryFromSettings();
+                }}
+                onCreateLearningHistoryBackup={() => {
+                  void createLearningHistoryBackupFromSettings();
+                }}
+                onPreviewLearningHistoryImport={() => {
+                  void previewLearningHistoryImportFromSettings();
                 }}
                 onViewWelcomeIntro={viewWelcomeIntro}
               />
