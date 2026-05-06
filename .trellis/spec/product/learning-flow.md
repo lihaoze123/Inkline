@@ -92,6 +92,29 @@ Tests required:
 - CET guidance avoids forbidden exam-mode wording such as timer, word count, score, official scoring, rubric score, and mock exam.
 - The editor template switcher still exposes Journal, CET-4 Writing, CET-6 Writing, and Free Writing as same-level options.
 
+## Scenario Pack Foundation
+
+Free Writing scenario packs are preset goal/topic seeds over the shared writing engine, not a new template system or scenario engine.
+
+Contracts:
+
+- Scenario pack chips may render in the existing Practice editor prompt/goal controls only when the selected template id is `free`.
+- The foundation packs are School essay, Work update, Application, Travel, and Free expression.
+- Selecting a pack calls the same editable goal path as typing in the Practice goal input, using the pack's concise `userGoal` seed.
+- The selected scenario is not separate state. Persist only through the existing `WritingAttemptSnapshot.userGoal` autosave path.
+- Scenario packs must not add template IDs, database fields, migrations, IPC channels, provider/runtime configuration, review output fields, rewrite task kinds, or scenario-specific review engines.
+- Scenario pack selection must not call starter prompt generation, review, or any model provider directly.
+- Journal, CET-4, and CET-6 must not show Free Writing scenario packs.
+- Scenario pack copy must keep writing user-authored and avoid scoring, levels, timers, official rubrics, mock-exam language, dashboards, generated essays, generated outlines, or AI-written outline promises.
+
+Tests required:
+
+- Free Writing renders all five pack chips.
+- Journal, CET-4, and CET-6 render no scenario pack picker.
+- Clicking a scenario chip calls `onUserGoalChange(pack.goalSeed)` and does not call starter prompt generation/provider paths.
+- Existing typed goal text remains the controlled Practice goal input value.
+- Scenario pack markup and seed copy avoid generated-writing and exam-mode wording.
+
 ## Scenario: Practice Entry and Template Flow
 
 ### 1. Scope / Trigger

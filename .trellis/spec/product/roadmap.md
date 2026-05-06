@@ -228,6 +228,8 @@ Goal: make scenario/exam practice a first-class product experience after the pat
   - Foundation implemented: CET-4 and CET-6 render lightweight Practice guidance over the shared writing engine.
   - Later expansion needs a separate PRD before adding timed mode, word-count pressure, official scoring/rubrics, or mock-exam flow.
 - Scenario packs for school essays, work updates, applications, travel, and free expression.
+  - Foundation implemented: Free Writing renders preset scenario chips that seed the existing optional goal/topic field.
+  - Later expansion needs a separate PRD before adding new scenario entities, templates, provider calls, review behavior, or evidence-affecting workflows.
 - Track-level guidance that changes prompts, review focus, and rewrite tasks while reusing the same learning-history engine.
 - Optional new-context generation using the user's active patterns.
 

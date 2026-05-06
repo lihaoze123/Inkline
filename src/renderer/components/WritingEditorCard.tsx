@@ -2,6 +2,34 @@ import { AutosaveStatus } from './AutosaveStatus';
 import { CetPracticeGuidance } from './CetPracticeGuidance';
 import type { WritingEditorCardProps } from './types';
 
+type FreeWritingScenarioPack = {
+  label: string;
+  goalSeed: string;
+};
+
+export const FREE_WRITING_SCENARIO_PACKS: readonly FreeWritingScenarioPack[] = [
+  {
+    label: 'School essay',
+    goalSeed: 'Write a short school essay with a clear opinion and one supporting example.',
+  },
+  {
+    label: 'Work update',
+    goalSeed: 'Write a brief work update about progress, blockers, and next steps.',
+  },
+  {
+    label: 'Application',
+    goalSeed: 'Write an application paragraph explaining your fit and motivation.',
+  },
+  {
+    label: 'Travel',
+    goalSeed: 'Write about a travel plan or experience with clear details.',
+  },
+  {
+    label: 'Free expression',
+    goalSeed: 'Explore a personal idea in your own voice and keep the point clear.',
+  },
+];
+
 export function WritingEditorCard({
   template,
   templates,
@@ -68,6 +96,24 @@ export function WritingEditorCard({
                   Create a prompt, add a goal, or begin with your own idea.
                 </p>
               )}
+              {selectedTemplateId === 'free' ? (
+                <div
+                  className="flex flex-wrap gap-2"
+                  aria-label="Free Writing scenario packs"
+                  data-e2e="free-writing-scenario-packs"
+                >
+                  {FREE_WRITING_SCENARIO_PACKS.map((pack) => (
+                    <button
+                      key={pack.label}
+                      type="button"
+                      className="btn btn-ghost btn-xs rounded-lg border border-base-300/60 bg-base-100/35 px-3 font-normal text-base-content/58 transition hover:border-primary/25 hover:bg-base-100/70 hover:text-base-content"
+                      onClick={() => onUserGoalChange(pack.goalSeed)}
+                    >
+                      {pack.label}
+                    </button>
+                  ))}
+                </div>
+              ) : null}
               <label className="form-control">
                 <span className="label-text text-sm font-medium text-base-content/70">Practice goal</span>
                 <input
