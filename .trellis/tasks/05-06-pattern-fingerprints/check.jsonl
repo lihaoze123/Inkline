@@ -1,0 +1,15 @@
+{"file":".trellis/tasks/05-06-pattern-fingerprints/prd.md","reason":"Acceptance criteria and out-of-scope boundaries for final check."}
+{"file":".trellis/spec/product/index.md","reason":"Product quality checklist for review/learning-assets work."}
+{"file":".trellis/spec/product/roadmap.md","reason":"Verify implementation stays within Milestone 4 first slice."}
+{"file":".trellis/spec/product/review-agent-contract.md","reason":"Verify fingerprint shape, validation, and hidden-UI boundary."}
+{"file":".trellis/spec/product/data-model-contract.md","reason":"Verify persistence and transfer-readiness data contracts."}
+{"file":".trellis/spec/product/learning-flow.md","reason":"Verify learning evidence semantics remain separate from fingerprint internals."}
+{"file":".trellis/spec/product/validation-and-testing.md","reason":"Verify expected review contract and persistence test coverage."}
+{"file":".trellis/spec/backend/index.md","reason":"Backend quality checklist for service and DB changes."}
+{"file":".trellis/spec/backend/api-module.md","reason":"Verify service module and transaction structure."}
+{"file":".trellis/spec/backend/database.md","reason":"Verify migration/schema conventions."}
+{"file":".trellis/spec/backend/type-safety.md","reason":"Verify Zod-first backend type safety."}
+{"file":".trellis/spec/shared/index.md","reason":"Shared code quality checklist."}
+{"file":".trellis/spec/shared/code-quality.md","reason":"Verify general code quality constraints."}
+{"file":".trellis/spec/shared/typescript.md","reason":"Verify TypeScript typing conventions."}
+{"file":".trellis/spec/shared/timestamp.md","reason":"Verify timestamp units if relevant."}

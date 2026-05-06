@@ -1,0 +1,15 @@
+{"file":".trellis/tasks/05-06-pattern-fingerprints/prd.md","reason":"Task requirements for PR #25 Milestone 4 pattern fingerprint persistence."}
+{"file":".trellis/spec/product/index.md","reason":"Product pre-development checklist and roadmap routing for review/learning-assets work."}
+{"file":".trellis/spec/product/roadmap.md","reason":"Source of Milestone 4 fingerprint scope and D+3/D+7 deferrals."}
+{"file":".trellis/spec/product/review-agent-contract.md","reason":"Pattern fingerprint contract and review agent validation requirements."}
+{"file":".trellis/spec/product/data-model-contract.md","reason":"SQLite learning assets, rewrite/evidence, and future transfer data contracts."}
+{"file":".trellis/spec/product/learning-flow.md","reason":"Learning evidence semantics and hidden-internals UI boundary."}
+{"file":".trellis/spec/product/validation-and-testing.md","reason":"Validation and testing requirements for review contract changes."}
+{"file":".trellis/spec/backend/index.md","reason":"Backend checklist for review save, learning assets, and DB work."}
+{"file":".trellis/spec/backend/api-module.md","reason":"Service module and transaction conventions."}
+{"file":".trellis/spec/backend/database.md","reason":"Drizzle/SQLite schema and migration conventions."}
+{"file":".trellis/spec/backend/type-safety.md","reason":"Backend Zod-first type safety requirements."}
+{"file":".trellis/spec/shared/index.md","reason":"Shared code checklist for review-contract schemas/types."}
+{"file":".trellis/spec/shared/code-quality.md","reason":"General code quality constraints."}
+{"file":".trellis/spec/shared/typescript.md","reason":"TypeScript explicit typing and schema-derived type rules."}
+{"file":".trellis/spec/shared/timestamp.md","reason":"Timestamp conventions if migration/test data touches dates."}
