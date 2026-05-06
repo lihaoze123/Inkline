@@ -1337,3 +1337,36 @@ Bumped Inkline to v0.1.6, published the GitHub Release, and verified release wor
 ### Next Steps
 
 - None - task complete
+
+
+## Session 40: Support NixOS flake packaging
+
+**Date**: 2026-05-06
+**Task**: Support NixOS flake packaging
+**Branch**: `main`
+
+### Summary
+
+Added installable Nix flake package/app outputs for Inkline, preserved the Electron devShell, documented downstream flake installation, and validated Nix plus project checks.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `f2c43ca` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete

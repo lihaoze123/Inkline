@@ -87,6 +87,48 @@ If provider settings, API keys, or keychain access are unavailable, AI calls ret
 
 The repository commits a hoisted pnpm layout in `.npmrc` for Electron/native-module compatibility. `postinstall` runs `electron-rebuild`.
 
+## NixOS / Nix Flakes
+
+Inkline exposes a flake package for Linux systems:
+
+```bash
+nix build github:lihaoze123/Inkline
+nix run github:lihaoze123/Inkline
+```
+
+For local development:
+
+```bash
+nix develop
+pnpm install
+pnpm dev
+```
+
+To install Inkline from another flake, add it as an input and reference the package output:
+
+```nix
+{
+  inputs.inkline.url = "github:lihaoze123/Inkline";
+
+  outputs =
+    { nixpkgs, inkline, ... }:
+    {
+      nixosConfigurations.my-host = nixpkgs.lib.nixosSystem {
+        system = "x86_64-linux";
+        modules = [
+          {
+            environment.systemPackages = [
+              inkline.packages.x86_64-linux.default
+            ];
+          }
+        ];
+      };
+    };
+}
+```
+
+For Home Manager, use the same package output in `home.packages`. The package uses nixpkgs Electron 39, pnpm 10, and rebuilds native modules for Electron during the Nix build.
+
 ## Scripts
 
 | Command               | Purpose                                                              |

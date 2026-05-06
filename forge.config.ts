@@ -17,6 +17,7 @@ const nativeModules = ['better-sqlite3', 'bindings', 'file-uri-to-path', 'keytar
 const iconBasePath = path.resolve(projectRoot, 'resources', 'icon');
 const pngIconPath = `${iconBasePath}.png`;
 const icoIconPath = `${iconBasePath}.ico`;
+const electronZipDir = process.env.INKLINE_ELECTRON_ZIP_DIR;
 const builderArchValues = ['x64', 'ia32', 'armv7l', 'arm64', 'universal'] as const;
 
 type BuilderArch = (typeof builderArchValues)[number];
@@ -102,6 +103,7 @@ const macNotarizeConfig =
 const config: ForgeConfig = {
   packagerConfig: {
     name: 'Inkline',
+    ...(electronZipDir ? { electronZipDir } : {}),
     asar: {
       unpack: '*.{node,dll}',
     },
