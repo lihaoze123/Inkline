@@ -1,0 +1,22 @@
+{"file": ".trellis/spec/product/index.md", "reason": "Product checklist for learning flow, privacy, and roadmap-aligned scope."}
+{"file": ".trellis/spec/product/roadmap.md", "reason": "Drill Center sequencing, Horizon 3 scope, and evidence semantics constraints."}
+{"file": ".trellis/spec/product/mvp-scope.md", "reason": "Current v0.2/backlog boundaries and drill center deferral context."}
+{"file": ".trellis/spec/product/learning-flow.md", "reason": "Practice, review, rewrite, and learning asset user flow semantics."}
+{"file": ".trellis/spec/product/data-model-contract.md", "reason": "Rewrite task lifecycle, learning event, and pattern/evidence contracts."}
+{"file": ".trellis/spec/product/review-agent-contract.md", "reason": "Pattern fingerprint, D+3/D+7 transfer, and prompt leakage boundaries."}
+{"file": ".trellis/spec/product/validation-and-testing.md", "reason": "Required quality checks and product-flow test expectations."}
+{"file": ".trellis/spec/frontend/index.md", "reason": "Frontend pre-development checklist for Electron React UI work."}
+{"file": ".trellis/spec/frontend/ipc-electron.md", "reason": "Renderer must use window.api/query hooks rather than native access."}
+{"file": ".trellis/spec/frontend/electron-browser-api-restrictions.md", "reason": "Avoid browser dialogs and unsupported Electron renderer APIs."}
+{"file": ".trellis/spec/frontend/react-pitfalls.md", "reason": "React handler/state pitfalls for new page and navigation state."}
+{"file": ".trellis/spec/frontend/components.md", "reason": "Semantic UI, empty/error/loading states, and card/layout conventions."}
+{"file": ".trellis/spec/frontend/hooks.md", "reason": "React Query and mutation/cache conventions for learning-assets data."}
+{"file": ".trellis/spec/frontend/css-design.md", "reason": "Inkline visual contract and CSS/design token constraints."}
+{"file": ".trellis/spec/frontend/quality.md", "reason": "Renderer import boundaries and frontend quality requirements."}
+{"file": ".trellis/spec/shared/index.md", "reason": "Shared code checklist."}
+{"file": ".trellis/spec/shared/typescript.md", "reason": "Explicit return types, Zod/shared type usage, and type-only imports."}
+{"file": ".trellis/spec/shared/code-quality.md", "reason": "No any/non-null assertions and focused tests."}
+{"file": ".trellis/spec/guides/index.md", "reason": "Guide routing for cross-layer UI feature work."}
+{"file": ".trellis/spec/guides/cross-layer-thinking-guide.md", "reason": "Drill Center reads existing state across renderer/query/preload/main/database layers."}
+{"file": ".trellis/spec/guides/pre-implementation-checklist.md", "reason": "Search-before-write readiness checklist."}
+{"file": ".trellis/tasks/05-06-drill-center-foundation/info.md", "reason": "Task-specific conservative Drill Center technical design."}

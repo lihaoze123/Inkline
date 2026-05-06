@@ -1,0 +1,18 @@
+{"file": ".trellis/spec/product/index.md", "reason": "Check product quality bar and learning asset constraints."}
+{"file": ".trellis/spec/product/roadmap.md", "reason": "Verify Drill Center matches Horizon 3 and does not break evidence semantics."}
+{"file": ".trellis/spec/product/mvp-scope.md", "reason": "Verify no out-of-scope on-demand drill engine slips in."}
+{"file": ".trellis/spec/product/learning-flow.md", "reason": "Check rewrite/practice user flow consistency."}
+{"file": ".trellis/spec/product/data-model-contract.md", "reason": "Check no parallel drill lifecycle/database semantics are introduced."}
+{"file": ".trellis/spec/product/review-agent-contract.md", "reason": "Check transfer and hidden prompt/fingerprint boundaries remain intact."}
+{"file": ".trellis/spec/product/validation-and-testing.md", "reason": "Verify required checks and focused tests."}
+{"file": ".trellis/spec/frontend/ipc-electron.md", "reason": "Check renderer uses narrow APIs/query hooks."}
+{"file": ".trellis/spec/frontend/electron-browser-api-restrictions.md", "reason": "Check no unsupported browser/native APIs."}
+{"file": ".trellis/spec/frontend/react-pitfalls.md", "reason": "Check React state/handler correctness."}
+{"file": ".trellis/spec/frontend/components.md", "reason": "Check semantic loading/error/empty states and layout conventions."}
+{"file": ".trellis/spec/frontend/hooks.md", "reason": "Check query/cache usage and avoid duplicate manual lifecycle."}
+{"file": ".trellis/spec/frontend/css-design.md", "reason": "Check Inkline visual contract."}
+{"file": ".trellis/spec/frontend/quality.md", "reason": "Check renderer import boundary and quality."}
+{"file": ".trellis/spec/shared/typescript.md", "reason": "Check explicit types and type-only imports."}
+{"file": ".trellis/spec/shared/code-quality.md", "reason": "Check no non-null assertions/any and focused tests."}
+{"file": ".trellis/spec/guides/cross-layer-thinking-guide.md", "reason": "Check data flow across existing learning assets to new UI."}
+{"file": ".trellis/tasks/05-06-drill-center-foundation/info.md", "reason": "Check against task-specific conservative technical design."}
