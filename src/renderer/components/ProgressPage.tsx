@@ -7,6 +7,7 @@ import type {
   PatternEvidenceRepairSummary,
   PatternEvidenceStage,
   PatternEvidenceSummary,
+  PatternEvidenceTransferSummary,
 } from '@shared/types/learning-assets';
 
 const evidenceLabels: Record<PatternEvidenceStage, string> = {
@@ -115,7 +116,8 @@ export function ProgressPage({
         <div className="grid max-w-5xl gap-4 xl:grid-cols-2">
           {patterns.map((pattern) => {
             const evidence = evidenceForPattern(pattern);
-            const evidenceContext = evidenceContextFor(evidence);
+            const repairContext = repairContextFor(evidence.latestRepair);
+            const transferContext = transferContextFor(evidence.latestTransfer);
             const mergeCandidates = mergeCandidatesForPattern(pattern, patterns);
             const selectedSourceId = mergeSelections[pattern.id] ?? '';
 
@@ -141,12 +143,26 @@ export function ProgressPage({
 
                 <div className="ui-chrome mt-5 border-t border-base-300/45 pt-4">
                   <p className="text-xs font-semibold uppercase tracking-[0.14em] text-base-content/45">
+                    Current status
+                  </p>
+                  <p className="mt-2 text-lg font-semibold text-primary">{pattern.lifecycle.label}</p>
+                  <p className="mt-2 text-sm leading-6 text-base-content/62">{pattern.lifecycle.description}</p>
+                  {pattern.lifecycle.blockingReason ? (
+                    <p className="mt-2 text-sm leading-6 text-base-content/62">{pattern.lifecycle.blockingReason}</p>
+                  ) : null}
+                </div>
+
+                <div className="ui-chrome mt-4 border-t border-base-300/45 pt-4">
+                  <p className="text-xs font-semibold uppercase tracking-[0.14em] text-base-content/45">
                     Learning evidence
                   </p>
                   <p className="mt-2 text-lg font-semibold text-primary">{evidenceLabels[evidence.stage]}</p>
                   <p className="mt-2 text-sm leading-6 text-base-content/62">{evidenceDescriptions[evidence.stage]}</p>
-                  {evidenceContext ? (
-                    <p className="mt-2 text-sm leading-6 text-base-content/62">{evidenceContext}</p>
+                  {repairContext ? (
+                    <p className="mt-2 text-sm leading-6 text-base-content/62">{repairContext}</p>
+                  ) : null}
+                  {transferContext ? (
+                    <p className="mt-2 text-sm leading-6 text-base-content/62">{transferContext}</p>
                   ) : null}
                 </div>
 
@@ -262,7 +278,7 @@ function LearningPageState({
 }
 
 function evidenceForPattern(pattern: ErrorPatternSnapshot): PatternEvidenceSummary {
-  return pattern.evidence ?? { stage: 'needs_repair', latestRepair: null };
+  return pattern.evidence ?? { stage: 'needs_repair', latestRepair: null, latestTransfer: null };
 }
 
 function mergeCandidatesForPattern(
@@ -278,57 +294,78 @@ function mergeCandidatesForPattern(
   );
 }
 
-function evidenceContextFor(evidence: PatternEvidenceSummary): string | null {
-  const repair = evidence.latestRepair;
+function repairContextFor(repair: PatternEvidenceRepairSummary | null): string | null {
   if (!repair) {
     return 'No D+1 repair check is recorded yet.';
   }
 
-  const lifecycleContext = lifecycleContextFor(repair);
+  const lifecycleContext = taskContextFor('D+1 repair', repair.status);
   if (lifecycleContext) {
     return lifecycleContext;
   }
 
-  return checkContextFor(repair.latestCheck);
-}
-
-function lifecycleContextFor(repair: PatternEvidenceRepairSummary): string | null {
-  switch (repair.status) {
-    case 'skipped':
-      return 'Latest D+1 repair was skipped; evidence is unchanged.';
-    case 'snoozed':
-      return 'Latest D+1 repair is snoozed; evidence is unchanged.';
-    case 'expired':
-      return 'Latest D+1 repair window expired; evidence is unchanged.';
-    case 'completed':
-      return repair.latestCheck ? null : 'D+1 repair was submitted; no completed check is recorded yet.';
-    case 'in_progress':
-      return 'D+1 repair is in progress.';
-    case 'pending':
-      return 'D+1 repair is waiting.';
+  if (!repair.latestCheck) {
+    return 'D+1 repair was submitted; no completed check is recorded yet.';
   }
+
+  return checkContextFor(repair.latestCheck, 'D+1', 'Latest D+1 check repaired the original sentence.');
 }
 
-function checkContextFor(check: PatternEvidenceCheckSummary | null): string | null {
-  if (!check) {
+function transferContextFor(transfer: PatternEvidenceTransferSummary | null): string | null {
+  if (!transfer) {
     return null;
   }
 
+  const label = transfer.spacedStage === 'D+7' ? 'D+7 spaced reuse' : 'D+3 transfer';
+  const lifecycleContext = taskContextFor(label, transfer.status);
+  if (lifecycleContext) {
+    return lifecycleContext;
+  }
+
+  return checkContextFor(transfer.latestCheck, label, `Latest ${label} check was correct.`);
+}
+
+function taskContextFor(label: string, status: PatternEvidenceRepairSummary['status']): string | null {
+  switch (status) {
+    case 'skipped':
+      return `Latest ${label} was skipped; evidence is unchanged.`;
+    case 'snoozed':
+      return `Latest ${label} is snoozed; evidence is unchanged.`;
+    case 'expired':
+      return `Latest ${label} window expired; evidence is unchanged.`;
+    case 'completed':
+      return null;
+    case 'in_progress':
+      return `${label} is in progress.`;
+    case 'pending':
+      return `${label} is waiting.`;
+  }
+}
+
+function checkContextFor(
+  check: PatternEvidenceCheckSummary | null,
+  label: string,
+  correctMessage: string,
+): string | null {
+  if (!check) {
+    return `${label} was submitted; no completed check is recorded yet.`;
+  }
+
   if (check.status === 'pending' || check.status === 'in_progress') {
-    return 'Latest D+1 check is still running.';
+    return `Latest ${label} check is still running.`;
   }
 
   if (check.status === 'retryable' || check.status === 'failed') {
-    return 'Latest D+1 check needs retry; evidence is unchanged.';
+    return `Latest ${label} check needs retry; evidence is unchanged.`;
   }
 
   switch (check.outcome) {
     case 'correct':
-      return 'Latest D+1 check repaired the original sentence.';
+      return correctMessage;
     case 'partly_correct':
-      return 'Latest D+1 check was partly correct; evidence is unchanged.';
+      return `Latest ${label} check was partly correct; evidence is unchanged.`;
     case 'incorrect':
-      return 'Latest D+1 check was incorrect; evidence is unchanged.';
+      return `Latest ${label} check was incorrect; evidence is unchanged.`;
     case null:
       return null;
   }

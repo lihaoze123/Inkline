@@ -1,6 +1,12 @@
 import { describe, expect, it, vi } from 'vitest';
-import { errorPatternSnapshotSchema, patternEvidenceStageSchema } from '../src/shared/types/learning-assets';
 import {
+  errorPatternSnapshotSchema,
+  patternEvidenceStageSchema,
+  patternLifecycleStatusSchema,
+  type PatternEvidenceSummary,
+} from '../src/shared/types/learning-assets';
+import {
+  derivePatternLifecycleSummary,
   derivePatternEvidenceSummaries,
   type PatternEvidenceQueryRow,
 } from '../src/main/services/learning-assets/service';
@@ -51,6 +57,18 @@ function completedCheckRow(
   });
 }
 
+function defaultEvidence(): PatternEvidenceSummary {
+  return {
+    stage: 'needs_repair',
+    latestRepair: null,
+    latestTransfer: null,
+  };
+}
+
+function evidenceFor(rows: PatternEvidenceQueryRow[]): PatternEvidenceSummary {
+  return derivePatternEvidenceSummaries(rows).get('pattern_tense') ?? defaultEvidence();
+}
+
 describe('learning-assets evidence summaries', () => {
   it('adds a typed evidence summary to error pattern snapshots', () => {
     expect(patternEvidenceStageSchema.options).toEqual([
@@ -58,6 +76,15 @@ describe('learning-assets evidence summaries', () => {
       'repaired_once',
       'transferred_once',
       'stable_after_spaced_reuse',
+    ]);
+    expect(patternLifecycleStatusSchema.options).toEqual([
+      'repair_needed',
+      'repair_in_progress',
+      'ready_for_transfer',
+      'transfer_in_progress',
+      'stabilizing',
+      'stable',
+      'needs_attention',
     ]);
 
     const parsed = errorPatternSnapshotSchema.parse({
@@ -93,11 +120,29 @@ describe('learning-assets evidence summaries', () => {
             updatedAt: baseTime + 2,
           },
         },
+        latestTransfer: {
+          rewriteTaskId: 'rewrite_d3',
+          practiceKind: 'new_context_reuse',
+          spacedStage: 'D+3',
+          status: 'pending',
+          dueAt: baseTime + 3,
+          completedAt: null,
+          createdAt: baseTime + 2,
+          latestCheck: null,
+        },
+      },
+      lifecycle: {
+        status: 'transfer_in_progress',
+        label: 'Transfer in progress',
+        description: 'A D+3 new-context reuse task or check is still in progress.',
       },
     });
 
     expect(parsed.evidence?.stage).toBe('repaired_once');
+    expect(parsed.evidence?.latestTransfer?.spacedStage).toBe('D+3');
+    expect(parsed.lifecycle.status).toBe('transfer_in_progress');
     expect(() => patternEvidenceStageSchema.parse('not_a_stage')).toThrow();
+    expect(() => patternLifecycleStatusSchema.parse('not_a_status')).toThrow();
   });
 
   it('derives repaired once from a latest completed D+1 correct check', () => {
@@ -137,8 +182,8 @@ describe('learning-assets evidence summaries', () => {
     });
   });
 
-  it('keeps D+3 partly correct and incorrect transfer checks from advancing evidence', () => {
-    const evidence = derivePatternEvidenceSummaries([
+  it('keeps earned D+3 transfer evidence when the latest D+3 check is weak', () => {
+    const evidence = evidenceFor([
       completedCheckRow('correct', 10),
       completedCheckRow('correct', 20, {
         rewriteTaskId: 'rewrite_d3',
@@ -150,10 +195,20 @@ describe('learning-assets evidence summaries', () => {
         practiceKind: 'new_context_reuse',
         spacedStage: 'D+3',
       }),
-    ]).get('pattern_tense');
+    ]);
 
     expect(evidence).toMatchObject({
-      stage: 'repaired_once',
+      stage: 'transferred_once',
+      latestTransfer: {
+        rewriteTaskId: 'rewrite_d3',
+        latestCheck: {
+          outcome: 'incorrect',
+        },
+      },
+    });
+    expect(derivePatternLifecycleSummary(evidence)).toMatchObject({
+      status: 'needs_attention',
+      blockingReason: 'Latest D+3 transfer check was incorrect; try the same stage again.',
     });
   });
 
@@ -197,8 +252,8 @@ describe('learning-assets evidence summaries', () => {
     });
   });
 
-  it('keeps D+7 partly correct and incorrect checks from advancing beyond transferred once', () => {
-    const evidence = derivePatternEvidenceSummaries([
+  it('keeps earned D+7 stability evidence when the latest D+7 check is weak', () => {
+    const evidence = evidenceFor([
       completedCheckRow('correct', 10),
       completedCheckRow('correct', 20, {
         rewriteTaskId: 'rewrite_d3',
@@ -215,10 +270,20 @@ describe('learning-assets evidence summaries', () => {
         practiceKind: 'new_context_reuse',
         spacedStage: 'D+7',
       }),
-    ]).get('pattern_tense');
+    ]);
 
     expect(evidence).toMatchObject({
-      stage: 'transferred_once',
+      stage: 'stable_after_spaced_reuse',
+      latestTransfer: {
+        rewriteTaskId: 'rewrite_d7',
+        latestCheck: {
+          outcome: 'incorrect',
+        },
+      },
+    });
+    expect(derivePatternLifecycleSummary(evidence)).toMatchObject({
+      status: 'needs_attention',
+      blockingReason: 'Latest D+7 spaced reuse check was incorrect; try the same stage again.',
     });
   });
 
@@ -316,5 +381,86 @@ describe('learning-assets evidence summaries', () => {
         status: 'expired',
       },
     });
+  });
+
+  it('derives every lifecycle status from repair and transfer evidence', () => {
+    expect(derivePatternLifecycleSummary(defaultEvidence()).status).toBe('repair_needed');
+
+    expect(
+      derivePatternLifecycleSummary(
+        evidenceFor([
+          evidenceRow({
+            rewriteTaskId: 'rewrite_pending',
+            rewriteTaskStatus: 'pending',
+            completedAt: null,
+          }),
+        ]),
+      ).status,
+    ).toBe('repair_in_progress');
+
+    expect(derivePatternLifecycleSummary(evidenceFor([completedCheckRow('correct', 10)])).status).toBe(
+      'ready_for_transfer',
+    );
+
+    expect(
+      derivePatternLifecycleSummary(
+        evidenceFor([
+          completedCheckRow('correct', 10),
+          evidenceRow({
+            rewriteTaskId: 'rewrite_d3',
+            practiceKind: 'new_context_reuse',
+            spacedStage: 'D+3',
+            rewriteTaskStatus: 'pending',
+            completedAt: null,
+            dueAt: at(20),
+            taskCreatedAt: at(15),
+          }),
+        ]),
+      ).status,
+    ).toBe('transfer_in_progress');
+
+    expect(
+      derivePatternLifecycleSummary(
+        evidenceFor([
+          completedCheckRow('correct', 10),
+          completedCheckRow('correct', 20, {
+            rewriteTaskId: 'rewrite_d3',
+            practiceKind: 'new_context_reuse',
+            spacedStage: 'D+3',
+          }),
+        ]),
+      ).status,
+    ).toBe('stabilizing');
+
+    expect(
+      derivePatternLifecycleSummary(
+        evidenceFor([
+          completedCheckRow('correct', 10),
+          completedCheckRow('correct', 20, {
+            rewriteTaskId: 'rewrite_d3',
+            practiceKind: 'new_context_reuse',
+            spacedStage: 'D+3',
+          }),
+          completedCheckRow('correct', 30, {
+            rewriteTaskId: 'rewrite_d7',
+            practiceKind: 'new_context_reuse',
+            spacedStage: 'D+7',
+          }),
+        ]),
+      ).status,
+    ).toBe('stable');
+
+    expect(
+      derivePatternLifecycleSummary(
+        evidenceFor([
+          completedCheckRow('correct', 10),
+          completedCheckRow('partly_correct', 20, {
+            rewriteTaskId: 'rewrite_d3',
+            practiceKind: 'new_context_reuse',
+            spacedStage: 'D+3',
+          }),
+        ]),
+      ).status,
+    ).toBe('needs_attention');
   });
 });

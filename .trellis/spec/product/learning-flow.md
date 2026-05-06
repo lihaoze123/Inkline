@@ -38,9 +38,9 @@ Transferred once
 Stable after spaced reuse
 ```
 
-Do not show `mastered` in the first transfer-evidence version. If later specs add a richer mastery lifecycle, it must be based on more than one delayed new-context success.
+Do not show `mastered` in transfer-evidence or lifecycle copy. Lifecycle labels should stay descriptive and non-gamified.
 
-First-version Progress derives a read model from saved patterns, D+1 rewrite tasks, and rewrite checks. It should show the evidence label and the latest D+1 repair context, but review count remains separate from learning evidence. `skipped`, `snoozed`, `expired`, `partly_correct`, and `incorrect` are useful context, not advancement.
+Progress derives a read model from saved patterns, D+1 repair tasks, D+3/D+7 new-context reuse tasks, and rewrite checks. It should show lifecycle as the primary current status (`repair_needed`, `repair_in_progress`, `ready_for_transfer`, `transfer_in_progress`, `stabilizing`, `stable`, or `needs_attention`), keep the evidence label visible, and show the latest D+1 repair plus latest D+3/D+7 transfer context when present. Review count remains separate from learning evidence. `skipped`, `snoozed`, `expired`, `partly_correct`, and `incorrect` are useful context, not advancement; weak latest D+3/D+7 outcomes can require attention without erasing an earlier earned transfer/stability stage.
 
 ## Scenario: Practice Entry and Template Flow
 

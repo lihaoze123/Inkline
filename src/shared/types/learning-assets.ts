@@ -9,6 +9,16 @@ export const patternEvidenceStageSchema = z.enum([
   'stable_after_spaced_reuse',
 ]);
 
+export const patternLifecycleStatusSchema = z.enum([
+  'repair_needed',
+  'repair_in_progress',
+  'ready_for_transfer',
+  'transfer_in_progress',
+  'stabilizing',
+  'stable',
+  'needs_attention',
+]);
+
 export const patternEvidenceCheckSummarySchema = z
   .object({
     id: z.string().min(1),
@@ -46,9 +56,28 @@ export const patternEvidenceRepairSummarySchema = z.object({
   latestCheck: patternEvidenceCheckSummarySchema.nullable(),
 });
 
+export const patternEvidenceTransferSummarySchema = z.object({
+  rewriteTaskId: z.string().min(1),
+  practiceKind: z.literal('new_context_reuse'),
+  spacedStage: z.enum(['D+3', 'D+7']),
+  status: rewritePracticeStatusSchema,
+  dueAt: z.number().nullable(),
+  completedAt: z.number().nullable(),
+  createdAt: z.number(),
+  latestCheck: patternEvidenceCheckSummarySchema.nullable(),
+});
+
 export const patternEvidenceSummarySchema = z.object({
   stage: patternEvidenceStageSchema,
   latestRepair: patternEvidenceRepairSummarySchema.nullable(),
+  latestTransfer: patternEvidenceTransferSummarySchema.nullable(),
+});
+
+export const patternLifecycleSummarySchema = z.object({
+  status: patternLifecycleStatusSchema,
+  label: z.string().min(1),
+  description: z.string().min(1),
+  blockingReason: z.string().min(1).optional(),
 });
 
 export const errorPatternSnapshotSchema = z.object({
@@ -67,6 +96,7 @@ export const errorPatternSnapshotSchema = z.object({
   createdAt: z.number(),
   updatedAt: z.number(),
   evidence: patternEvidenceSummarySchema.optional(),
+  lifecycle: patternLifecycleSummarySchema,
 });
 
 export const mergeErrorPatternsInputSchema = z
@@ -114,8 +144,11 @@ export type MergeErrorPatternsInput = z.infer<typeof mergeErrorPatternsInputSche
 export type MergeErrorPatternsResult = z.infer<typeof mergeErrorPatternsResultSchema>;
 export type NotebookEntrySnapshot = z.infer<typeof notebookEntrySnapshotSchema>;
 export type PatternEvidenceStage = z.infer<typeof patternEvidenceStageSchema>;
+export type PatternLifecycleStatus = z.infer<typeof patternLifecycleStatusSchema>;
 export type PatternEvidenceCheckSummary = z.infer<typeof patternEvidenceCheckSummarySchema>;
 export type PatternEvidenceRepairSummary = z.infer<typeof patternEvidenceRepairSummarySchema>;
+export type PatternEvidenceTransferSummary = z.infer<typeof patternEvidenceTransferSummarySchema>;
 export type PatternEvidenceSummary = z.infer<typeof patternEvidenceSummarySchema>;
+export type PatternLifecycleSummary = z.infer<typeof patternLifecycleSummarySchema>;
 export type ListErrorPatternsOutput = z.infer<typeof listErrorPatternsOutputSchema>;
 export type ListNotebookEntriesOutput = z.infer<typeof listNotebookEntriesOutputSchema>;

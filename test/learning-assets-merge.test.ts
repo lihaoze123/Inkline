@@ -112,7 +112,58 @@ describe('learning-assets pattern merge', () => {
     expect(listedPatterns).toHaveLength(1);
     expect(listedPatterns[0]?.id).toBe('pattern_target');
     expect(listedPatterns[0]?.evidence?.stage).toBe('repaired_once');
+    expect(listedPatterns[0]?.lifecycle.status).toBe('ready_for_transfer');
     expect(activeReviewPatterns.map((pattern) => pattern.id)).toEqual(['pattern_target']);
+  });
+
+  it('rolls merged source transfer context into the target pattern lifecycle', () => {
+    const database = new FakeLearningAssetsDatabase();
+    database.seedPattern({
+      id: 'pattern_target',
+      patternKey: 'tense:completed_actions',
+      category: 'tense',
+      rule: 'Use past tense for completed actions.',
+      canonicalExample: 'Yesterday I went home.',
+      count: 1,
+      firstSeenDateKey: '2026-05-01',
+      lastSeenDateKey: '2026-05-02',
+      recentExamplesJson: JSON.stringify(['I go home -> I went home']),
+      fingerprintJson: null,
+    });
+    database.seedPattern({
+      id: 'pattern_source',
+      patternKey: 'tense:past_events',
+      category: 'tense',
+      rule: 'Choose past tense for finished events.',
+      canonicalExample: 'Last week I visit Beijing -> Last week I visited Beijing',
+      count: 1,
+      firstSeenDateKey: '2026-05-03',
+      lastSeenDateKey: '2026-05-04',
+      recentExamplesJson: JSON.stringify(['Last week I visit Beijing -> Last week I visited Beijing']),
+      fingerprintJson: null,
+    });
+    database.seedTransferEvidence('pattern_source');
+
+    const result = mergeErrorPatterns(
+      { sourcePatternId: 'pattern_source', targetPatternId: 'pattern_target' },
+      database.asAppDatabase(),
+    );
+    const listedPatterns = listErrorPatterns(database.asAppDatabase());
+
+    expect(result.success).toBe(true);
+    expect(listedPatterns).toHaveLength(1);
+    expect(listedPatterns[0]?.id).toBe('pattern_target');
+    expect(listedPatterns[0]?.evidence).toMatchObject({
+      stage: 'transferred_once',
+      latestTransfer: {
+        rewriteTaskId: 'rewrite_transfer_d3',
+        spacedStage: 'D+3',
+        latestCheck: {
+          outcome: 'correct',
+        },
+      },
+    });
+    expect(listedPatterns[0]?.lifecycle.status).toBe('stabilizing');
   });
 
   it('rejects cross-category merges without mutating either pattern', () => {
@@ -300,6 +351,91 @@ class FakeLearningAssetsDatabase {
       updatedAt: baseDate,
       completedAt: baseDate,
     });
+  }
+
+  seedTransferEvidence(patternId: string): void {
+    const transferDate = new Date(baseDate.getTime() + 3 * 60_000);
+    this.store.corrections.push({
+      id: 'correction_transfer',
+      reviewRunId: 'review_transfer',
+      patternId,
+      pattern: 'Choose past tense for finished events.',
+      originalText: 'Last week I visit Beijing',
+      correctedText: 'Last week I visited Beijing',
+      explanation: 'The event is finished.',
+      category: 'fix',
+      status: 'suggested',
+      startOffset: 0,
+      endOffset: 25,
+    });
+    this.store.rewriteTasks.push(
+      {
+        id: 'rewrite_transfer_d1',
+        reviewRunId: 'review_transfer',
+        originalSentence: 'Last week I visit Beijing',
+        focusPattern: 'Choose past tense for finished events.',
+        nativeModelSentence: 'Last week I visited Beijing.',
+        prompt: 'Rewrite the sentence with past tense.',
+        promptContractJson: null,
+        kind: 'rewrite_original',
+        spacedStage: 'D+1',
+        status: 'completed',
+        userRewriteText: 'Last week I visited Beijing.',
+        dueAt: baseDate,
+        completedAt: baseDate,
+        skippedAt: null,
+        createdAt: baseDate,
+      },
+      {
+        id: 'rewrite_transfer_d3',
+        reviewRunId: 'review_transfer',
+        originalSentence: 'Write a new sentence about a finished event.',
+        focusPattern: 'Choose past tense for finished events.',
+        nativeModelSentence: '',
+        prompt: 'Write one sentence about a finished event last week.',
+        promptContractJson: null,
+        kind: 'new_context_reuse',
+        spacedStage: 'D+3',
+        status: 'completed',
+        userRewriteText: 'Last week I visited Beijing.',
+        dueAt: transferDate,
+        completedAt: transferDate,
+        skippedAt: null,
+        createdAt: transferDate,
+      },
+    );
+    this.store.rewriteChecks.push(
+      {
+        id: 'rewrite_check_transfer_d1',
+        rewriteTaskId: 'rewrite_transfer_d1',
+        status: 'completed',
+        outcome: 'correct',
+        feedback: 'Correct.',
+        provider: 'test',
+        model: 'test',
+        validationErrorsJson: null,
+        errorMessage: null,
+        diagnosticsJson: null,
+        createdAt: baseDate,
+        updatedAt: baseDate,
+        completedAt: baseDate,
+      },
+      {
+        id: 'rewrite_check_transfer_d3',
+        rewriteTaskId: 'rewrite_transfer_d3',
+        status: 'completed',
+        outcome: 'correct',
+        feedback: 'Correct.',
+        provider: 'test',
+        model: 'test',
+        validationErrorsJson: null,
+        errorMessage: null,
+        diagnosticsJson: null,
+        createdAt: transferDate,
+        updatedAt: transferDate,
+        completedAt: transferDate,
+      },
+    );
   }
 
   getPattern(patternId: string): ErrorPatternRow {

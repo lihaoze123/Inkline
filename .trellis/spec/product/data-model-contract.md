@@ -469,8 +469,9 @@ type RewritePracticeSnapshot = {
   - D+1 repairs the original sentence.
   - D+3 judges delayed new-context transfer using the hidden prompt contract.
   - D+7 judges spaced new-context reuse using the hidden prompt contract with stage-aware context.
-- Progress advances to `transferred_once` only when the latest completed check for a linked D+3 `new_context_reuse` task is `correct`.
-- Progress advances to `stable_after_spaced_reuse` only when the latest completed check for a linked D+7 `new_context_reuse` task is `correct`.
+- Progress records `transferred_once` when a linked D+3 `new_context_reuse` task has a completed `correct` check.
+- Progress records `stable_after_spaced_reuse` when a linked D+7 `new_context_reuse` task has a completed `correct` check.
+- A later completed D+3/D+7 `partly_correct` or `incorrect` check sets the derived lifecycle to `needs_attention` but must not erase the strongest valid evidence stage already earned.
 - D+7 does not generate any later task.
 - D+7 tasks are created seven days before they are due, so expiry/staleness must not make them expire at the moment they first become due. Keep D+1/D+3 lifecycle behavior, but make D+7 stale only after its `due_at` plus the normal stale window.
 
@@ -490,8 +491,8 @@ type RewritePracticeSnapshot = {
 | A D+3 task already exists for the review run | Do not insert another D+3 task. |
 | A D+7 task already exists for the review run | Do not insert another D+7 task. |
 | D+3 task has missing/invalid prompt contract at evaluator time | Persist a retryable/validation-failed check; do not expose raw contract details to the learner. |
-| D+3 latest completed check is `partly_correct` or `incorrect` | Do not advance Progress beyond `repaired_once`. |
-| D+7 latest completed check is `partly_correct` or `incorrect` | Do not advance Progress beyond `transferred_once`. |
+| D+3 latest completed check is `partly_correct` or `incorrect` | Do not create D+7; set lifecycle to `needs_attention`; preserve `transferred_once` only if an earlier D+3 `correct` check already earned it. |
+| D+7 latest completed check is `partly_correct` or `incorrect` | Set lifecycle to `needs_attention`; preserve `stable_after_spaced_reuse` only if an earlier D+7 `correct` check already earned it. |
 
 ### 5. Good/Base/Bad Cases
 
@@ -843,6 +844,23 @@ type PatternEvidenceStage =
   | 'transferred_once'
   | 'stable_after_spaced_reuse';
 
+type PatternLifecycleStatus =
+  | 'repair_needed'
+  | 'repair_in_progress'
+  | 'ready_for_transfer'
+  | 'transfer_in_progress'
+  | 'stabilizing'
+  | 'stable'
+  | 'needs_attention';
+
+type PatternEvidenceCheckSummary = {
+  id: string;
+  status: 'pending' | 'in_progress' | 'completed' | 'failed' | 'retryable';
+  outcome: 'correct' | 'partly_correct' | 'incorrect' | null;
+  completedAt: number | null;
+  updatedAt: number;
+};
+
 type PatternEvidenceSummary = {
   stage: PatternEvidenceStage;
   latestRepair: {
@@ -853,19 +871,31 @@ type PatternEvidenceSummary = {
     dueAt: number | null;
     completedAt: number | null;
     createdAt: number;
-    latestCheck: {
-      id: string;
-      status: 'pending' | 'in_progress' | 'completed' | 'failed' | 'retryable';
-      outcome: 'correct' | 'partly_correct' | 'incorrect' | null;
-      completedAt: number | null;
-      updatedAt: number;
-    } | null;
+    latestCheck: PatternEvidenceCheckSummary | null;
   } | null;
+  latestTransfer: {
+    rewriteTaskId: string;
+    practiceKind: 'new_context_reuse';
+    spacedStage: 'D+3' | 'D+7';
+    status: 'pending' | 'in_progress' | 'completed' | 'skipped' | 'snoozed' | 'expired';
+    dueAt: number | null;
+    completedAt: number | null;
+    createdAt: number;
+    latestCheck: PatternEvidenceCheckSummary | null;
+  } | null;
+};
+
+type PatternLifecycleSummary = {
+  status: PatternLifecycleStatus;
+  label: string;
+  description: string;
+  blockingReason?: string;
 };
 
 type ErrorPatternSnapshot = {
   // existing pattern fields
   evidence?: PatternEvidenceSummary;
+  lifecycle: PatternLifecycleSummary;
 };
 
 window.api.learningAssets.listErrorPatterns(): Promise<ErrorPatternSnapshot[]>;
@@ -883,11 +913,14 @@ window.api.learningAssets.mergeErrorPatterns(input: MergeErrorPatternsInput): Pr
 - Merged-away source patterns are inactive and excluded from review input; list/evidence display follows `merged_into_pattern_id` without rewriting historical corrections.
 - Upgrade opportunities must store the reviewed source phrase, 1-3 suggested alternatives, optional reason, date key, template, and review run ID.
 - Invalid review output and unsaved review previews must not update `error_patterns`, `notebook_entries`, or correction links.
-- `listErrorPatterns` derives `evidence` at query time; do not add a stored evidence-state column in the first version.
+- `listErrorPatterns` derives `evidence` and `lifecycle` at query time; do not add a stored evidence-state/status column in this version.
 - D+1 repair evidence links an `error_patterns` row to rewrite practice through saved focus corrections: `corrections.pattern_id` plus `corrections.category = 'fix'`, joined to D+1 `rewrite_tasks` by `review_run_id`.
-- Evidence derivation must filter rewrite tasks to `kind = 'rewrite_original'` and `spaced_stage = 'D+1'`.
+- Evidence derivation must filter repair context to `kind = 'rewrite_original'` and `spaced_stage = 'D+1'`.
+- Transfer context derives from linked `new_context_reuse` tasks with `spaced_stage = 'D+3' | 'D+7'` and is exposed as `evidence.latestTransfer`.
 - For one rewrite task, the latest completed check is decisive: latest completed `correct` advances to `repaired_once`; latest completed `partly_correct` or `incorrect` remains `needs_repair`.
 - Retryable/failed/in-progress check state is visible context but does not remove prior correct evidence for another D+1 task already counted for that pattern.
+- D+3/D+7 `correct` checks contribute to the strongest earned evidence stage. A later weak D+3/D+7 check changes lifecycle to `needs_attention` without erasing that earned stage.
+- Lifecycle status is a derived read model with labels and non-gamified descriptions: `repair_needed`, `repair_in_progress`, `ready_for_transfer`, `transfer_in_progress`, `stabilizing`, `stable`, or `needs_attention`.
 - `skipped`, `snoozed`, and `expired` repair tasks are lifecycle context only; they must not advance evidence stage.
 - Progress must invalidate pattern evidence after rewrite practice/check mutations because evidence is derived from `rewrite_tasks` and `rewrite_checks`, not only from `error_patterns`.
 
@@ -904,6 +937,11 @@ window.api.learningAssets.mergeErrorPatterns(input: MergeErrorPatternsInput): Pr
 | Pattern has no linked D+1 rewrite task | Return `evidence.stage = 'needs_repair'` and `latestRepair = null`. |
 | Linked D+1 task has latest completed check `correct` | Return `evidence.stage = 'repaired_once'`. |
 | Linked D+1 task has latest completed check `partly_correct` or `incorrect` | Keep `evidence.stage = 'needs_repair'` for that task. |
+| Linked D+1 task has completed `correct` and no D+3 transfer context | Return lifecycle `ready_for_transfer`. |
+| Linked D+3 task is pending, in progress, snoozed, retryable, or failed | Return `evidence.latestTransfer` and lifecycle `transfer_in_progress` or `needs_attention` as appropriate. |
+| Linked D+3 task has completed `correct` and no D+7 `correct` | Return `evidence.stage = 'transferred_once'` and lifecycle `stabilizing`. |
+| Linked D+7 task has completed `correct` | Return `evidence.stage = 'stable_after_spaced_reuse'` and lifecycle `stable`. |
+| Latest D+3/D+7 completed check is `partly_correct` or `incorrect` | Return lifecycle `needs_attention` and preserve the strongest valid evidence stage already earned. |
 | Linked D+1 task is `skipped`, `snoozed`, or `expired` | Show lifecycle context without advancing evidence. |
 | Rewrite check mutation completes/retries | Invalidate `learningAssets.errorPatterns` in the renderer query cache. |
 
@@ -911,6 +949,8 @@ window.api.learningAssets.mergeErrorPatterns(input: MergeErrorPatternsInput): Pr
 
 - Good: A saved review reuses `tense_past_narrative`, increments its count, links the correction, and shows the pattern in Progress.
 - Good: A D+1 rewrite with latest completed `correct` check shows `Repaired once` in Progress.
+- Good: A D+3 or D+7 task appears as `latestTransfer` in Progress without exposing fingerprint or prompt-contract internals.
+- Good: A later weak D+3/D+7 check shows `needs_attention` while preserving previously earned transfer/stability evidence.
 - Good: A valid upgrade for `very good` persists as a Notebook entry only when `very good` appears in the reviewed writing.
 - Base: A spelling correction can persist as a correction without becoming an active review pattern.
 - Base: A pattern with a skipped, snoozed, expired, partly-correct, or incorrect D+1 repair stays `Needs repair` while showing the latest context.
@@ -929,8 +969,10 @@ window.api.learningAssets.mergeErrorPatterns(input: MergeErrorPatternsInput): Pr
 - Service/API test: active review patterns exclude spelling and respect the cap.
 - Service/API test: pattern evidence derives `needs_repair` and `repaired_once` from linked D+1 tasks and latest completed checks.
 - Service/API test: `partly_correct`, `incorrect`, skipped, snoozed, and expired context does not advance evidence.
+- Service/API test: lifecycle derivation covers every lifecycle status and weak D+3/D+7 outcomes preserve earned evidence while returning `needs_attention`.
+- Service/API test: merged source D+3/D+7 transfer context rolls up to the active target pattern.
 - Renderer query test: rewrite practice/check mutation invalidates `learningAssets.errorPatterns`.
-- Progress render test: evidence label/copy is shown separately from review count and does not use `mastered` or gamified wording.
+- Progress render test: lifecycle is shown as primary current status; evidence label/copy and latest repair/transfer contexts are separate from review count and do not use `mastered` or gamified wording.
 
 ### 7. Wrong vs Correct
 

@@ -22,6 +22,9 @@ import {
   type PatternEvidenceRepairSummary,
   type PatternEvidenceStage,
   type PatternEvidenceSummary,
+  type PatternEvidenceTransferSummary,
+  type PatternLifecycleStatus,
+  type PatternLifecycleSummary,
 } from '../../../shared/types/learning-assets';
 import type {
   RewriteCheckOutcome,
@@ -46,11 +49,43 @@ type EvidenceRepairTask = {
 };
 type EvidenceTransferTask = {
   patternId: string;
+  transfer: PatternEvidenceTransferSummary;
   stageOnCorrect: Extract<PatternEvidenceStage, 'transferred_once' | 'stable_after_spaced_reuse'>;
-  latestCompletedOutcome: RewriteCheckOutcome | null;
-  latestCompletedRank: number | null;
+  hasCorrectOutcome: boolean;
+  contextRank: number;
 };
 type RewriteTaskKind = 'rewrite_original' | 'new_context_reuse' | 'pattern_detection';
+
+const lifecycleCopy: Record<PatternLifecycleStatus, { label: string; description: string }> = {
+  repair_needed: {
+    label: 'Repair needed',
+    description: 'No D+1 repair has been checked as correct yet.',
+  },
+  repair_in_progress: {
+    label: 'Repair in progress',
+    description: 'A D+1 repair task or check is still in progress.',
+  },
+  ready_for_transfer: {
+    label: 'Ready for transfer',
+    description: 'The D+1 repair was correct; the next step is delayed new-context reuse.',
+  },
+  transfer_in_progress: {
+    label: 'Transfer in progress',
+    description: 'A D+3 new-context reuse task or check is still in progress.',
+  },
+  stabilizing: {
+    label: 'Stabilizing',
+    description: 'The pattern transferred once; D+7 spaced reuse is not checked correct yet.',
+  },
+  stable: {
+    label: 'Stable',
+    description: 'D+7 spaced reuse was checked correct.',
+  },
+  needs_attention: {
+    label: 'Needs attention',
+    description: 'The latest repair or transfer evidence needs follow-up before the next stage.',
+  },
+};
 
 export type PatternEvidenceQueryRow = {
   patternId: string | null;
@@ -111,6 +146,7 @@ function patternToSnapshot(pattern: ErrorPatternRow, evidence: PatternEvidenceSu
     createdAt: pattern.createdAt.getTime(),
     updatedAt: pattern.updatedAt.getTime(),
     evidence,
+    lifecycle: derivePatternLifecycleSummary(evidence),
   };
 }
 
@@ -227,17 +263,24 @@ export function derivePatternEvidenceSummaries(rows: PatternEvidenceQueryRow[]):
     if (transferStage) {
       const taskKey = `${row.patternId}:${row.rewriteTaskId}`;
       const existingTask = transferTasks.get(taskKey);
-      const task = existingTask ?? createEvidenceTransferTask(row.patternId, transferStage);
+      const task = existingTask ?? createEvidenceTransferTask(row, row.patternId, transferStage);
       const check = checkSummaryFromRow(row);
 
-      if (check?.status === 'completed' && check.outcome !== null) {
-        const completedRank = rowCompletedCheckRank(row);
-        if (task.latestCompletedRank === null || completedRank > task.latestCompletedRank) {
-          task.latestCompletedOutcome = check.outcome;
-          task.latestCompletedRank = completedRank;
+      if (check) {
+        const currentCheckRank = task.transfer.latestCheck ? checkContextRank(task.transfer.latestCheck) : null;
+        const rowCheckRank = rowCheckContextRank(row);
+        if (currentCheckRank === null || rowCheckRank > currentCheckRank) {
+          task.transfer = { ...task.transfer, latestCheck: check };
+        }
+
+        if (check.status === 'completed' && check.outcome !== null) {
+          if (check.outcome === 'correct') {
+            task.hasCorrectOutcome = true;
+          }
         }
       }
 
+      task.contextRank = Math.max(task.contextRank, transferContextRank(task.transfer));
       transferTasks.set(taskKey, task);
       return;
     }
@@ -283,18 +326,51 @@ export function derivePatternEvidenceSummaries(rows: PatternEvidenceQueryRow[]):
         ? current.latestRepair
         : task.repair;
 
-    summaries.set(task.patternId, { stage, latestRepair });
+    summaries.set(task.patternId, { ...current, stage, latestRepair });
   });
   transferTasks.forEach((task) => {
     const current = summaries.get(task.patternId) ?? defaultEvidenceSummary();
-    const stage = strongestEvidenceStage(
-      current.stage,
-      task.latestCompletedOutcome === 'correct' ? task.stageOnCorrect : 'needs_repair',
-    );
-    summaries.set(task.patternId, { ...current, stage });
+    const stage = strongestEvidenceStage(current.stage, task.hasCorrectOutcome ? task.stageOnCorrect : 'needs_repair');
+    const latestTransfer =
+      current.latestTransfer && transferContextRank(current.latestTransfer) >= task.contextRank
+        ? current.latestTransfer
+        : task.transfer;
+
+    summaries.set(task.patternId, { ...current, stage, latestTransfer });
   });
 
   return summaries;
+}
+
+export function derivePatternLifecycleSummary(evidence: PatternEvidenceSummary): PatternLifecycleSummary {
+  const attentionReason = latestAttentionReason(evidence);
+  if (attentionReason) {
+    return lifecycleSummary('needs_attention', attentionReason);
+  }
+
+  if (evidence.stage === 'stable_after_spaced_reuse') {
+    return lifecycleSummary('stable');
+  }
+
+  const latestTransfer = evidence.latestTransfer;
+  if (evidence.stage === 'transferred_once') {
+    return lifecycleSummary('stabilizing');
+  }
+
+  if (latestTransfer) {
+    return lifecycleSummary(latestTransfer.spacedStage === 'D+7' ? 'stabilizing' : 'transfer_in_progress');
+  }
+
+  if (evidence.stage === 'repaired_once') {
+    return lifecycleSummary('ready_for_transfer');
+  }
+
+  const latestRepair = evidence.latestRepair;
+  if (latestRepair && isActiveEvidenceContext(latestRepair.status, latestRepair.latestCheck)) {
+    return lifecycleSummary('repair_in_progress');
+  }
+
+  return lifecycleSummary('repair_needed');
 }
 
 function isD1RepairEvidenceRow(row: PatternEvidenceQueryRow): boolean {
@@ -324,14 +400,25 @@ function transferStageForEvidenceRow(
 }
 
 function createEvidenceTransferTask(
+  row: PatternEvidenceQueryRow,
   patternId: string,
   stageOnCorrect: Extract<PatternEvidenceStage, 'transferred_once' | 'stable_after_spaced_reuse'>,
 ): EvidenceTransferTask {
   return {
     patternId,
+    transfer: {
+      rewriteTaskId: row.rewriteTaskId,
+      practiceKind: 'new_context_reuse',
+      spacedStage: row.spacedStage === 'D+7' ? 'D+7' : 'D+3',
+      status: row.rewriteTaskStatus,
+      dueAt: dateToMillis(row.dueAt),
+      completedAt: dateToMillis(row.completedAt),
+      createdAt: row.taskCreatedAt.getTime(),
+      latestCheck: null,
+    },
     stageOnCorrect,
-    latestCompletedOutcome: null,
-    latestCompletedRank: null,
+    hasCorrectOutcome: false,
+    contextRank: taskContextRank(row),
   };
 }
 
@@ -372,7 +459,115 @@ function defaultEvidenceSummary(): PatternEvidenceSummary {
   return {
     stage: 'needs_repair',
     latestRepair: null,
+    latestTransfer: null,
   };
+}
+
+function lifecycleSummary(status: PatternLifecycleStatus, blockingReason?: string): PatternLifecycleSummary {
+  const summary = {
+    status,
+    ...lifecycleCopy[status],
+  };
+
+  return blockingReason ? { ...summary, blockingReason } : summary;
+}
+
+function latestAttentionReason(evidence: PatternEvidenceSummary): string | null {
+  const candidates: Array<{ rank: number; reason: string }> = [];
+  const repairAttentionReason = evidence.latestRepair ? attentionReasonForRepair(evidence.latestRepair) : null;
+  if (evidence.latestRepair && repairAttentionReason) {
+    candidates.push({ rank: repairContextRank(evidence.latestRepair), reason: repairAttentionReason });
+  }
+
+  const transferAttentionReason = evidence.latestTransfer ? attentionReasonForTransfer(evidence.latestTransfer) : null;
+  if (evidence.latestTransfer && transferAttentionReason) {
+    candidates.push({ rank: transferContextRank(evidence.latestTransfer), reason: transferAttentionReason });
+  }
+
+  if (candidates.length === 0) {
+    return null;
+  }
+
+  const latestOverallRank = latestEvidenceContextRank(evidence);
+  const latestCandidate = candidates.reduce((latest, candidate) => (candidate.rank > latest.rank ? candidate : latest));
+
+  return latestCandidate.rank >= latestOverallRank ? latestCandidate.reason : null;
+}
+
+function latestEvidenceContextRank(evidence: PatternEvidenceSummary): number {
+  return Math.max(
+    evidence.latestRepair ? repairContextRank(evidence.latestRepair) : 0,
+    evidence.latestTransfer ? transferContextRank(evidence.latestTransfer) : 0,
+  );
+}
+
+function attentionReasonForRepair(repair: PatternEvidenceRepairSummary): string | null {
+  const checkReason = attentionReasonForCheck('D+1 repair', repair.latestCheck);
+  if (checkReason) {
+    return checkReason;
+  }
+
+  return attentionReasonForTask('D+1 repair', repair.status);
+}
+
+function attentionReasonForTransfer(transfer: PatternEvidenceTransferSummary): string | null {
+  const label = transfer.spacedStage === 'D+7' ? 'D+7 spaced reuse' : 'D+3 transfer';
+  const checkReason = attentionReasonForCheck(label, transfer.latestCheck);
+  if (checkReason) {
+    return checkReason;
+  }
+
+  return attentionReasonForTask(label, transfer.status);
+}
+
+function attentionReasonForCheck(label: string, check: PatternEvidenceCheckSummary | null): string | null {
+  if (!check) {
+    return null;
+  }
+
+  if (check.status === 'failed' || check.status === 'retryable') {
+    return `Latest ${label} check needs retry before evidence can advance.`;
+  }
+
+  if (check.status !== 'completed') {
+    return null;
+  }
+
+  switch (check.outcome) {
+    case 'partly_correct':
+      return `Latest ${label} check was partly correct; try the same stage again.`;
+    case 'incorrect':
+      return `Latest ${label} check was incorrect; try the same stage again.`;
+    case 'correct':
+    case null:
+      return null;
+  }
+}
+
+function attentionReasonForTask(label: string, status: RewritePracticeStatus): string | null {
+  switch (status) {
+    case 'skipped':
+      return `Latest ${label} task was skipped; evidence is unchanged.`;
+    case 'expired':
+      return `Latest ${label} window expired; evidence is unchanged.`;
+    case 'pending':
+    case 'in_progress':
+    case 'completed':
+    case 'snoozed':
+      return null;
+  }
+}
+
+function isActiveEvidenceContext(status: RewritePracticeStatus, check: PatternEvidenceCheckSummary | null): boolean {
+  if (status === 'pending' || status === 'in_progress' || status === 'snoozed') {
+    return true;
+  }
+
+  if (status !== 'completed') {
+    return false;
+  }
+
+  return !check || check.status === 'pending' || check.status === 'in_progress';
 }
 
 function strongestEvidenceStage(current: PatternEvidenceStage, next: PatternEvidenceStage): PatternEvidenceStage {
@@ -394,6 +589,15 @@ function repairContextRank(repair: PatternEvidenceRepairSummary): number {
     repair.completedAt ?? 0,
     repair.dueAt ?? 0,
     repair.createdAt,
+  );
+}
+
+function transferContextRank(transfer: PatternEvidenceTransferSummary): number {
+  return Math.max(
+    transfer.latestCheck ? checkContextRank(transfer.latestCheck) : 0,
+    transfer.completedAt ?? 0,
+    transfer.dueAt ?? 0,
+    transfer.createdAt,
   );
 }
 
