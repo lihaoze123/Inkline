@@ -1,0 +1,18 @@
+{"file":".trellis/tasks/05-06-evidence-model-progress/prd.md","reason":"Acceptance criteria and out-of-scope boundaries for final check."}
+{"file":".trellis/spec/product/index.md","reason":"Product quality checklist for Progress/learning-assets changes."}
+{"file":".trellis/spec/product/roadmap.md","reason":"Verify implementation stays within Milestone 3 evidence scope."}
+{"file":".trellis/spec/product/learning-flow.md","reason":"Verify learner-facing evidence semantics and no mastered/gamified claims."}
+{"file":".trellis/spec/product/data-model-contract.md","reason":"Verify derived evidence state respects rewrite task/check contracts."}
+{"file":".trellis/spec/product/validation-and-testing.md","reason":"Verify expected test coverage for product-facing behavior."}
+{"file":".trellis/spec/frontend/index.md","reason":"Frontend quality checklist for Progress UI changes."}
+{"file":".trellis/spec/frontend/hooks.md","reason":"Verify query/cache behavior remains consistent."}
+{"file":".trellis/spec/frontend/components.md","reason":"Verify UI component states and copy."}
+{"file":".trellis/spec/frontend/css-design.md","reason":"Verify UI stays aligned with Inkline visual contract."}
+{"file":".trellis/spec/backend/index.md","reason":"Backend quality checklist for learning-assets service changes."}
+{"file":".trellis/spec/backend/api-module.md","reason":"Verify service module and handler structure."}
+{"file":".trellis/spec/backend/database.md","reason":"Verify Drizzle/SQLite timestamp/query behavior."}
+{"file":".trellis/spec/backend/type-safety.md","reason":"Verify Zod-first backend type safety."}
+{"file":".trellis/spec/shared/index.md","reason":"Shared code quality checklist."}
+{"file":".trellis/spec/shared/code-quality.md","reason":"Verify general code quality constraints."}
+{"file":".trellis/spec/shared/typescript.md","reason":"Verify TypeScript typing conventions."}
+{"file":".trellis/spec/shared/timestamp.md","reason":"Verify IPC timestamp units remain Unix milliseconds."}
