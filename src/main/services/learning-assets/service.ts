@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { and, desc, eq, inArray } from 'drizzle-orm';
+import { and, desc, eq, inArray, or } from 'drizzle-orm';
 import { db } from '../../db/client';
 import { corrections, errorPatterns, notebookEntries, rewriteChecks, rewriteTasks } from '../../db/schema';
 import { arePatternRulesSimilar, normalizePatternKey } from '../../../shared/review-contract/patterns';
@@ -39,10 +39,18 @@ type EvidenceRepairTask = {
   latestCompletedRank: number | null;
   contextRank: number;
 };
+type EvidenceTransferTask = {
+  patternId: string;
+  latestCompletedOutcome: RewriteCheckOutcome | null;
+  latestCompletedRank: number | null;
+};
+type RewriteTaskKind = 'rewrite_original' | 'new_context_reuse' | 'pattern_detection';
 
 export type PatternEvidenceQueryRow = {
   patternId: string | null;
   rewriteTaskId: string;
+  practiceKind: RewriteTaskKind;
+  spacedStage: string;
   rewriteTaskStatus: RewritePracticeStatus;
   dueAt: Date | null;
   completedAt: Date | null;
@@ -130,6 +138,8 @@ function selectPatternEvidenceRows(database: typeof db, patternIds: string[]): P
     .select({
       patternId: corrections.patternId,
       rewriteTaskId: rewriteTasks.id,
+      practiceKind: rewriteTasks.kind,
+      spacedStage: rewriteTasks.spacedStage,
       rewriteTaskStatus: rewriteTasks.status,
       dueAt: rewriteTasks.dueAt,
       completedAt: rewriteTasks.completedAt,
@@ -148,23 +158,48 @@ function selectPatternEvidenceRows(database: typeof db, patternIds: string[]): P
       and(
         inArray(corrections.patternId, patternIds),
         eq(corrections.category, 'fix'),
-        eq(rewriteTasks.kind, 'rewrite_original'),
-        eq(rewriteTasks.spacedStage, 'D+1'),
+        or(
+          and(eq(rewriteTasks.kind, 'rewrite_original'), eq(rewriteTasks.spacedStage, 'D+1')),
+          and(eq(rewriteTasks.kind, 'new_context_reuse'), eq(rewriteTasks.spacedStage, 'D+3')),
+        ),
       ),
     )
     .all();
 }
 
 export function derivePatternEvidenceSummaries(rows: PatternEvidenceQueryRow[]): Map<string, PatternEvidenceSummary> {
-  const tasks = new Map<string, EvidenceRepairTask>();
+  const repairTasks = new Map<string, EvidenceRepairTask>();
+  const transferTasks = new Map<string, EvidenceTransferTask>();
 
   rows.forEach((row) => {
     if (!row.patternId) {
       return;
     }
 
+    if (isD3TransferEvidenceRow(row)) {
+      const taskKey = `${row.patternId}:${row.rewriteTaskId}`;
+      const existingTask = transferTasks.get(taskKey);
+      const task = existingTask ?? createEvidenceTransferTask(row.patternId);
+      const check = checkSummaryFromRow(row);
+
+      if (check?.status === 'completed' && check.outcome !== null) {
+        const completedRank = rowCompletedCheckRank(row);
+        if (task.latestCompletedRank === null || completedRank > task.latestCompletedRank) {
+          task.latestCompletedOutcome = check.outcome;
+          task.latestCompletedRank = completedRank;
+        }
+      }
+
+      transferTasks.set(taskKey, task);
+      return;
+    }
+
+    if (!isD1RepairEvidenceRow(row)) {
+      return;
+    }
+
     const taskKey = `${row.patternId}:${row.rewriteTaskId}`;
-    const existingTask = tasks.get(taskKey);
+    const existingTask = repairTasks.get(taskKey);
     const task = existingTask ?? createEvidenceRepairTask(row, row.patternId);
     const check = checkSummaryFromRow(row);
 
@@ -185,11 +220,11 @@ export function derivePatternEvidenceSummaries(rows: PatternEvidenceQueryRow[]):
     }
 
     task.contextRank = Math.max(task.contextRank, repairContextRank(task.repair));
-    tasks.set(taskKey, task);
+    repairTasks.set(taskKey, task);
   });
 
   const summaries = new Map<string, PatternEvidenceSummary>();
-  tasks.forEach((task) => {
+  repairTasks.forEach((task) => {
     const current = summaries.get(task.patternId) ?? defaultEvidenceSummary();
     const stage = strongestEvidenceStage(
       current.stage,
@@ -202,8 +237,32 @@ export function derivePatternEvidenceSummaries(rows: PatternEvidenceQueryRow[]):
 
     summaries.set(task.patternId, { stage, latestRepair });
   });
+  transferTasks.forEach((task) => {
+    const current = summaries.get(task.patternId) ?? defaultEvidenceSummary();
+    const stage = strongestEvidenceStage(
+      current.stage,
+      task.latestCompletedOutcome === 'correct' ? 'transferred_once' : 'needs_repair',
+    );
+    summaries.set(task.patternId, { ...current, stage });
+  });
 
   return summaries;
+}
+
+function isD1RepairEvidenceRow(row: PatternEvidenceQueryRow): boolean {
+  return row.practiceKind === 'rewrite_original' && row.spacedStage === 'D+1';
+}
+
+function isD3TransferEvidenceRow(row: PatternEvidenceQueryRow): boolean {
+  return row.practiceKind === 'new_context_reuse' && row.spacedStage === 'D+3';
+}
+
+function createEvidenceTransferTask(patternId: string): EvidenceTransferTask {
+  return {
+    patternId,
+    latestCompletedOutcome: null,
+    latestCompletedRank: null,
+  };
 }
 
 function createEvidenceRepairTask(row: PatternEvidenceQueryRow, patternId: string): EvidenceRepairTask {

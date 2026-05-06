@@ -119,4 +119,43 @@ describe('ProgressPage evidence rendering', () => {
     expect(html).toContain('A D+1 original-sentence repair was checked as correct once.');
     expect(html).toContain('Latest D+1 check repaired the original sentence.');
   });
+
+  it('renders transferred once for D+3 correct evidence without mastery wording', () => {
+    const html = renderToStaticMarkup(
+      <ProgressPage
+        patterns={[
+          pattern({
+            evidence: {
+              stage: 'transferred_once',
+              latestRepair: {
+                rewriteTaskId: 'rewrite_d1',
+                practiceKind: 'rewrite_original',
+                spacedStage: 'D+1',
+                status: 'completed',
+                dueAt: now,
+                completedAt: now + 1,
+                createdAt: now - 1,
+                latestCheck: {
+                  id: 'check_correct',
+                  status: 'completed',
+                  outcome: 'correct',
+                  completedAt: now + 2,
+                  updatedAt: now + 2,
+                },
+              },
+            },
+          }),
+        ]}
+        isLoading={false}
+        isError={false}
+        hasWritten={false}
+        hasPendingRewrite={false}
+        onOpenPractice={() => undefined}
+      />,
+    );
+
+    expect(html).toContain('Transferred once');
+    expect(html).toContain('A delayed new-context reuse check was correct once.');
+    expect(html).not.toContain('Mastered');
+  });
 });

@@ -66,4 +66,13 @@ describe('database foundation migration', () => {
 
     expect(migrationSql).toContain('ALTER TABLE `error_patterns` ADD `fingerprint_json` text');
   });
+
+  it('adds hidden prompt-contract storage to rewrite tasks', () => {
+    const migrationSql = readFileSync(
+      path.resolve(process.cwd(), 'drizzle/0009_rewrite_task_prompt_contract.sql'),
+      'utf8',
+    );
+
+    expect(migrationSql).toContain('ALTER TABLE `rewrite_tasks` ADD `prompt_contract_json` text');
+  });
 });

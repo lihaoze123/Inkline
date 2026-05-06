@@ -348,8 +348,8 @@ rewrite_checks.created_at/updated_at/completed_at Unix milliseconds
 - Provider configuration, network, timeout, or invalid model-output failures must still create/update a `rewrite_checks` row with `status: 'retryable'`, `outcome: null`, a safe `errorMessage`, and bounded redacted diagnostics.
 - `RewritePracticeSnapshot.latestRewriteCheck` exposes the newest check state needed by the renderer after submit, skip, retry, or refresh.
 - `retryRewriteCheck` must reuse saved `rewrite_tasks.user_rewrite_text`; it must not ask the renderer to resubmit text. Each retry creates a new `rewrite_checks` attempt.
-- `incorrect` completes the D+1 task but records unsuccessful learning. `partly_correct` is visible progress, not mastery success. Only `correct` is the strong success signal for future mastery/reuse logic.
-- D+1 `correct` means original repair succeeded; it does not yet prove delayed transfer. Later D+3/D+7 transfer tasks must branch evaluator semantics by `rewrite_tasks.kind` and `spacedStage`.
+- `incorrect` completes the D+1 task but records unsuccessful learning. `partly_correct` is visible progress, not mastery success. Only `correct` is the strong success signal for D+3 transfer generation.
+- D+1 `correct` means original repair succeeded; it does not yet prove delayed transfer. D+3 transfer tasks branch evaluator semantics by `rewrite_tasks.kind` and `spacedStage`; D+7 remains future work.
 - First-version submit is synchronous: save rewrite, run evaluator, persist completed/retryable attempt, then return the updated snapshot. Do not add workers or polling unless a future PRD changes the contract.
 - While submit or retry is pending, disable rewrite input, submit, skip, and retry controls for that card.
 - A saved submitted rewrite may have `status: 'completed'` even when `latestRewriteCheck.outcome` is `partly_correct`, `incorrect`, or unavailable after evaluator failure.
@@ -361,13 +361,13 @@ rewrite_checks.created_at/updated_at/completed_at Unix milliseconds
 - Retryable/failed checks explain that the rewrite was saved and expose retry.
 - `RetryRewriteCheckResult` handling must tolerate partial success payloads. If `writing` is absent but `rewritePractice` is present, patch cached attempts by `rewritePractice.id`. If only `rewriteCheck` is present, patch the cached pending/completed rewrite whose id matches `rewriteCheck.rewriteTaskId`.
 
-### 4. Future Transfer Contracts
+### 4. Transfer Contracts
 
-D+3/D+7 new-context reuse is future work, but must follow these contracts when implemented:
+D+3 new-context reuse is the first transfer slice. D+7 remains future work, but the staged transfer system must follow these contracts:
 
 - Review/save generates only the D+1 original-repair task.
 - Generate D+3 only after D+1 rewrite-check returns `correct`.
-- Generate D+7 only after D+3 new-context reuse returns `correct`.
+- Generate D+7 only after D+3 new-context reuse returns `correct` in a future slice.
 - Do not batch-create future spaced tasks at review-save time.
 - Represent D+3/D+7 as `rewrite_tasks.kind = 'new_context_reuse'` with `spacedStage = 'D+3' | 'D+7'`.
 - Keep D+1 original repair as `rewrite_original`.

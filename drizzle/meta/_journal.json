@@ -64,6 +64,13 @@
       "when": 1777410000008,
       "tag": "0008_pattern_fingerprints",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1777410000009,
+      "tag": "0009_rewrite_task_prompt_contract",
+      "breakpoints": true
     }
   ]
 }

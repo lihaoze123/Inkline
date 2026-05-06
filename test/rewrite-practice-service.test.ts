@@ -1,6 +1,16 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { writingAttempts, writingRevisions, reviewRuns, rewriteChecks, rewriteTasks } from '../src/main/db/schema';
+import {
+  corrections,
+  errorPatterns,
+  writingAttempts,
+  writingRevisions,
+  reviewRuns,
+  rewriteChecks,
+  rewriteTasks,
+} from '../src/main/db/schema';
 import type {
+  corrections as correctionsTable,
+  errorPatterns as errorPatternsTable,
   writingAttempts as writingAttemptsTable,
   writingRevisions as writingRevisionsTable,
   reviewRuns as reviewRunsTable,
@@ -23,8 +33,24 @@ type WritingRevisionRow = typeof writingRevisionsTable.$inferSelect;
 type ReviewRunRow = typeof reviewRunsTable.$inferSelect;
 type RewriteCheckRow = typeof rewriteChecksTable.$inferSelect;
 type RewriteTaskRow = typeof rewriteTasksTable.$inferSelect;
-type StoredRow = WritingAttemptRow | WritingRevisionRow | ReviewRunRow | RewriteCheckRow | RewriteTaskRow;
-type TableName = 'writingAttempts' | 'writingRevisions' | 'reviewRuns' | 'rewriteChecks' | 'rewriteTasks';
+type ErrorPatternRow = typeof errorPatternsTable.$inferSelect;
+type CorrectionRow = typeof correctionsTable.$inferSelect;
+type StoredRow =
+  | WritingAttemptRow
+  | WritingRevisionRow
+  | ReviewRunRow
+  | RewriteCheckRow
+  | RewriteTaskRow
+  | ErrorPatternRow
+  | CorrectionRow;
+type TableName =
+  | 'writingAttempts'
+  | 'writingRevisions'
+  | 'reviewRuns'
+  | 'rewriteChecks'
+  | 'rewriteTasks'
+  | 'errorPatterns'
+  | 'corrections';
 
 const mocks = vi.hoisted(() => ({
   generateStructuredObject: vi.fn(),
@@ -39,6 +65,8 @@ type RowStore = {
   reviewRuns: ReviewRunRow[];
   rewriteChecks: RewriteCheckRow[];
   rewriteTasks: RewriteTaskRow[];
+  errorPatterns: ErrorPatternRow[];
+  corrections: CorrectionRow[];
 };
 
 vi.mock('../src/main/db/client', () => ({
@@ -75,6 +103,8 @@ const tableNames = new Map<object, TableName>([
   [reviewRuns, 'reviewRuns'],
   [rewriteChecks, 'rewriteChecks'],
   [rewriteTasks, 'rewriteTasks'],
+  [errorPatterns, 'errorPatterns'],
+  [corrections, 'corrections'],
 ]);
 
 class FakeWritingDatabase {
@@ -103,7 +133,7 @@ class FakeWritingDatabase {
   }
 
   insert(table: unknown): {
-    values: (value: unknown) => { returning: () => { get: () => StoredRow } };
+    values: (value: unknown) => { returning: () => { get: () => StoredRow }; run: () => void };
   } {
     return {
       values: (value: unknown) => {
@@ -115,7 +145,7 @@ class FakeWritingDatabase {
           completedAt: (value as { completedAt?: unknown }).completedAt ?? null,
         } as StoredRow;
         this.rowsFor(tableNameValue).push(row);
-        return { returning: () => ({ get: () => row }) };
+        return { returning: () => ({ get: () => row }), run: () => undefined };
       },
     };
   }
@@ -187,6 +217,37 @@ class FakeWritingDatabase {
     this.store.rewriteTasks.push(task);
   }
 
+  seedFocusPatternFingerprint(fingerprintJson = JSON.stringify(createPatternFingerprint())): void {
+    this.store.errorPatterns.push({
+      id: 'pattern_tense',
+      patternKey: 'tense:past_actions',
+      category: 'tense',
+      rule: 'Use past tense for completed actions.',
+      canonicalExample: 'Yesterday I went home.',
+      count: 1,
+      firstSeenDateKey: '2026-04-30',
+      lastSeenDateKey: '2026-04-30',
+      recentExamplesJson: JSON.stringify(['I go home -> I went home']),
+      fingerprintJson,
+      active: true,
+      createdAt: now,
+      updatedAt: now,
+    });
+    this.store.corrections.push({
+      id: 'correction_1',
+      reviewRunId: 'review_1',
+      patternId: 'pattern_tense',
+      pattern: 'Use past tense for completed actions.',
+      originalText: 'I go home.',
+      correctedText: 'I went home.',
+      explanation: 'Use past tense for completed actions.',
+      category: 'fix',
+      status: 'suggested',
+      startOffset: 0,
+      endOffset: 9,
+    });
+  }
+
   seedCompletedRewriteCheck(): void {
     this.store.rewriteChecks.push({
       id: 'rewrite_check_1',
@@ -211,6 +272,10 @@ class FakeWritingDatabase {
 
   rewriteChecks(): RewriteCheckRow[] {
     return [...this.store.rewriteChecks];
+  }
+
+  rewriteTasks(): RewriteTaskRow[] {
+    return [...this.store.rewriteTasks];
   }
 
   asAppDatabase(): AppDatabase {
@@ -241,6 +306,14 @@ class FakeWritingDatabase {
 
     if (table === 'rewriteChecks') {
       return new QueryResult(this.store.rewriteChecks.filter((row) => row.id === value || row.rewriteTaskId === value));
+    }
+
+    if (table === 'corrections') {
+      return new QueryResult(
+        this.store.corrections.filter(
+          (row) => row.id === value || row.reviewRunId === value || row.patternId === value,
+        ),
+      );
     }
 
     return new QueryResult(rows.filter((row) => row.id === value));
@@ -405,6 +478,80 @@ describe('rewrite practice service updates', () => {
     },
   );
 
+  it('creates one pending D+3 new-context reuse task after a D+1 correct check with a saved fingerprint', async () => {
+    fakeDatabase.reset();
+    fakeDatabase.seedPracticeWithPendingRewrite();
+    fakeDatabase.seedFocusPatternFingerprint();
+    const completeRewritePractice = await loadCompleteRewritePractice();
+
+    const result = await completeRewritePractice({ rewriteTaskId: 'rewrite_1', userRewriteText: 'I went home.' });
+
+    const d3Tasks = fakeDatabase.rewriteTasks().filter((task) => task.kind === 'new_context_reuse');
+    expect(result.success).toBe(true);
+    expect(d3Tasks).toHaveLength(1);
+    expect(d3Tasks[0]).toMatchObject({
+      reviewRunId: 'review_1',
+      kind: 'new_context_reuse',
+      spacedStage: 'D+3',
+      status: 'pending',
+      dueAt: new Date(now.getTime() + 3 * ONE_DAY_MS),
+      nativeModelSentence: '',
+    });
+    expect(d3Tasks[0]?.prompt).not.toContain('went home');
+    expect(d3Tasks[0]?.prompt).not.toContain('Rewrite the original sentence');
+    expect(JSON.parse(d3Tasks[0]?.promptContractJson ?? '{}')).toMatchObject({
+      targetMeaning: 'use past tense for completed actions',
+      forbiddenHints: ['went home'],
+      expectedPatternFamily: 'grammar',
+    });
+  });
+
+  it('does not create D+3 for partly correct or incorrect D+1 checks even when a fingerprint exists', async () => {
+    for (const outcome of ['partly_correct', 'incorrect'] as const) {
+      fakeDatabase.reset();
+      fakeDatabase.seedPracticeWithPendingRewrite();
+      fakeDatabase.seedFocusPatternFingerprint();
+      mocks.generateStructuredObject.mockResolvedValueOnce({
+        output: { outcome, feedback: `${outcome} feedback.` },
+        rawOutput: {},
+        providerDiagnostics: null,
+        provider: 'openai-compatible',
+        model: 'test-model',
+      });
+      const completeRewritePractice = await loadCompleteRewritePractice();
+
+      await completeRewritePractice({ rewriteTaskId: 'rewrite_1', userRewriteText: 'I went home.' });
+
+      expect(fakeDatabase.rewriteTasks().filter((task) => task.kind === 'new_context_reuse')).toHaveLength(0);
+    }
+  });
+
+  it('does not fail D+1 completion or create D+3 when the saved fingerprint is missing or invalid', async () => {
+    fakeDatabase.reset();
+    fakeDatabase.seedPracticeWithPendingRewrite();
+    fakeDatabase.seedFocusPatternFingerprint(JSON.stringify({ invalid: true }));
+    const completeRewritePractice = await loadCompleteRewritePractice();
+
+    const result = await completeRewritePractice({ rewriteTaskId: 'rewrite_1', userRewriteText: 'I went home.' });
+
+    expect(result.success).toBe(true);
+    expect(result.rewritePractice?.latestRewriteCheck).toMatchObject({ status: 'completed', outcome: 'correct' });
+    expect(fakeDatabase.rewriteTasks().filter((task) => task.kind === 'new_context_reuse')).toHaveLength(0);
+  });
+
+  it('keeps D+3 generation idempotent across retries after the first correct D+1 check', async () => {
+    fakeDatabase.reset();
+    fakeDatabase.seedPracticeWithPendingRewrite();
+    fakeDatabase.seedFocusPatternFingerprint();
+    const completeRewritePractice = await loadCompleteRewritePractice();
+    await completeRewritePractice({ rewriteTaskId: 'rewrite_1', userRewriteText: 'I went home.' });
+    const retryRewriteCheck = await loadRetryRewriteCheck();
+
+    await retryRewriteCheck({ rewriteTaskId: 'rewrite_1' });
+
+    expect(fakeDatabase.rewriteTasks().filter((task) => task.kind === 'new_context_reuse')).toHaveLength(1);
+  });
+
   it('persists a retryable check when the provider call fails without losing submitted text', async () => {
     fakeDatabase.reset();
     fakeDatabase.seedPracticeWithPendingRewrite();
@@ -477,6 +624,51 @@ describe('rewrite practice service updates', () => {
     expect(fakeDatabase.rewriteChecks()).toHaveLength(2);
     expect(mocks.generateStructuredObject).toHaveBeenCalledTimes(1);
     expect(mocks.generateStructuredObject.mock.calls[0]?.[0].userPrompt).toContain('I went home.');
+  });
+
+  it('creates D+3 when retrying a D+1 check succeeds as correct and no D+3 exists yet', async () => {
+    fakeDatabase.reset();
+    fakeDatabase.seedPracticeWithPendingRewrite();
+    fakeDatabase.seedFocusPatternFingerprint();
+    mocks.generateStructuredObject.mockRejectedValueOnce(new Error('temporary network failure'));
+    const completeRewritePractice = await loadCompleteRewritePractice();
+    await completeRewritePractice({ rewriteTaskId: 'rewrite_1', userRewriteText: 'I went home.' });
+
+    mocks.generateStructuredObject.mockClear();
+    mocks.generateStructuredObject.mockResolvedValueOnce({
+      output: { outcome: 'correct', feedback: 'Good repair.' },
+      rawOutput: {},
+      providerDiagnostics: null,
+      provider: 'openai-compatible',
+      model: 'test-model',
+    });
+    const retryRewriteCheck = await loadRetryRewriteCheck();
+
+    const result = await retryRewriteCheck({ rewriteTaskId: 'rewrite_1' });
+
+    expect(result.success).toBe(true);
+    expect(result.rewriteCheck).toMatchObject({ status: 'completed', outcome: 'correct' });
+    expect(fakeDatabase.rewriteTasks().filter((task) => task.kind === 'new_context_reuse')).toHaveLength(1);
+  });
+
+  it('branches D+3 rewrite-check evaluation to transfer semantics with the hidden prompt contract', async () => {
+    fakeDatabase.reset();
+    fakeDatabase.seedPracticeWithPendingRewrite(createD3RewriteTask('rewrite_d3'));
+    const completeRewritePractice = await loadCompleteRewritePractice();
+
+    const result = await completeRewritePractice({
+      rewriteTaskId: 'rewrite_d3',
+      userRewriteText: 'Last week I visited my cousin.',
+    });
+
+    expect(result.success).toBe(true);
+    const evaluationInput = mocks.generateStructuredObject.mock.calls[0]?.[0];
+    expect(evaluationInput.systemPrompt).toContain('delayed new-context reuse');
+    expect(evaluationInput.userPrompt).toContain('Evaluate this D+3 new-context reuse submission.');
+    expect(evaluationInput.userPrompt).toContain('use past tense for completed actions');
+    expect(evaluationInput.userPrompt).toContain('went home');
+    expect(evaluationInput.userPrompt).toContain('Last week I visited my cousin.');
+    expect(fakeDatabase.rewriteTasks().filter((task) => task.kind === 'new_context_reuse')).toHaveLength(1);
   });
 
   it('returns persisted retryable retry attempts as successful transport results', async () => {
@@ -656,12 +848,60 @@ function createPendingRewriteTask(id: string): RewriteTaskRow {
     prompt: 'Rewrite the original sentence.',
     kind: 'rewrite_original',
     spacedStage: 'D+1',
+    promptContractJson: null,
     status: 'pending',
     userRewriteText: null,
     dueAt: now,
     completedAt: null,
     skippedAt: null,
     createdAt: new Date(now.getTime() - 24 * 60 * 60 * 1000),
+  };
+}
+
+function createD3RewriteTask(id: string): RewriteTaskRow {
+  return {
+    id,
+    reviewRunId: 'review_1',
+    originalSentence: 'New-context reuse practice',
+    focusPattern: 'Use past tense for completed actions.',
+    nativeModelSentence: '',
+    prompt: 'Write one or two fresh English lines in a new everyday situation.',
+    kind: 'new_context_reuse',
+    spacedStage: 'D+3',
+    promptContractJson: JSON.stringify({
+      targetMeaning: 'use past tense for completed actions',
+      allowedHints: ['A completed past action should use past-tense verb forms.'],
+      forbiddenHints: ['went home'],
+      expectedPatternFamily: 'grammar',
+    }),
+    status: 'pending',
+    userRewriteText: null,
+    dueAt: now,
+    completedAt: null,
+    skippedAt: null,
+    createdAt: new Date(now.getTime() - 24 * 60 * 60 * 1000),
+  };
+}
+
+function createPatternFingerprint(): {
+  patternType: 'grammar';
+  learnerError: string;
+  targetCorrection: string;
+  abstractRule: string;
+  positiveExamples: string[];
+  negativeExample: string;
+  transferBoundary: string;
+  forbiddenLeakageTerms: string[];
+} {
+  return {
+    patternType: 'grammar',
+    learnerError: 'uses present tense for a completed past action',
+    targetCorrection: 'use past tense for completed actions',
+    abstractRule: 'Use past tense when the action is finished in the past.',
+    positiveExamples: ['Yesterday I went home.'],
+    negativeExample: 'Yesterday I go home.',
+    transferBoundary: 'A completed past action should use past-tense verb forms.',
+    forbiddenLeakageTerms: ['went home'],
   };
 }
 
@@ -732,6 +972,8 @@ function emptyStore(): RowStore {
     reviewRuns: [],
     rewriteChecks: [],
     rewriteTasks: [],
+    errorPatterns: [],
+    corrections: [],
   };
 }
 

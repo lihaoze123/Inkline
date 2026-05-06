@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { patternTypeSchema } from '../review-contract/schemas';
 
 export const reviewRunStatusSchema = z.enum([
   'draft',
@@ -44,6 +45,10 @@ export const rewritePracticeStatusSchema = z.enum([
   'expired',
 ]);
 
+export const rewritePracticeKindSchema = z.enum(['rewrite_original', 'new_context_reuse']);
+
+export const rewriteSpacedStageSchema = z.enum(['D+1', 'D+3']);
+
 export const rewriteCheckStatusSchema = z.enum(['pending', 'in_progress', 'completed', 'failed', 'retryable']);
 
 export const rewriteCheckOutcomeSchema = z.enum(['correct', 'partly_correct', 'incorrect']);
@@ -87,6 +92,13 @@ export const rewriteCheckSnapshotSchema = z
     }
   });
 
+export const newContextPromptContractSchema = z.object({
+  targetMeaning: z.string().min(1),
+  allowedHints: z.array(z.string().min(1)),
+  forbiddenHints: z.array(z.string().min(1)),
+  expectedPatternFamily: patternTypeSchema,
+});
+
 export const rewritePracticeSnapshotSchema = z.object({
   id: z.string().min(1),
   reviewRunId: z.string().min(1),
@@ -94,8 +106,8 @@ export const rewritePracticeSnapshotSchema = z.object({
   focusPattern: z.string().min(1),
   nativeModelSentence: z.string(),
   prompt: z.string().min(1),
-  practiceKind: z.literal('rewrite_original'),
-  spacedStage: z.literal('D+1'),
+  practiceKind: rewritePracticeKindSchema,
+  spacedStage: rewriteSpacedStageSchema,
   status: rewritePracticeStatusSchema,
   userRewriteText: z.string().nullable(),
   latestRewriteCheck: rewriteCheckSnapshotSchema.nullable(),
@@ -196,10 +208,13 @@ export type WritingRevisionSnapshot = z.infer<typeof writingRevisionSchema>;
 export type StaleReviewSnapshot = z.infer<typeof staleReviewSchema>;
 export type StarterPromptSnapshot = z.infer<typeof starterPromptSchema>;
 export type RewritePracticeStatus = z.infer<typeof rewritePracticeStatusSchema>;
+export type RewritePracticeKind = z.infer<typeof rewritePracticeKindSchema>;
+export type RewriteSpacedStage = z.infer<typeof rewriteSpacedStageSchema>;
 export type RewriteCheckStatus = z.infer<typeof rewriteCheckStatusSchema>;
 export type RewriteCheckOutcome = z.infer<typeof rewriteCheckOutcomeSchema>;
 export type RewriteCheckFeedback = z.infer<typeof rewriteCheckFeedbackSchema>;
 export type RewriteCheckSnapshot = z.infer<typeof rewriteCheckSnapshotSchema>;
+export type NewContextPromptContract = z.infer<typeof newContextPromptContractSchema>;
 export type RewritePracticeSnapshot = z.infer<typeof rewritePracticeSnapshotSchema>;
 export type WritingAttemptSnapshot = z.infer<typeof writingAttemptSnapshotSchema>;
 export type GetWritingAttemptInput = z.infer<typeof getWritingAttemptInputSchema>;

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  newContextPromptContractSchema,
   retryRewriteCheckInputSchema,
   retryRewriteCheckResultSchema,
   rewriteCheckSnapshotSchema,
@@ -83,6 +84,40 @@ describe('rewrite-check shared writing contracts', () => {
     expect(rewritePracticeSnapshotSchema.parse(rewritePractice).latestRewriteCheck).toMatchObject({
       id: 'rewrite_check_1',
       outcome: 'partly_correct',
+    });
+  });
+
+  it('allows D+3 new-context reuse practice snapshots without exposing the hidden prompt contract', () => {
+    const parsed = rewritePracticeSnapshotSchema.parse({
+      ...rewritePractice,
+      id: 'rewrite_d3',
+      originalSentence: 'New-context reuse practice',
+      nativeModelSentence: '',
+      prompt: 'Write one or two fresh English lines in a new everyday situation.',
+      practiceKind: 'new_context_reuse',
+      spacedStage: 'D+3',
+      latestRewriteCheck: null,
+    });
+
+    expect(parsed).toMatchObject({
+      practiceKind: 'new_context_reuse',
+      spacedStage: 'D+3',
+      nativeModelSentence: '',
+    });
+    expect('promptContract' in parsed).toBe(false);
+  });
+
+  it('defines the hidden D+3 prompt contract shape', () => {
+    expect(
+      newContextPromptContractSchema.parse({
+        targetMeaning: 'use past tense for completed actions',
+        allowedHints: ['Use the same pattern in a different everyday situation.'],
+        forbiddenHints: ['went home'],
+        expectedPatternFamily: 'grammar',
+      }),
+    ).toMatchObject({
+      targetMeaning: 'use past tense for completed actions',
+      expectedPatternFamily: 'grammar',
     });
   });
 

@@ -341,6 +341,7 @@ class FakeReviewDatabase {
         const inserted = {
           ...row,
           userRewriteText: null,
+          promptContractJson: null,
           completedAt: null,
           skippedAt: null,
           createdAt: now,

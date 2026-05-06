@@ -409,6 +409,129 @@ D+3/D+7 generation must be progressive:
 
 `partly_correct` and `incorrect` keep the learner in the same phase and allow retry. Retry remains within the same rewrite task. Each retry appends a `rewrite_checks` attempt; do not generate a separate retry task for the first transfer-evidence version.
 
+## Scenario: D+3 New-Context Reuse First Slice
+
+### 1. Scope / Trigger
+
+- Trigger: Any task that changes D+3 new-context reuse generation, hidden prompt contracts, rewrite-check branching by task kind/stage, Practice rendering for D+3, or Progress evidence advancement from `repaired_once` to `transferred_once`.
+- This first slice implements D+3 only. D+7 generation, transfer diagnostic persistence, fingerprint/prompt-contract UI, and `mastered`/gamified copy remain out of scope.
+
+### 2. Signatures
+
+SQLite:
+
+```text
+rewrite_tasks.prompt_contract_json text null
+rewrite_tasks.kind = 'rewrite_original' | 'new_context_reuse' | 'pattern_detection'
+rewrite_tasks.spaced_stage = 'D+1' | 'D+3'
+```
+
+Hidden prompt contract JSON:
+
+```ts
+type NewContextPromptContract = {
+  targetMeaning: string;
+  allowedHints: string[];
+  forbiddenHints: string[];
+  expectedPatternFamily: PatternFingerprint['patternType'];
+};
+```
+
+Public practice snapshot:
+
+```ts
+type RewritePracticeSnapshot = {
+  practiceKind: 'rewrite_original' | 'new_context_reuse';
+  spacedStage: 'D+1' | 'D+3';
+  latestRewriteCheck: RewriteCheckSnapshot | null;
+  // no prompt contract or fingerprint fields
+};
+```
+
+### 3. Contracts
+
+- Review/save still creates only one D+1 `rewrite_original` task for the saved focus correction.
+- A D+3 task is created only after a D+1 `rewrite_original` task receives a completed rewrite-check outcome of `correct`.
+- D+3 creation runs after both initial submit (`completeRewritePractice`) and retry (`retryRewriteCheck`) outcomes.
+- D+3 creation is idempotent per source review run; repeated terminal returns and repeated correct retries must not create duplicates.
+- D+3 tasks use `kind = 'new_context_reuse'`, `spaced_stage = 'D+3'`, `status = 'pending'`, and `due_at = successful D+1 check completed_at + 3 days`.
+- D+3 prompt contracts are built from the saved focus pattern fingerprint:
+  - `targetMeaning` from `targetCorrection`.
+  - `allowedHints` from `transferBoundary` or generic safe wording.
+  - `forbiddenHints` from `forbiddenLeakageTerms`.
+  - `expectedPatternFamily` from `patternType`.
+- Visible D+3 prompts must be short new-context writing tasks and must not contain any forbidden leakage terms.
+- Public renderer state may show D+3 kind/stage and learner-facing prompt copy, but must not expose raw fingerprint or prompt-contract JSON.
+- Rewrite-check evaluator prompts branch by task kind/stage:
+  - D+1 repairs the original sentence.
+  - D+3 judges delayed new-context transfer using the hidden prompt contract.
+- Progress advances to `transferred_once` only when the latest completed check for a linked D+3 `new_context_reuse` task is `correct`.
+
+### 4. Validation & Error Matrix
+
+| Condition | Behavior |
+| --- | --- |
+| D+1 check completes with `correct` and the focus pattern has a valid fingerprint | Insert exactly one pending D+3 task with hidden prompt contract JSON. |
+| D+1 check completes with `partly_correct` or `incorrect` | Do not create D+3; keep evidence at the current phase. |
+| D+1 check is retryable, failed, pending, or in progress | Do not create D+3. |
+| Source task is not D+1 `rewrite_original`, or is skipped/expired/non-completed | Do not create D+3. |
+| Saved focus fingerprint is missing or invalid | Preserve the D+1 completion/retry result and skip D+3 creation. |
+| A D+3 task already exists for the review run | Do not insert another D+3 task. |
+| D+3 task has missing/invalid prompt contract at evaluator time | Persist a retryable/validation-failed check; do not expose raw contract details to the learner. |
+| D+3 latest completed check is `partly_correct` or `incorrect` | Do not advance Progress beyond `repaired_once`. |
+
+### 5. Good/Base/Bad Cases
+
+- Good: A D+1 retryable check later retries as `correct`, creates one D+3 task due three days after that successful retry check, and Progress remains `repaired_once` until D+3 is checked correct.
+- Good: A completed D+3 transfer check with outcome `correct` moves the pattern to `Transferred once`.
+- Base: A historical D+1 task with no fingerprint can still complete and show check feedback, but it creates no D+3 task.
+- Base: A D+3 task reuses skip, snooze, expire, complete, and retry-check lifecycle behavior.
+- Bad: Review/save batch-creates D+3 before D+1 success.
+- Bad: A D+3 prompt asks the learner to rewrite the original sentence, fill a blank, or copy a target expression.
+- Bad: Progress treats task completion, retryable checks, or `partly_correct` as transfer evidence.
+
+### 6. Tests Required
+
+- Migration test: `rewrite_tasks.prompt_contract_json` is added and the SQL migration is registered in the Drizzle journal.
+- Shared schema test: `RewritePracticeSnapshot` accepts `new_context_reuse` / `D+3` without prompt-contract fields.
+- Service tests:
+  - D+1 `correct` completion creates one D+3 task with prompt contract and D+3 due date.
+  - D+1 `correct` retry creates D+3 when absent.
+  - `partly_correct`, `incorrect`, retryable/failed checks, non-D+1 tasks, and missing/invalid fingerprints do not create D+3.
+  - Repeated correct returns/retries do not duplicate D+3.
+  - D+3 evaluator prompt uses transfer semantics and hidden contract data.
+- Progress tests: latest completed D+3 `correct` advances to `transferred_once`; latest completed D+3 `partly_correct`/`incorrect` does not.
+- Renderer test: D+3 copy avoids `Original` and `Reference sentence` labels and does not show fingerprint or prompt-contract internals.
+
+### 7. Wrong vs Correct
+
+#### Wrong
+
+```ts
+await tx.insert(rewriteTasks).values({
+  reviewRunId,
+  kind: 'new_context_reuse',
+  spacedStage: 'D+3',
+  dueAt: new Date(Date.now() + 3 * ONE_DAY_MS),
+});
+```
+
+This creates D+3 from review/save timing instead of from the successful D+1 check and has no hidden prompt contract.
+
+#### Correct
+
+```ts
+if (sourceTask.kind === 'rewrite_original' && check.status === 'completed' && check.outcome === 'correct') {
+  createD3FromSavedFingerprint({
+    sourceTask,
+    promptContract,
+    dueAt: new Date(check.completedAt.getTime() + 3 * ONE_DAY_MS),
+  });
+}
+```
+
+D+3 is progressive, contract-backed, and tied to the actual D+1 success signal.
+
 ## Future Pattern Transfer Data Contracts
 
 When implemented, pattern transfer features should preserve these relationships without adding a separate `reuse_tasks` system:

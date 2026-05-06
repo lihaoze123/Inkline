@@ -165,6 +165,7 @@ export const rewriteTasks = sqliteTable('rewrite_tasks', {
   focusPattern: text('focus_pattern').notNull().default(''),
   nativeModelSentence: text('native_model_sentence').notNull().default(''),
   prompt: text('prompt').notNull(),
+  promptContractJson: text('prompt_contract_json'),
   kind: text('kind', { enum: ['rewrite_original', 'new_context_reuse', 'pattern_detection'] })
     .notNull()
     .default('rewrite_original'),

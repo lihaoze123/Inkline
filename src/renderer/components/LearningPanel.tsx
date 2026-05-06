@@ -39,6 +39,9 @@ export function LearningPanel({
         : hasWritten
           ? 'Ask for feedback when the draft is ready.'
           : 'The coach waits until you write.';
+  const rewritePractice = completedRewritePractice ?? writing.pendingRewritePractice;
+  const rewritePracticeSummary =
+    rewritePractice?.practiceKind === 'new_context_reuse' ? 'Transfer practice' : 'Rewrite practice';
 
   return (
     <aside
@@ -53,13 +56,13 @@ export function LearningPanel({
 
       {writing.staleReview ? <StaleReviewCard onReviewCurrentVersion={onReviewCurrentVersion} /> : null}
 
-      {writing.pendingRewritePractice || completedRewritePractice ? (
+      {rewritePractice ? (
         <details className="text-sm text-base-content/62" data-e2e="rewrite-practice-details">
           <summary className="cursor-pointer font-medium text-base-content/70" data-e2e="rewrite-practice-summary">
-            Rewrite practice
+            {rewritePracticeSummary}
           </summary>
           <RewritePracticeCard
-            practice={completedRewritePractice ?? writing.pendingRewritePractice}
+            practice={rewritePractice}
             inputValue={rewritePracticeInput}
             error={rewritePracticeError}
             isChecking={isRewritePracticeChecking}
@@ -186,25 +189,32 @@ function RewritePracticeCard({
   }
 
   const latestCheck = practice.latestRewriteCheck;
+  const isNewContextReuse = practice.practiceKind === 'new_context_reuse';
   const isCompleted = practice.status === 'completed';
   const isTerminal = isCompleted || practice.status === 'skipped' || practice.status === 'expired';
   const isCheckInProgress = isChecking || latestCheck?.status === 'pending' || latestCheck?.status === 'in_progress';
   const canAct = !isTerminal;
   const canSubmit = inputValue.trim().length > 0 && canAct && !isCheckInProgress;
-  const showNativeModel = isCompleted && Boolean(practice.userRewriteText);
+  const showNativeModel = !isNewContextReuse && isCompleted && Boolean(practice.userRewriteText);
 
   return (
     <PanelCard tone="success">
       <div data-e2e="rewrite-practice-card">
         <div className="ui-chrome">
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-success">Next rewrite</p>
-          <h3 className="mt-1 font-semibold">Practice the saved pattern</h3>
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-success">
+            {isNewContextReuse ? 'Next transfer' : 'Next rewrite'}
+          </p>
+          <h3 className="mt-1 font-semibold">
+            {isNewContextReuse ? 'Use the pattern in a new context' : 'Practice the saved pattern'}
+          </h3>
           <p className="mt-1 text-xs text-base-content/45">{practice.spacedStage}</p>
         </div>
         <div className="selectable-content mt-4 space-y-3 text-sm leading-6 text-base-content/70">
-          <p>
-            <strong>Original:</strong> {practice.originalSentence}
-          </p>
+          {!isNewContextReuse ? (
+            <p>
+              <strong>Original:</strong> {practice.originalSentence}
+            </p>
+          ) : null}
           <p>
             <strong>Focus pattern:</strong> {practice.focusPattern}
           </p>
@@ -215,7 +225,9 @@ function RewritePracticeCard({
           aria-label="Your rewrite practice answer"
           value={inputValue}
           onChange={(event) => onInputChange(event.target.value)}
-          placeholder="Rewrite the sentence in your own words."
+          placeholder={
+            isNewContextReuse ? 'Write a fresh sentence in a new context.' : 'Rewrite the sentence in your own words.'
+          }
           disabled={!canAct || isCheckInProgress}
           data-e2e="rewrite-practice-input"
         />
@@ -227,7 +239,17 @@ function RewritePracticeCard({
             data-e2e="rewrite-practice-submit"
             onClick={onComplete}
           >
-            {isCheckInProgress ? 'Checking rewrite...' : isCompleted ? 'Rewrite submitted' : 'Submit rewrite'}
+            {isCheckInProgress
+              ? isNewContextReuse
+                ? 'Checking transfer...'
+                : 'Checking rewrite...'
+              : isCompleted
+                ? isNewContextReuse
+                  ? 'Answer submitted'
+                  : 'Rewrite submitted'
+                : isNewContextReuse
+                  ? 'Submit answer'
+                  : 'Submit rewrite'}
           </button>
           {canAct ? (
             <>
@@ -253,13 +275,17 @@ function RewritePracticeCard({
           ) : null}
         </div>
         {isCheckInProgress ? (
-          <p className="mt-3 text-sm leading-6 text-base-content/55">Checking whether the pattern improved...</p>
+          <p className="mt-3 text-sm leading-6 text-base-content/55">
+            {isNewContextReuse
+              ? 'Checking whether the pattern transfers...'
+              : 'Checking whether the pattern improved...'}
+          </p>
         ) : null}
         {showNativeModel ? (
           <p className="selectable-content mt-4 rounded-xl bg-base-100/55 p-3 text-sm leading-6">
             <strong>Reference sentence:</strong> {practice.nativeModelSentence}
           </p>
-        ) : canAct ? (
+        ) : canAct && !isNewContextReuse ? (
           <p className="ui-chrome mt-4 text-sm text-base-content/50">Reference sentence appears after you submit.</p>
         ) : null}
         {practice.status === 'expired' ? (
@@ -273,7 +299,12 @@ function RewritePracticeCard({
           </p>
         ) : null}
         {latestCheck ? (
-          <RewriteCheckFeedbackCard check={latestCheck} isChecking={isCheckInProgress} onRetryCheck={onRetryCheck} />
+          <RewriteCheckFeedbackCard
+            check={latestCheck}
+            practiceKind={practice.practiceKind}
+            isChecking={isCheckInProgress}
+            onRetryCheck={onRetryCheck}
+          />
         ) : null}
         {practice.isOlderThanSevenDays ? (
           <p className="ui-chrome mt-3 text-sm text-base-content/50">Older practice stays available here.</p>
@@ -290,23 +321,28 @@ function RewritePracticeCard({
 
 function RewriteCheckFeedbackCard({
   check,
+  practiceKind,
   isChecking,
   onRetryCheck,
 }: {
   check: RewriteCheckSnapshot;
+  practiceKind: NonNullable<WritingAttemptSnapshot['pendingRewritePractice']>['practiceKind'];
   isChecking: boolean;
   onRetryCheck: () => void;
 }): React.JSX.Element | null {
+  const isNewContextReuse = practiceKind === 'new_context_reuse';
   if (isChecking || check.status === 'pending' || check.status === 'in_progress') {
     return (
       <div className="ui-chrome mt-4 rounded-lg bg-primary/[0.05] p-3 text-sm leading-6 text-base-content/62">
-        Checking your rewrite now. The rewrite is saved while the evaluator runs.
+        {isNewContextReuse
+          ? 'Checking your new-context answer now. The answer is saved while the evaluator runs.'
+          : 'Checking your rewrite now. The rewrite is saved while the evaluator runs.'}
       </div>
     );
   }
 
   if (check.status === 'completed' && check.outcome) {
-    const copy = rewriteOutcomeCopy(check.outcome);
+    const copy = rewriteOutcomeCopy(check.outcome, practiceKind);
     return (
       <div className={`selectable-content mt-4 rounded-lg bg-base-100/45 p-3 text-sm leading-6 ${copy.className}`}>
         <p className="font-semibold text-base-content/78">{copy.title}</p>
@@ -319,9 +355,14 @@ function RewriteCheckFeedbackCard({
   if (check.status === 'failed' || check.status === 'retryable') {
     return (
       <div className="selectable-content mt-4 rounded-lg bg-error/10 p-3 text-sm leading-6 text-base-content/65">
-        <p className="font-semibold text-base-content/78">Rewrite saved, check did not finish.</p>
+        <p className="font-semibold text-base-content/78">
+          {isNewContextReuse ? 'Answer saved, check did not finish.' : 'Rewrite saved, check did not finish.'}
+        </p>
         <p className="mt-1">
-          {check.errorMessage ?? 'The evaluator could not check this rewrite. Your submitted rewrite was preserved.'}
+          {check.errorMessage ??
+            (isNewContextReuse
+              ? 'The evaluator could not check this answer. Your submitted answer was preserved.'
+              : 'The evaluator could not check this rewrite. Your submitted rewrite was preserved.')}
         </p>
         <button type="button" className="btn btn-outline btn-sm mt-3 rounded-xl" onClick={onRetryCheck}>
           Retry check
@@ -333,21 +374,25 @@ function RewriteCheckFeedbackCard({
   return null;
 }
 
-function rewriteOutcomeCopy(outcome: RewriteCheckOutcome): { title: string; className: string } {
+function rewriteOutcomeCopy(
+  outcome: RewriteCheckOutcome,
+  practiceKind: NonNullable<WritingAttemptSnapshot['pendingRewritePractice']>['practiceKind'],
+): { title: string; className: string } {
+  const isNewContextReuse = practiceKind === 'new_context_reuse';
   switch (outcome) {
     case 'correct':
       return {
-        title: 'Good repair.',
+        title: isNewContextReuse ? 'Good transfer.' : 'Good repair.',
         className: 'text-success',
       };
     case 'partly_correct':
       return {
-        title: 'Progress on the pattern.',
+        title: isNewContextReuse ? 'Progress on transfer.' : 'Progress on the pattern.',
         className: 'text-warning',
       };
     case 'incorrect':
       return {
-        title: 'Keep this pattern in view.',
+        title: isNewContextReuse ? 'Keep transferring this pattern.' : 'Keep this pattern in view.',
         className: 'text-error',
       };
   }

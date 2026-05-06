@@ -16,7 +16,7 @@ const evidenceLabels: Record<PatternEvidenceStage, string> = {
 const evidenceDescriptions: Record<PatternEvidenceStage, string> = {
   needs_repair: 'No D+1 check has repaired this pattern yet.',
   repaired_once: 'A D+1 original-sentence repair was checked as correct once.',
-  transferred_once: 'Reserved for a later delayed new-context check.',
+  transferred_once: 'A delayed new-context reuse check was correct once.',
   stable_after_spaced_reuse: 'Reserved for a later spaced new-context check.',
 };
 
@@ -58,7 +58,9 @@ export function ProgressPage({
         <section className="rounded-lg bg-base-100/24 p-4">
           <p className="text-xs font-semibold uppercase tracking-[0.16em] text-base-content/45">Next rewrite</p>
           <p className="mt-3 text-2xl font-semibold">{hasPendingRewrite ? 'Waiting' : 'After review'}</p>
-          <p className="mt-3 text-sm leading-6 text-base-content/60">A short repair appears after saved feedback.</p>
+          <p className="mt-3 text-sm leading-6 text-base-content/60">
+            Repair and transfer tasks appear as evidence becomes ready.
+          </p>
         </section>
         <section className="rounded-lg bg-base-100/24 p-4">
           <p className="text-xs font-semibold uppercase tracking-[0.16em] text-base-content/45">Patterns</p>

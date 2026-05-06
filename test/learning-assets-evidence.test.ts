@@ -19,6 +19,8 @@ function evidenceRow(overrides: Partial<PatternEvidenceQueryRow> = {}): PatternE
   return {
     patternId: 'pattern_tense',
     rewriteTaskId: 'rewrite_d1',
+    practiceKind: 'rewrite_original',
+    spacedStage: 'D+1',
     rewriteTaskStatus: 'completed',
     dueAt: at(0),
     completedAt: at(5),
@@ -109,6 +111,47 @@ describe('learning-assets evidence summaries', () => {
           outcome: 'correct',
         },
       },
+    });
+  });
+
+  it('derives transferred once from a latest completed D+3 new-context correct check', () => {
+    const evidence = derivePatternEvidenceSummaries([
+      completedCheckRow('correct', 10),
+      completedCheckRow('correct', 20, {
+        rewriteTaskId: 'rewrite_d3',
+        practiceKind: 'new_context_reuse',
+        spacedStage: 'D+3',
+      }),
+    ]).get('pattern_tense');
+
+    expect(evidence).toMatchObject({
+      stage: 'transferred_once',
+      latestRepair: {
+        rewriteTaskId: 'rewrite_d1',
+        latestCheck: {
+          outcome: 'correct',
+        },
+      },
+    });
+  });
+
+  it('keeps D+3 partly correct and incorrect transfer checks from advancing evidence', () => {
+    const evidence = derivePatternEvidenceSummaries([
+      completedCheckRow('correct', 10),
+      completedCheckRow('correct', 20, {
+        rewriteTaskId: 'rewrite_d3',
+        practiceKind: 'new_context_reuse',
+        spacedStage: 'D+3',
+      }),
+      completedCheckRow('incorrect', 30, {
+        rewriteTaskId: 'rewrite_d3',
+        practiceKind: 'new_context_reuse',
+        spacedStage: 'D+3',
+      }),
+    ]).get('pattern_tense');
+
+    expect(evidence).toMatchObject({
+      stage: 'repaired_once',
     });
   });
 
