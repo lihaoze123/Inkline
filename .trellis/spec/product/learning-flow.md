@@ -349,7 +349,7 @@ rewrite_checks.created_at/updated_at/completed_at Unix milliseconds
 - `RewritePracticeSnapshot.latestRewriteCheck` exposes the newest check state needed by the renderer after submit, skip, retry, or refresh.
 - `retryRewriteCheck` must reuse saved `rewrite_tasks.user_rewrite_text`; it must not ask the renderer to resubmit text. Each retry creates a new `rewrite_checks` attempt.
 - `incorrect` completes the D+1 task but records unsuccessful learning. `partly_correct` is visible progress, not mastery success. Only `correct` is the strong success signal for D+3 transfer generation.
-- D+1 `correct` means original repair succeeded; it does not yet prove delayed transfer. D+3 transfer tasks branch evaluator semantics by `rewrite_tasks.kind` and `spacedStage`; D+7 remains future work.
+- D+1 `correct` means original repair succeeded; it does not yet prove delayed transfer. D+3 and D+7 transfer tasks branch evaluator semantics by `rewrite_tasks.kind` and `spacedStage`; D+7 uses stage-aware spaced-reuse context and does not generate later tasks.
 - First-version submit is synchronous: save rewrite, run evaluator, persist completed/retryable attempt, then return the updated snapshot. Do not add workers or polling unless a future PRD changes the contract.
 - While submit or retry is pending, disable rewrite input, submit, skip, and retry controls for that card.
 - A saved submitted rewrite may have `status: 'completed'` even when `latestRewriteCheck.outcome` is `partly_correct`, `incorrect`, or unavailable after evaluator failure.
@@ -363,11 +363,12 @@ rewrite_checks.created_at/updated_at/completed_at Unix milliseconds
 
 ### 4. Transfer Contracts
 
-D+3 new-context reuse is the first transfer slice. D+7 remains future work, but the staged transfer system must follow these contracts:
+D+3/D+7 new-context reuse follows these staged transfer contracts:
 
 - Review/save generates only the D+1 original-repair task.
 - Generate D+3 only after D+1 rewrite-check returns `correct`.
-- Generate D+7 only after D+3 new-context reuse returns `correct` in a future slice.
+- Generate D+7 only after D+3 new-context reuse returns `correct`.
+- Do not generate any post-D+7 task.
 - Do not batch-create future spaced tasks at review-save time.
 - Represent D+3/D+7 as `rewrite_tasks.kind = 'new_context_reuse'` with `spacedStage = 'D+3' | 'D+7'`.
 - Keep D+1 original repair as `rewrite_original`.

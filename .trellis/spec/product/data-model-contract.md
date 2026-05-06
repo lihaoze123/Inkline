@@ -409,12 +409,12 @@ D+3/D+7 generation must be progressive:
 
 `partly_correct` and `incorrect` keep the learner in the same phase and allow retry. Retry remains within the same rewrite task. Each retry appends a `rewrite_checks` attempt; do not generate a separate retry task for the first transfer-evidence version.
 
-## Scenario: D+3 New-Context Reuse First Slice
+## Scenario: D+3/D+7 New-Context Reuse
 
 ### 1. Scope / Trigger
 
-- Trigger: Any task that changes D+3 new-context reuse generation, hidden prompt contracts, rewrite-check branching by task kind/stage, Practice rendering for D+3, or Progress evidence advancement from `repaired_once` to `transferred_once`.
-- This first slice implements D+3 only. D+7 generation, transfer diagnostic persistence, fingerprint/prompt-contract UI, and `mastered`/gamified copy remain out of scope.
+- Trigger: Any task that changes D+3/D+7 new-context reuse generation, hidden prompt contracts, rewrite-check branching by task kind/stage, Practice rendering for new-context reuse, or Progress evidence advancement from `repaired_once` to `transferred_once` / `stable_after_spaced_reuse`.
+- Transfer diagnostic persistence, fingerprint/prompt-contract UI, and `mastered`/gamified copy remain out of scope unless a future PRD explicitly asks for them.
 
 ### 2. Signatures
 
@@ -423,7 +423,7 @@ SQLite:
 ```text
 rewrite_tasks.prompt_contract_json text null
 rewrite_tasks.kind = 'rewrite_original' | 'new_context_reuse' | 'pattern_detection'
-rewrite_tasks.spaced_stage = 'D+1' | 'D+3'
+rewrite_tasks.spaced_stage = 'D+1' | 'D+3' | 'D+7'
 ```
 
 Hidden prompt contract JSON:
@@ -442,7 +442,7 @@ Public practice snapshot:
 ```ts
 type RewritePracticeSnapshot = {
   practiceKind: 'rewrite_original' | 'new_context_reuse';
-  spacedStage: 'D+1' | 'D+3';
+  spacedStage: 'D+1' | 'D+3' | 'D+7';
   latestRewriteCheck: RewriteCheckSnapshot | null;
   // no prompt contract or fingerprint fields
 };
@@ -452,56 +452,75 @@ type RewritePracticeSnapshot = {
 
 - Review/save still creates only one D+1 `rewrite_original` task for the saved focus correction.
 - A D+3 task is created only after a D+1 `rewrite_original` task receives a completed rewrite-check outcome of `correct`.
-- D+3 creation runs after both initial submit (`completeRewritePractice`) and retry (`retryRewriteCheck`) outcomes.
-- D+3 creation is idempotent per source review run; repeated terminal returns and repeated correct retries must not create duplicates.
+- A D+7 task is created only after a D+3 `new_context_reuse` task receives a completed rewrite-check outcome of `correct`.
+- D+3/D+7 creation runs after both initial submit (`completeRewritePractice`) and retry (`retryRewriteCheck`) outcomes.
+- D+3/D+7 creation is idempotent per source review run and target stage; repeated terminal returns and repeated correct retries must not create duplicates.
 - D+3 tasks use `kind = 'new_context_reuse'`, `spaced_stage = 'D+3'`, `status = 'pending'`, and `due_at = successful D+1 check completed_at + 3 days`.
+- D+7 tasks use `kind = 'new_context_reuse'`, `spaced_stage = 'D+7'`, `status = 'pending'`, and `due_at = successful D+3 check completed_at + 7 days`.
+- D+7 generation reuses the valid hidden prompt contract from D+3 when available; if the contract is missing/invalid and the saved focus fingerprint is recoverable, rebuild the same contract from that fingerprint. If neither exists, preserve the D+3 result and skip D+7.
 - D+3 prompt contracts are built from the saved focus pattern fingerprint:
   - `targetMeaning` from `targetCorrection`.
   - `allowedHints` from `transferBoundary` or generic safe wording.
   - `forbiddenHints` from `forbiddenLeakageTerms`.
   - `expectedPatternFamily` from `patternType`.
-- Visible D+3 prompts must be short new-context writing tasks and must not contain any forbidden leakage terms.
-- Public renderer state may show D+3 kind/stage and learner-facing prompt copy, but must not expose raw fingerprint or prompt-contract JSON.
+- Visible D+3/D+7 prompts must be short new-context writing tasks and must not contain any forbidden leakage terms.
+- Public renderer state may show D+3/D+7 kind/stage and learner-facing prompt copy, but must not expose raw fingerprint or prompt-contract JSON.
 - Rewrite-check evaluator prompts branch by task kind/stage:
   - D+1 repairs the original sentence.
   - D+3 judges delayed new-context transfer using the hidden prompt contract.
+  - D+7 judges spaced new-context reuse using the hidden prompt contract with stage-aware context.
 - Progress advances to `transferred_once` only when the latest completed check for a linked D+3 `new_context_reuse` task is `correct`.
+- Progress advances to `stable_after_spaced_reuse` only when the latest completed check for a linked D+7 `new_context_reuse` task is `correct`.
+- D+7 does not generate any later task.
+- D+7 tasks are created seven days before they are due, so expiry/staleness must not make them expire at the moment they first become due. Keep D+1/D+3 lifecycle behavior, but make D+7 stale only after its `due_at` plus the normal stale window.
 
 ### 4. Validation & Error Matrix
 
 | Condition | Behavior |
 | --- | --- |
 | D+1 check completes with `correct` and the focus pattern has a valid fingerprint | Insert exactly one pending D+3 task with hidden prompt contract JSON. |
+| D+3 check completes with `correct` and has a valid prompt contract or recoverable fingerprint | Insert exactly one pending D+7 task with hidden prompt contract JSON. |
 | D+1 check completes with `partly_correct` or `incorrect` | Do not create D+3; keep evidence at the current phase. |
+| D+3 check completes with `partly_correct` or `incorrect` | Do not create D+7; keep evidence at `transferred_once` only if earlier D+3 evidence is still valid. |
 | D+1 check is retryable, failed, pending, or in progress | Do not create D+3. |
+| D+3 check is retryable, failed, pending, or in progress | Do not create D+7. |
 | Source task is not D+1 `rewrite_original`, or is skipped/expired/non-completed | Do not create D+3. |
+| Source task is not D+3 `new_context_reuse`, or is skipped/expired/non-completed | Do not create D+7. |
 | Saved focus fingerprint is missing or invalid | Preserve the D+1 completion/retry result and skip D+3 creation. |
 | A D+3 task already exists for the review run | Do not insert another D+3 task. |
+| A D+7 task already exists for the review run | Do not insert another D+7 task. |
 | D+3 task has missing/invalid prompt contract at evaluator time | Persist a retryable/validation-failed check; do not expose raw contract details to the learner. |
 | D+3 latest completed check is `partly_correct` or `incorrect` | Do not advance Progress beyond `repaired_once`. |
+| D+7 latest completed check is `partly_correct` or `incorrect` | Do not advance Progress beyond `transferred_once`. |
 
 ### 5. Good/Base/Bad Cases
 
 - Good: A D+1 retryable check later retries as `correct`, creates one D+3 task due three days after that successful retry check, and Progress remains `repaired_once` until D+3 is checked correct.
 - Good: A completed D+3 transfer check with outcome `correct` moves the pattern to `Transferred once`.
+- Good: A completed D+3 retry later succeeds as `correct`, creates one D+7 task due seven days after that successful retry check, and Progress moves to `Stable after spaced reuse` only after D+7 is checked correct.
 - Base: A historical D+1 task with no fingerprint can still complete and show check feedback, but it creates no D+3 task.
-- Base: A D+3 task reuses skip, snooze, expire, complete, and retry-check lifecycle behavior.
+- Base: A D+3/D+7 task reuses skip, snooze, expire, complete, and retry-check lifecycle behavior.
 - Bad: Review/save batch-creates D+3 before D+1 success.
+- Bad: D+3 completion batch-creates work after D+7 or generates duplicate D+7 rows after repeated correct retries.
 - Bad: A D+3 prompt asks the learner to rewrite the original sentence, fill a blank, or copy a target expression.
 - Bad: Progress treats task completion, retryable checks, or `partly_correct` as transfer evidence.
 
 ### 6. Tests Required
 
 - Migration test: `rewrite_tasks.prompt_contract_json` is added and the SQL migration is registered in the Drizzle journal.
-- Shared schema test: `RewritePracticeSnapshot` accepts `new_context_reuse` / `D+3` without prompt-contract fields.
+- Shared schema test: `RewritePracticeSnapshot` accepts `new_context_reuse` / `D+3` and `D+7` without prompt-contract fields.
 - Service tests:
   - D+1 `correct` completion creates one D+3 task with prompt contract and D+3 due date.
   - D+1 `correct` retry creates D+3 when absent.
+  - D+3 `correct` completion creates one D+7 task with prompt contract and D+7 due date.
+  - D+3 `correct` retry creates D+7 when absent.
   - `partly_correct`, `incorrect`, retryable/failed checks, non-D+1 tasks, and missing/invalid fingerprints do not create D+3.
+  - `partly_correct`, `incorrect`, retryable/failed checks, non-D+3 tasks, and missing/invalid prompt contracts without recovery do not create D+7.
   - Repeated correct returns/retries do not duplicate D+3.
-  - D+3 evaluator prompt uses transfer semantics and hidden contract data.
-- Progress tests: latest completed D+3 `correct` advances to `transferred_once`; latest completed D+3 `partly_correct`/`incorrect` does not.
-- Renderer test: D+3 copy avoids `Original` and `Reference sentence` labels and does not show fingerprint or prompt-contract internals.
+  - Repeated D+3 correct returns/retries do not duplicate D+7.
+  - D+3/D+7 evaluator prompts use stage-aware transfer semantics and hidden contract data.
+- Progress tests: latest completed D+3 `correct` advances to `transferred_once`; latest completed D+7 `correct` advances to `stable_after_spaced_reuse`; latest completed D+3/D+7 `partly_correct`/`incorrect` does not advance.
+- Renderer test: D+3/D+7 copy avoids `Original` and `Reference sentence` labels and does not show fingerprint or prompt-contract internals.
 
 ### 7. Wrong vs Correct
 

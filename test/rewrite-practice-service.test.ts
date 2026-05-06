@@ -95,6 +95,7 @@ vi.mock('../src/main/services/settings/service', () => ({
 const now = new Date('2026-04-30T12:00:00.000Z');
 vi.setSystemTime(now);
 const ONE_DAY_MS = 24 * 60 * 60 * 1000;
+const SEVEN_DAYS_MS = 7 * ONE_DAY_MS;
 const REWRITE_PRACTICE_MAX_AGE_MS = 7 * ONE_DAY_MS;
 
 const tableNames = new Map<object, TableName>([
@@ -654,6 +655,13 @@ describe('rewrite practice service updates', () => {
   it('branches D+3 rewrite-check evaluation to transfer semantics with the hidden prompt contract', async () => {
     fakeDatabase.reset();
     fakeDatabase.seedPracticeWithPendingRewrite(createD3RewriteTask('rewrite_d3'));
+    mocks.generateStructuredObject.mockResolvedValueOnce({
+      output: { outcome: 'partly_correct', feedback: 'Transfer is close but incomplete.' },
+      rawOutput: {},
+      providerDiagnostics: null,
+      provider: 'openai-compatible',
+      model: 'test-model',
+    });
     const completeRewritePractice = await loadCompleteRewritePractice();
 
     const result = await completeRewritePractice({
@@ -668,6 +676,140 @@ describe('rewrite practice service updates', () => {
     expect(evaluationInput.userPrompt).toContain('use past tense for completed actions');
     expect(evaluationInput.userPrompt).toContain('went home');
     expect(evaluationInput.userPrompt).toContain('Last week I visited my cousin.');
+    expect(fakeDatabase.rewriteTasks().filter((task) => task.kind === 'new_context_reuse')).toHaveLength(1);
+  });
+
+  it('creates one pending D+7 new-context reuse task after a D+3 correct check with a hidden prompt contract', async () => {
+    fakeDatabase.reset();
+    fakeDatabase.seedPracticeWithPendingRewrite(createD3RewriteTask('rewrite_d3'));
+    const completeRewritePractice = await loadCompleteRewritePractice();
+
+    const result = await completeRewritePractice({
+      rewriteTaskId: 'rewrite_d3',
+      userRewriteText: 'Last week I visited my cousin.',
+    });
+
+    const newContextTasks = fakeDatabase.rewriteTasks().filter((task) => task.kind === 'new_context_reuse');
+    const d7Tasks = newContextTasks.filter((task) => task.spacedStage === 'D+7');
+    expect(result.success).toBe(true);
+    expect(newContextTasks.filter((task) => task.spacedStage === 'D+3')).toHaveLength(1);
+    expect(d7Tasks).toHaveLength(1);
+    expect(d7Tasks[0]).toMatchObject({
+      reviewRunId: 'review_1',
+      kind: 'new_context_reuse',
+      spacedStage: 'D+7',
+      status: 'pending',
+      dueAt: new Date(now.getTime() + SEVEN_DAYS_MS),
+      nativeModelSentence: '',
+    });
+    expect(d7Tasks[0]?.prompt).not.toContain('went home');
+    expect(d7Tasks[0]?.prompt).not.toContain('Rewrite the original sentence');
+    expect(JSON.parse(d7Tasks[0]?.promptContractJson ?? '{}')).toMatchObject({
+      targetMeaning: 'use past tense for completed actions',
+      forbiddenHints: ['went home'],
+      expectedPatternFamily: 'grammar',
+    });
+  });
+
+  it('creates D+7 when retrying a D+3 check succeeds as correct and no D+7 exists yet', async () => {
+    fakeDatabase.reset();
+    fakeDatabase.seedPracticeWithPendingRewrite(createD3RewriteTask('rewrite_d3'));
+    mocks.generateStructuredObject.mockRejectedValueOnce(new Error('temporary network failure'));
+    const completeRewritePractice = await loadCompleteRewritePractice();
+    await completeRewritePractice({
+      rewriteTaskId: 'rewrite_d3',
+      userRewriteText: 'Last week I visited my cousin.',
+    });
+    expect(fakeDatabase.rewriteTasks().filter((task) => task.spacedStage === 'D+7')).toHaveLength(0);
+
+    mocks.generateStructuredObject.mockClear();
+    mocks.generateStructuredObject.mockResolvedValueOnce({
+      output: { outcome: 'correct', feedback: 'Good transfer.' },
+      rawOutput: {},
+      providerDiagnostics: null,
+      provider: 'openai-compatible',
+      model: 'test-model',
+    });
+    const retryRewriteCheck = await loadRetryRewriteCheck();
+
+    const result = await retryRewriteCheck({ rewriteTaskId: 'rewrite_d3' });
+
+    expect(result.success).toBe(true);
+    expect(result.rewriteCheck).toMatchObject({ status: 'completed', outcome: 'correct' });
+    expect(fakeDatabase.rewriteTasks().filter((task) => task.spacedStage === 'D+7')).toHaveLength(1);
+  });
+
+  it('does not create D+7 for partly correct or incorrect D+3 checks', async () => {
+    for (const outcome of ['partly_correct', 'incorrect'] as const) {
+      fakeDatabase.reset();
+      fakeDatabase.seedPracticeWithPendingRewrite(createD3RewriteTask('rewrite_d3'));
+      mocks.generateStructuredObject.mockResolvedValueOnce({
+        output: { outcome, feedback: `${outcome} feedback.` },
+        rawOutput: {},
+        providerDiagnostics: null,
+        provider: 'openai-compatible',
+        model: 'test-model',
+      });
+      const completeRewritePractice = await loadCompleteRewritePractice();
+
+      await completeRewritePractice({
+        rewriteTaskId: 'rewrite_d3',
+        userRewriteText: 'Last week I visited my cousin.',
+      });
+
+      expect(fakeDatabase.rewriteTasks().filter((task) => task.spacedStage === 'D+7')).toHaveLength(0);
+    }
+  });
+
+  it('does not fail D+3 completion transport or create D+7 when the prompt contract is invalid', async () => {
+    fakeDatabase.reset();
+    fakeDatabase.seedPracticeWithPendingRewrite({
+      ...createD3RewriteTask('rewrite_d3'),
+      promptContractJson: JSON.stringify({ invalid: true }),
+    });
+    const completeRewritePractice = await loadCompleteRewritePractice();
+
+    const result = await completeRewritePractice({
+      rewriteTaskId: 'rewrite_d3',
+      userRewriteText: 'Last week I visited my cousin.',
+    });
+
+    expect(result.success).toBe(true);
+    expect(result.rewritePractice?.latestRewriteCheck).toMatchObject({ status: 'retryable', outcome: null });
+    expect(fakeDatabase.rewriteTasks().filter((task) => task.spacedStage === 'D+7')).toHaveLength(0);
+  });
+
+  it('keeps D+7 generation idempotent across retries after the first correct D+3 check', async () => {
+    fakeDatabase.reset();
+    fakeDatabase.seedPracticeWithPendingRewrite(createD3RewriteTask('rewrite_d3'));
+    const completeRewritePractice = await loadCompleteRewritePractice();
+    await completeRewritePractice({
+      rewriteTaskId: 'rewrite_d3',
+      userRewriteText: 'Last week I visited my cousin.',
+    });
+    const retryRewriteCheck = await loadRetryRewriteCheck();
+
+    await retryRewriteCheck({ rewriteTaskId: 'rewrite_d3' });
+
+    expect(fakeDatabase.rewriteTasks().filter((task) => task.spacedStage === 'D+7')).toHaveLength(1);
+  });
+
+  it('branches D+7 rewrite-check evaluation to spaced transfer semantics and does not create later tasks', async () => {
+    fakeDatabase.reset();
+    fakeDatabase.seedPracticeWithPendingRewrite(createD7RewriteTask('rewrite_d7'));
+    const completeRewritePractice = await loadCompleteRewritePractice();
+
+    const result = await completeRewritePractice({
+      rewriteTaskId: 'rewrite_d7',
+      userRewriteText: 'Last month I finished the report.',
+    });
+
+    expect(result.success).toBe(true);
+    const evaluationInput = mocks.generateStructuredObject.mock.calls[0]?.[0];
+    expect(evaluationInput.systemPrompt).toContain('D+7 new context');
+    expect(evaluationInput.userPrompt).toContain('Evaluate this D+7 new-context reuse submission.');
+    expect(evaluationInput.userPrompt).toContain('spaced reuse check');
+    expect(evaluationInput.userPrompt).toContain('Last month I finished the report.');
     expect(fakeDatabase.rewriteTasks().filter((task) => task.kind === 'new_context_reuse')).toHaveLength(1);
   });
 
@@ -742,6 +884,28 @@ describe('rewrite practice service updates', () => {
     const result = getDueRewritePracticeForPractice(now);
 
     expect(result).toMatchObject({ id: 'rewrite_1', status: 'snoozed' });
+  });
+
+  it('returns due D+7 new-context reuse practice to the practice slot', async () => {
+    fakeDatabase.reset();
+    const dueAt = new Date(now.getTime() + SEVEN_DAYS_MS);
+    fakeDatabase.seedPracticeWithPendingRewrite({
+      ...createD7RewriteTask('rewrite_d7'),
+      createdAt: now,
+      dueAt,
+    });
+    const getDueRewritePracticeForPractice = await loadGetDueRewritePracticeForPractice();
+
+    const result = getDueRewritePracticeForPractice(new Date(dueAt.getTime() + 1_000));
+
+    expect(result).toMatchObject({
+      id: 'rewrite_d7',
+      practiceKind: 'new_context_reuse',
+      spacedStage: 'D+7',
+      status: 'pending',
+      isOlderThanSevenDays: false,
+    });
+    expect(fakeDatabase.rewriteTask('rewrite_d7')).toMatchObject({ status: 'pending' });
   });
 
   it('expires stale D+1 rewrite practice before selecting the practice slot', async () => {
@@ -880,6 +1044,14 @@ function createD3RewriteTask(id: string): RewriteTaskRow {
     completedAt: null,
     skippedAt: null,
     createdAt: new Date(now.getTime() - 24 * 60 * 60 * 1000),
+  };
+}
+
+function createD7RewriteTask(id: string): RewriteTaskRow {
+  return {
+    ...createD3RewriteTask(id),
+    spacedStage: 'D+7',
+    dueAt: now,
   };
 }
 

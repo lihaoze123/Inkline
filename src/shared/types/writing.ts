@@ -47,7 +47,7 @@ export const rewritePracticeStatusSchema = z.enum([
 
 export const rewritePracticeKindSchema = z.enum(['rewrite_original', 'new_context_reuse']);
 
-export const rewriteSpacedStageSchema = z.enum(['D+1', 'D+3']);
+export const rewriteSpacedStageSchema = z.enum(['D+1', 'D+3', 'D+7']);
 
 export const rewriteCheckStatusSchema = z.enum(['pending', 'in_progress', 'completed', 'failed', 'retryable']);
 

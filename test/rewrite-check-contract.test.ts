@@ -6,6 +6,7 @@ import {
   rewriteCheckSnapshotSchema,
   rewriteCheckStatusSchema,
   rewritePracticeSnapshotSchema,
+  rewriteSpacedStageSchema,
   snoozeRewritePracticeInputSchema,
 } from '../src/shared/types/writing';
 
@@ -45,6 +46,10 @@ const rewritePractice = {
 describe('rewrite-check shared writing contracts', () => {
   it('accepts all baseline rewrite-check status values', () => {
     expect(rewriteCheckStatusSchema.options).toEqual(['pending', 'in_progress', 'completed', 'failed', 'retryable']);
+  });
+
+  it('accepts all spaced rewrite-practice stages', () => {
+    expect(rewriteSpacedStageSchema.options).toEqual(['D+1', 'D+3', 'D+7']);
   });
 
   it('accepts completed checks with a learning outcome and diagnostics metadata', () => {
@@ -102,6 +107,26 @@ describe('rewrite-check shared writing contracts', () => {
     expect(parsed).toMatchObject({
       practiceKind: 'new_context_reuse',
       spacedStage: 'D+3',
+      nativeModelSentence: '',
+    });
+    expect('promptContract' in parsed).toBe(false);
+  });
+
+  it('allows D+7 new-context reuse practice snapshots without exposing the hidden prompt contract', () => {
+    const parsed = rewritePracticeSnapshotSchema.parse({
+      ...rewritePractice,
+      id: 'rewrite_d7',
+      originalSentence: 'New-context reuse practice',
+      nativeModelSentence: '',
+      prompt: 'Write one or two fresh English lines in a new everyday situation.',
+      practiceKind: 'new_context_reuse',
+      spacedStage: 'D+7',
+      latestRewriteCheck: null,
+    });
+
+    expect(parsed).toMatchObject({
+      practiceKind: 'new_context_reuse',
+      spacedStage: 'D+7',
       nativeModelSentence: '',
     });
     expect('promptContract' in parsed).toBe(false);

@@ -17,7 +17,7 @@ const evidenceDescriptions: Record<PatternEvidenceStage, string> = {
   needs_repair: 'No D+1 check has repaired this pattern yet.',
   repaired_once: 'A D+1 original-sentence repair was checked as correct once.',
   transferred_once: 'A delayed new-context reuse check was correct once.',
-  stable_after_spaced_reuse: 'Reserved for a later spaced new-context check.',
+  stable_after_spaced_reuse: 'A D+7 new-context reuse check was correct after spacing.',
 };
 
 type ProgressPageProps = {

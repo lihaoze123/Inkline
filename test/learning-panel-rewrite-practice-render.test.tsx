@@ -51,31 +51,34 @@ function renderLearningPanel(writing: WritingAttemptSnapshot, rewritePracticeInp
 }
 
 describe('LearningPanel rewrite practice rendering', () => {
-  it('renders D+3 new-context reuse copy without original or reference labels', () => {
-    const html = renderLearningPanel(
-      writingWithPractice({
-        id: 'rewrite_d3',
-        reviewRunId: 'review_1',
-        originalSentence: 'New-context reuse practice',
-        focusPattern: 'Use past tense for completed actions.',
-        nativeModelSentence: '',
-        prompt: 'Write one or two fresh English lines in a new everyday situation.',
-        practiceKind: 'new_context_reuse',
-        spacedStage: 'D+3',
-        status: 'pending',
-        userRewriteText: null,
-        latestRewriteCheck: null,
-        dueAt: now,
-        createdAt: now,
-        isOlderThanSevenDays: false,
-      }),
-    );
+  it.each(['D+3', 'D+7'] as const)(
+    'renders %s new-context reuse copy without original or reference labels',
+    (stage) => {
+      const html = renderLearningPanel(
+        writingWithPractice({
+          id: `rewrite_${stage}`,
+          reviewRunId: 'review_1',
+          originalSentence: 'New-context reuse practice',
+          focusPattern: 'Use past tense for completed actions.',
+          nativeModelSentence: '',
+          prompt: 'Write one or two fresh English lines in a new everyday situation.',
+          practiceKind: 'new_context_reuse',
+          spacedStage: stage,
+          status: 'pending',
+          userRewriteText: null,
+          latestRewriteCheck: null,
+          dueAt: now,
+          createdAt: now,
+          isOlderThanSevenDays: false,
+        }),
+      );
 
-    expect(html).toContain('Transfer practice');
-    expect(html).toContain('Use the pattern in a new context');
-    expect(html).toContain('D+3');
-    expect(html).not.toContain('Original:');
-    expect(html).not.toContain('Reference sentence');
-    expect(html).not.toContain('Rewrite the sentence in your own words.');
-  });
+      expect(html).toContain('Transfer practice');
+      expect(html).toContain('Use the pattern in a new context');
+      expect(html).toContain(stage);
+      expect(html).not.toContain('Original:');
+      expect(html).not.toContain('Reference sentence');
+      expect(html).not.toContain('Rewrite the sentence in your own words.');
+    },
+  );
 });

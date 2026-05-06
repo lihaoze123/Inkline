@@ -155,6 +155,51 @@ describe('learning-assets evidence summaries', () => {
     });
   });
 
+  it('derives stable after spaced reuse from a latest completed D+7 new-context correct check', () => {
+    const evidence = derivePatternEvidenceSummaries([
+      completedCheckRow('correct', 10),
+      completedCheckRow('correct', 20, {
+        rewriteTaskId: 'rewrite_d3',
+        practiceKind: 'new_context_reuse',
+        spacedStage: 'D+3',
+      }),
+      completedCheckRow('correct', 30, {
+        rewriteTaskId: 'rewrite_d7',
+        practiceKind: 'new_context_reuse',
+        spacedStage: 'D+7',
+      }),
+    ]).get('pattern_tense');
+
+    expect(evidence).toMatchObject({
+      stage: 'stable_after_spaced_reuse',
+    });
+  });
+
+  it('keeps D+7 partly correct and incorrect checks from advancing beyond transferred once', () => {
+    const evidence = derivePatternEvidenceSummaries([
+      completedCheckRow('correct', 10),
+      completedCheckRow('correct', 20, {
+        rewriteTaskId: 'rewrite_d3',
+        practiceKind: 'new_context_reuse',
+        spacedStage: 'D+3',
+      }),
+      completedCheckRow('correct', 30, {
+        rewriteTaskId: 'rewrite_d7',
+        practiceKind: 'new_context_reuse',
+        spacedStage: 'D+7',
+      }),
+      completedCheckRow('incorrect', 40, {
+        rewriteTaskId: 'rewrite_d7',
+        practiceKind: 'new_context_reuse',
+        spacedStage: 'D+7',
+      }),
+    ]).get('pattern_tense');
+
+    expect(evidence).toMatchObject({
+      stage: 'transferred_once',
+    });
+  });
+
   it('keeps partly correct and incorrect checks in needs repair when they are the latest completed check', () => {
     const evidence = derivePatternEvidenceSummaries([
       completedCheckRow('correct', 10),

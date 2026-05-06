@@ -41,6 +41,7 @@ type EvidenceRepairTask = {
 };
 type EvidenceTransferTask = {
   patternId: string;
+  stageOnCorrect: Extract<PatternEvidenceStage, 'transferred_once' | 'stable_after_spaced_reuse'>;
   latestCompletedOutcome: RewriteCheckOutcome | null;
   latestCompletedRank: number | null;
 };
@@ -161,6 +162,7 @@ function selectPatternEvidenceRows(database: typeof db, patternIds: string[]): P
         or(
           and(eq(rewriteTasks.kind, 'rewrite_original'), eq(rewriteTasks.spacedStage, 'D+1')),
           and(eq(rewriteTasks.kind, 'new_context_reuse'), eq(rewriteTasks.spacedStage, 'D+3')),
+          and(eq(rewriteTasks.kind, 'new_context_reuse'), eq(rewriteTasks.spacedStage, 'D+7')),
         ),
       ),
     )
@@ -176,10 +178,11 @@ export function derivePatternEvidenceSummaries(rows: PatternEvidenceQueryRow[]):
       return;
     }
 
-    if (isD3TransferEvidenceRow(row)) {
+    const transferStage = transferStageForEvidenceRow(row);
+    if (transferStage) {
       const taskKey = `${row.patternId}:${row.rewriteTaskId}`;
       const existingTask = transferTasks.get(taskKey);
-      const task = existingTask ?? createEvidenceTransferTask(row.patternId);
+      const task = existingTask ?? createEvidenceTransferTask(row.patternId, transferStage);
       const check = checkSummaryFromRow(row);
 
       if (check?.status === 'completed' && check.outcome !== null) {
@@ -241,7 +244,7 @@ export function derivePatternEvidenceSummaries(rows: PatternEvidenceQueryRow[]):
     const current = summaries.get(task.patternId) ?? defaultEvidenceSummary();
     const stage = strongestEvidenceStage(
       current.stage,
-      task.latestCompletedOutcome === 'correct' ? 'transferred_once' : 'needs_repair',
+      task.latestCompletedOutcome === 'correct' ? task.stageOnCorrect : 'needs_repair',
     );
     summaries.set(task.patternId, { ...current, stage });
   });
@@ -257,9 +260,31 @@ function isD3TransferEvidenceRow(row: PatternEvidenceQueryRow): boolean {
   return row.practiceKind === 'new_context_reuse' && row.spacedStage === 'D+3';
 }
 
-function createEvidenceTransferTask(patternId: string): EvidenceTransferTask {
+function isD7StableEvidenceRow(row: PatternEvidenceQueryRow): boolean {
+  return row.practiceKind === 'new_context_reuse' && row.spacedStage === 'D+7';
+}
+
+function transferStageForEvidenceRow(
+  row: PatternEvidenceQueryRow,
+): Extract<PatternEvidenceStage, 'transferred_once' | 'stable_after_spaced_reuse'> | null {
+  if (isD3TransferEvidenceRow(row)) {
+    return 'transferred_once';
+  }
+
+  if (isD7StableEvidenceRow(row)) {
+    return 'stable_after_spaced_reuse';
+  }
+
+  return null;
+}
+
+function createEvidenceTransferTask(
+  patternId: string,
+  stageOnCorrect: Extract<PatternEvidenceStage, 'transferred_once' | 'stable_after_spaced_reuse'>,
+): EvidenceTransferTask {
   return {
     patternId,
+    stageOnCorrect,
     latestCompletedOutcome: null,
     latestCompletedRank: null,
   };
