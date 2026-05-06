@@ -1,0 +1,18 @@
+{"file":".trellis/tasks/05-06-rewrite-task-lifecycle/prd.md","reason":"Acceptance criteria and out-of-scope boundaries for final check."}
+{"file":".trellis/spec/product/index.md","reason":"Product quality checklist for Practice/rewrite changes."}
+{"file":".trellis/spec/product/roadmap.md","reason":"Verify implementation stays within PR #25 Milestone 2 lifecycle scope."}
+{"file":".trellis/spec/product/learning-flow.md","reason":"Verify learner-facing rewrite lifecycle semantics and UI copy."}
+{"file":".trellis/spec/product/data-model-contract.md","reason":"Verify status, timestamp, pending slot, and IPC contract behavior."}
+{"file":".trellis/spec/product/validation-and-testing.md","reason":"Verify expected product validation/test coverage."}
+{"file":".trellis/spec/frontend/index.md","reason":"Frontend quality checklist for Practice UI changes."}
+{"file":".trellis/spec/frontend/ipc-electron.md","reason":"Verify IPC/preload additions follow renderer-main contract patterns."}
+{"file":".trellis/spec/frontend/hooks.md","reason":"Verify mutation/cache updates are consistent with React Query patterns."}
+{"file":".trellis/spec/frontend/components.md","reason":"Verify component behavior and action states."}
+{"file":".trellis/spec/backend/index.md","reason":"Backend quality checklist for service and IPC changes."}
+{"file":".trellis/spec/backend/api-module.md","reason":"Verify service module and handler structure."}
+{"file":".trellis/spec/backend/database.md","reason":"Verify Drizzle/SQLite timestamp/query behavior."}
+{"file":".trellis/spec/backend/type-safety.md","reason":"Verify Zod-first backend type safety."}
+{"file":".trellis/spec/shared/index.md","reason":"Shared code quality checklist."}
+{"file":".trellis/spec/shared/code-quality.md","reason":"Verify general code quality constraints."}
+{"file":".trellis/spec/shared/typescript.md","reason":"Verify TypeScript typing conventions."}
+{"file":".trellis/spec/shared/timestamp.md","reason":"Verify IPC timestamp units remain Unix milliseconds."}

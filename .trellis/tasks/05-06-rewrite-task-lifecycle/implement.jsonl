@@ -1,0 +1,18 @@
+{"file":".trellis/tasks/05-06-rewrite-task-lifecycle/prd.md","reason":"Task requirements for implementing PR #25 rewrite lifecycle slice."}
+{"file":".trellis/spec/product/index.md","reason":"Product pre-development checklist and roadmap routing for Practice/rewrite work."}
+{"file":".trellis/spec/product/roadmap.md","reason":"PR #25 source of near-term Milestone 2 lifecycle scope and deferrals."}
+{"file":".trellis/spec/product/learning-flow.md","reason":"Rewrite Practice UI/product flow and lifecycle semantics."}
+{"file":".trellis/spec/product/data-model-contract.md","reason":"Rewrite task status, pending slot selection, timestamp, and service contract requirements."}
+{"file":".trellis/spec/product/validation-and-testing.md","reason":"Project validation expectations for product-facing behavior."}
+{"file":".trellis/spec/frontend/index.md","reason":"Frontend checklist for rewrite Practice UI changes."}
+{"file":".trellis/spec/frontend/ipc-electron.md","reason":"IPC/preload contract patterns for renderer-main APIs."}
+{"file":".trellis/spec/frontend/hooks.md","reason":"React Query mutation/cache update patterns for persisted app data."}
+{"file":".trellis/spec/frontend/components.md","reason":"Component and empty/action state guidance for UI changes."}
+{"file":".trellis/spec/backend/index.md","reason":"Backend checklist for service/IPC/database work."}
+{"file":".trellis/spec/backend/api-module.md","reason":"Service module and thin IPC handler conventions."}
+{"file":".trellis/spec/backend/database.md","reason":"Drizzle/SQLite timestamp and query conventions."}
+{"file":".trellis/spec/backend/type-safety.md","reason":"Backend Zod-first type safety requirements."}
+{"file":".trellis/spec/shared/index.md","reason":"Shared code checklist for type and timestamp changes."}
+{"file":".trellis/spec/shared/code-quality.md","reason":"General code quality constraints."}
+{"file":".trellis/spec/shared/typescript.md","reason":"TypeScript explicit typing and schema-derived type rules."}
+{"file":".trellis/spec/shared/timestamp.md","reason":"Unix millisecond timestamp requirements across IPC."}
