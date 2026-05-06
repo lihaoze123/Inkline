@@ -1,0 +1,20 @@
+{"file":".trellis/tasks/05-06-d3-new-context-reuse/prd.md","reason":"Task requirements for PR #25 Milestone 5 first D+3 new-context reuse slice."}
+{"file":".trellis/spec/product/index.md","reason":"Product pre-development checklist and roadmap routing for learning-flow work."}
+{"file":".trellis/spec/product/roadmap.md","reason":"Source of D+3/D+7 progressive generation and out-of-scope boundaries."}
+{"file":".trellis/spec/product/learning-flow.md","reason":"Rewrite practice lifecycle, D+1 repair semantics, and future transfer contracts."}
+{"file":".trellis/spec/product/data-model-contract.md","reason":"SQLite rewrite task/check, pattern fingerprint, and evidence derivation contracts."}
+{"file":".trellis/spec/product/review-agent-contract.md","reason":"Review/fingerprint and rewrite-check evaluator vocabulary constraints."}
+{"file":".trellis/spec/product/validation-and-testing.md","reason":"Review contract harness and test expectations for learning-flow changes."}
+{"file":".trellis/spec/backend/index.md","reason":"Backend service and persistence guidelines for Electron main-process work."}
+{"file":".trellis/spec/backend/database.md","reason":"Drizzle schema and migration conventions for prompt-contract persistence."}
+{"file":".trellis/spec/backend/error-handling.md","reason":"Transaction and service error behavior for D+3 generation failures."}
+{"file":".trellis/spec/backend/type-safety.md","reason":"Zod-first typing and no non-null assertion guidance for shared/main changes."}
+{"file":".trellis/spec/backend/quality.md","reason":"Main-process import and quality conventions."}
+{"file":".trellis/spec/frontend/index.md","reason":"Renderer product context for rewrite practice UI changes."}
+{"file":".trellis/spec/frontend/components.md","reason":"UI component and empty-state conventions for practice card copy."}
+{"file":".trellis/spec/frontend/hooks.md","reason":"React Query cache update expectations for rewrite task mutations."}
+{"file":".trellis/spec/frontend/react-pitfalls.md","reason":"React state and rendering pitfalls while changing practice card behavior."}
+{"file":".trellis/spec/shared/index.md","reason":"Shared type/schema guidelines for writing snapshot contract changes."}
+{"file":".trellis/spec/shared/code-quality.md","reason":"General quality rules applied across shared/backend/frontend changes."}
+{"file":".trellis/spec/shared/typescript.md","reason":"Strict TypeScript conventions for union expansions and helper types."}
+{"file":".trellis/spec/shared/timestamp.md","reason":"Unix millisecond timestamp expectations for due/completed dates."}
