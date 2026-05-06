@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-1.md`
-- **Total Sessions**: 40
+- **Total Sessions**: 41
 - **Last Active**: 2026-05-06
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-1.md` | ~1372 | Active |
+| `journal-1.md` | ~1405 | Active |
 <!-- @@@/auto:active-documents -->
 
 ---
@@ -29,6 +29,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 41 | 2026-05-06 | Fix Nix packaged runtime resources | `7fdee22` | `chore/nixos-flake-packaging` |
 | 40 | 2026-05-06 | Support NixOS flake packaging | `f2c43ca` | `main` |
 | 39 | 2026-05-06 | Release Inkline v0.1.6 | `6fb9684` | `main` |
 | 38 | 2026-05-05 | Productize UI polish | `239876c` | `refine-UI` |

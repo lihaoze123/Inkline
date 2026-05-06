@@ -2,6 +2,7 @@ import { app } from 'electron';
 import { migrate } from 'drizzle-orm/better-sqlite3/migrator';
 import { existsSync } from 'node:fs';
 import path from 'node:path';
+import { getPackagedResourcesPath, isPackagedRuntime } from '../runtime';
 import { db } from './client';
 
 export type MigrationResult =
@@ -9,8 +10,8 @@ export type MigrationResult =
   | { success: false; reason: 'missing-folder' | 'error'; error?: string };
 
 export function runMigrations(): MigrationResult {
-  const migrationsFolder = app.isPackaged
-    ? path.join(process.resourcesPath, 'drizzle')
+  const migrationsFolder = isPackagedRuntime(app.isPackaged)
+    ? path.join(getPackagedResourcesPath(), 'drizzle')
     : path.resolve(process.cwd(), 'drizzle');
 
   if (!existsSync(migrationsFolder)) {

@@ -1,6 +1,7 @@
 import { app } from 'electron';
 import { readlinkSync } from 'node:fs';
 import path from 'node:path';
+import { RUNTIME_IS_PACKAGED_ENV, isPackagedRuntime } from './runtime';
 
 function inferLinuxTimeZone(): string | null {
   if (process.platform !== 'linux') {
@@ -27,7 +28,8 @@ if (!process.env.TZ && inferredTimeZone) {
   process.env.TZ = inferredTimeZone;
 }
 
-process.env.INKLINE_RUNTIME_IS_PACKAGED = app.isPackaged ? '1' : '0';
+const runtimeIsPackaged = isPackagedRuntime(app.isPackaged);
+process.env[RUNTIME_IS_PACKAGED_ENV] = runtimeIsPackaged ? '1' : '0';
 
 export function getRuntimeTimeZone(): string {
   return process.env.TZ || inferredTimeZone || Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
@@ -37,7 +39,7 @@ export function getRuntimeTimeZoneOffsetMinutes(): number {
   return -new Date().getTimezoneOffset();
 }
 
-if (!app.isPackaged) {
+if (!runtimeIsPackaged) {
   const e2eUserDataDir = process.env.INKLINE_E2E_USER_DATA_DIR;
   app.setPath(
     'userData',

@@ -1370,3 +1370,36 @@ Added installable Nix flake package/app outputs for Inkline, preserved the Elect
 ### Next Steps
 
 - None - task complete
+
+
+## Session 41: Fix Nix packaged runtime resources
+
+**Date**: 2026-05-06
+**Task**: Fix Nix packaged runtime resources
+**Branch**: `chore/nixos-flake-packaging`
+
+### Summary
+
+Fixed Nix-wrapped Electron runtime detection and resource path resolution so nix run uses production userData and packaged migrations; validated with pnpm check, nix flake check, nix build, and Xvfb smoke.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `7fdee22` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete

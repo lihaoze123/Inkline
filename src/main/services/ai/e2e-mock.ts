@@ -1,6 +1,8 @@
+import { RUNTIME_IS_PACKAGED_ENV, isTruthyEnvValue } from '../../runtime';
+
+export { RUNTIME_IS_PACKAGED_ENV };
 export const E2E_AI_MOCK_ENV = 'INKLINE_E2E_AI_MOCK';
 export const E2E_REWRITE_DUE_NOW_ENV = 'INKLINE_E2E_REWRITE_DUE_NOW';
-export const RUNTIME_IS_PACKAGED_ENV = 'INKLINE_RUNTIME_IS_PACKAGED';
 
 type E2eRuntimeOptions = {
   e2eAiMockFlag?: string;
@@ -48,8 +50,4 @@ export async function getE2eMockStructuredOutput(schemaName: string): Promise<E2
   }
 
   throw new Error(`E2E AI mock has no fixture for schema "${schemaName}".`);
-}
-
-function isTruthyEnvValue(value: string | undefined): boolean {
-  return value === '1' || value?.toLowerCase() === 'true' || value?.toLowerCase() === 'yes';
 }
