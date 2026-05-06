@@ -42,6 +42,32 @@ Do not show `mastered` in transfer-evidence or lifecycle copy. Lifecycle labels 
 
 Progress derives a read model from saved patterns, D+1 repair tasks, D+3/D+7 new-context reuse tasks, and rewrite checks. It should show lifecycle as the primary current status (`repair_needed`, `repair_in_progress`, `ready_for_transfer`, `transfer_in_progress`, `stabilizing`, `stable`, or `needs_attention`), keep the evidence label visible, and show the latest D+1 repair plus latest D+3/D+7 transfer context when present. Review count remains separate from learning evidence. `skipped`, `snoozed`, `expired`, `partly_correct`, and `incorrect` are useful context, not advancement; weak latest D+3/D+7 outcomes can require attention without erasing an earlier earned transfer/stability stage.
 
+## Drill Center Foundation
+
+The first Drill Center is a focused entry point over existing durable learning assets, not a separate drill engine.
+
+Contracts:
+
+- The Drills page reads active `ErrorPatternSnapshot` data from `listErrorPatterns()` through the existing renderer query hook.
+- The page reads the current actionable practice slot from `WritingAttemptSnapshot.pendingRewritePractice`; v0.1 of Drill Center must not query or render a separate drill queue.
+- `Open Practice` is available only when `pendingRewritePractice.id` matches the pattern evidence task id at `evidence.latestRepair.rewriteTaskId` or `evidence.latestTransfer.rewriteTaskId`.
+- `Open Progress` is the route for evidence context and merge/de-dup cleanup.
+- Cards may summarize lifecycle, evidence stage, latest D+1 repair, and latest D+3/D+7 transfer context, but Practice remains the surface that owns the rewrite input and evaluator actions.
+- D+3/D+7 cards should identify transfer or spaced reuse without exposing original-sentence repair UI or native reference-answer framing.
+- Drill Center must not create ad-hoc rewrite tasks, add rewrite task kinds, call model providers, add database tables, or advance evidence directly.
+- User-facing copy must not use scores, streaks, `mastery`, or `mastered`. `correct` is the only strong repair/transfer signal; `completed`, `partly_correct`, `incorrect`, `skipped`, `snoozed`, `expired`, `failed`, and `retryable` stay visible as context.
+
+Sort first by current pending-practice match, then `needs_attention`, `needs_repair`, `repaired_once`, `transferred_once`, stable patterns, and finally recent update/count tie-breakers.
+
+Tests required:
+
+- Empty, loading, and error states.
+- Current D+1 repair match renders `Open Practice`.
+- Non-matching pending practice does not render `Open Practice`.
+- D+3 and D+7 current transfer wording.
+- Retryable or weak checks are context rather than success.
+- Stable patterns avoid `mastery` and `mastered` wording.
+
 ## Scenario: Practice Entry and Template Flow
 
 ### 1. Scope / Trigger

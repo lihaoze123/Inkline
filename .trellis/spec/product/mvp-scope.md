@@ -97,6 +97,8 @@ v0.2 validates whether users learn from recurring patterns and reuse them in new
 See [roadmap.md](./roadmap.md) for the product sequencing rule and long-term horizons.
 
 - Drill Center.
+  - Foundation implemented as a read-only Drills entry point over existing pattern evidence and the current pending rewrite practice.
+  - Remaining backlog is expansion beyond that foundation: on-demand/scenario drill generation and any new evidence-affecting drill workflow.
 - Anki Sync.
 - Import/export jobs.
 - Learning events for practice analytics.

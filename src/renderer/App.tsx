@@ -18,6 +18,7 @@ import { ReviewDisclosureDialog } from './components/ReviewDisclosureDialog';
 import { SettingsPage } from './components/SettingsPage';
 import { OnboardingIntro } from './components/OnboardingIntro';
 import { PracticeHeader } from './components/PracticeHeader';
+import { DrillCenterPage } from './components/DrillCenterPage';
 import { ProgressPage } from './components/ProgressPage';
 import { getFocusCorrection, HighlightedWriting, patternRule } from './components/review-utils';
 import feedbackInkLandscapeUrl from './assets/feedback-ink-landscape.png';
@@ -58,13 +59,14 @@ const AUTOSAVE_DELAY_MS = 900;
 const MINUTES_PER_DAY = 24 * 60;
 const MS_PER_MINUTE = 60_000;
 
-type AppArea = 'today' | 'write' | 'feedback' | 'notebook' | 'progress' | 'settings';
-type NavIconName = 'home' | 'pen' | 'book' | 'bars' | 'settings';
+type AppArea = 'today' | 'write' | 'feedback' | 'notebook' | 'drills' | 'progress' | 'settings';
+type NavIconName = 'home' | 'pen' | 'book' | 'target' | 'bars' | 'settings';
 
 const APP_NAV_ITEMS: { id: AppArea; label: string; icon: NavIconName; isHidden?: boolean }[] = [
   { id: 'today', label: 'Today', icon: 'home' },
   { id: 'write', label: 'Practice', icon: 'pen' },
   { id: 'feedback', label: 'Practice', icon: 'pen', isHidden: true },
+  { id: 'drills', label: 'Drills', icon: 'target' },
   { id: 'notebook', label: 'Notebook', icon: 'book' },
   { id: 'progress', label: 'Progress', icon: 'bars' },
   { id: 'settings', label: 'Settings', icon: 'settings' },
@@ -247,7 +249,7 @@ function PracticePage({ initialWriting, settings, startup }: PracticePageProps):
   const [rewritePracticeError, setRewritePracticeError] = useState<string | null>(null);
   const [showDisclosure, setShowDisclosure] = useState(false);
   const [activeArea, setActiveArea] = useState<AppArea>('today');
-  const errorPatternsQuery = useErrorPatterns({ enabled: activeArea === 'progress' });
+  const errorPatternsQuery = useErrorPatterns({ enabled: activeArea === 'progress' || activeArea === 'drills' });
   const notebookEntriesQuery = useNotebookEntries({ enabled: activeArea === 'notebook' });
   const [currentTimeMs, setCurrentTimeMs] = useState(() => Date.now());
   const [showRevealConfirmation, setShowRevealConfirmation] = useState(false);
@@ -1124,6 +1126,17 @@ function PracticePage({ initialWriting, settings, startup }: PracticePageProps):
               />
             ) : null}
 
+            {activeArea === 'drills' ? (
+              <DrillCenterPage
+                patterns={errorPatternsQuery.data ?? []}
+                pendingRewritePractice={writing.pendingRewritePractice}
+                isLoading={errorPatternsQuery.isLoading}
+                isError={errorPatternsQuery.isError}
+                onOpenPractice={() => setActiveArea('write')}
+                onOpenProgress={() => setActiveArea('progress')}
+              />
+            ) : null}
+
             {activeArea === 'progress' ? (
               <ProgressPage
                 patterns={errorPatternsQuery.data ?? []}
@@ -1292,6 +1305,17 @@ function NavIcon({ name }: { name: NavIconName }): React.JSX.Element {
         <svg viewBox="0 0 24 24">
           <path d="M5 4h10a4 4 0 0 1 4 4v12H9a4 4 0 0 0-4-4Z" />
           <path d="M5 4v12" />
+        </svg>
+      );
+    case 'target':
+      return (
+        <svg viewBox="0 0 24 24">
+          <circle cx="12" cy="12" r="8" />
+          <circle cx="12" cy="12" r="4" />
+          <path d="M12 2v3" />
+          <path d="M12 19v3" />
+          <path d="M2 12h3" />
+          <path d="M19 12h3" />
         </svg>
       );
     case 'bars':

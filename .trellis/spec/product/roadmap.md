@@ -222,6 +222,8 @@ Exit signal: months of writing history remain understandable, portable, and trus
 Goal: make scenario/exam practice a first-class product experience after the pattern/reuse system is stable enough to support it.
 
 - Drill Center for targeted pattern drills.
+  - Foundation implemented: a Drills page lists active patterns, evidence, and the current matching pending rewrite practice from existing learning assets.
+  - Later expansion needs a separate PRD before adding on-demand drill generation, scenario packs, or evidence-affecting drill creation.
 - CET-specific practice refinements without making Inkline a mock-exam simulator by default.
 - Scenario packs for school essays, work updates, applications, travel, and free expression.
 - Track-level guidance that changes prompts, review focus, and rewrite tasks while reusing the same learning-history engine.
@@ -256,4 +258,4 @@ Exit signal: external testers can install, configure, use, diagnose, and back up
 
 ## Sequencing Rule
 
-Do not start Drill Center, Anki Sync, complex CET scoring, broad ecosystem integrations, full learning event logs, or gamified mastery surfaces until the learning loop produces reliable delayed transfer signals. Scenario and exam tracks may become more visible earlier, but they should remain thin practice paths over the same writing/review/rewrite/check engine until lifecycle, evidence, and reuse semantics are stable.
+Do not expand Drill Center beyond its existing foundation, start Anki Sync, add complex CET scoring, broad ecosystem integrations, full learning event logs, or gamified mastery surfaces until the learning loop produces reliable delayed transfer signals. Scenario and exam tracks may become more visible earlier, but they should remain thin practice paths over the same writing/review/rewrite/check engine until lifecycle, evidence, and reuse semantics are stable.
