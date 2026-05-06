@@ -1,0 +1,3 @@
+{"file":".trellis/tasks/05-06-nixos-flake/research/nix-electron-pnpm-packaging.md","reason":"Check implemented flake outputs against researched Nix packaging trade-offs and caveats."}
+{"file":".trellis/spec/shared/pnpm-electron-setup.md","reason":"Verify devShell/package tooling still satisfies pnpm Electron native module and Linux maker requirements."}
+{"file":".trellis/spec/big-question/native-module-packaging.md","reason":"Verify Nix package preserves Electron native module runtime layout assumptions."}
