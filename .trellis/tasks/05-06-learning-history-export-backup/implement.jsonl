@@ -1,0 +1,24 @@
+{"file": ".trellis/spec/product/index.md", "reason": "Product pre-development checklist and learning-history quality bar."}
+{"file": ".trellis/spec/product/roadmap.md", "reason": "Defines Horizon 2 learning-history portability and local backup priority."}
+{"file": ".trellis/spec/product/privacy-security.md", "reason": "Privacy boundary for local-first data, raw provider output, credentials, and renderer/main ownership."}
+{"file": ".trellis/spec/product/data-model-contract.md", "reason": "Authoritative list of learning-history tables and event payload privacy rules."}
+{"file": ".trellis/spec/product/validation-and-testing.md", "reason": "Required quality commands and validation expectations for product-flow changes."}
+{"file": ".trellis/spec/backend/index.md", "reason": "Backend checklist and service/module routing."}
+{"file": ".trellis/spec/backend/api-module.md", "reason": "Service procedure and thin IPC handler pattern."}
+{"file": ".trellis/spec/backend/database.md", "reason": "SQLite ownership, timestamp, local app-data, and no-secrets-in-SQL contract."}
+{"file": ".trellis/spec/backend/type-safety.md", "reason": "Zod-first API types, discriminated unions, and no non-null assertions."}
+{"file": ".trellis/spec/backend/quality.md", "reason": "Main-process import path rules, testing, and quality constraints."}
+{"file": ".trellis/spec/frontend/index.md", "reason": "Frontend checklist for Settings and IPC-backed UI changes."}
+{"file": ".trellis/spec/frontend/ipc-electron.md", "reason": "Preload/window.api and context-isolated IPC contract."}
+{"file": ".trellis/spec/frontend/electron-browser-api-restrictions.md", "reason": "Avoid renderer prompt/alert/confirm and browser file-path assumptions."}
+{"file": ".trellis/spec/frontend/react-pitfalls.md", "reason": "React state and handler pitfalls for Settings UI additions."}
+{"file": ".trellis/spec/frontend/components.md", "reason": "Semantic component and empty/status presentation conventions."}
+{"file": ".trellis/spec/frontend/quality.md", "reason": "Renderer quality and forbidden import patterns."}
+{"file": ".trellis/spec/shared/index.md", "reason": "Shared code checklist."}
+{"file": ".trellis/spec/shared/typescript.md", "reason": "Explicit return types, Zod validation, and type-only import standards."}
+{"file": ".trellis/spec/shared/code-quality.md", "reason": "Mandatory code quality, no any/non-null assertions, and tests."}
+{"file": ".trellis/spec/shared/timestamp.md", "reason": "Unix millisecond timestamp representation for export documents."}
+{"file": ".trellis/spec/guides/index.md", "reason": "Guide routing for cross-layer feature work."}
+{"file": ".trellis/spec/guides/cross-layer-thinking-guide.md", "reason": "Feature spans renderer, preload, IPC, main service, SQLite, and filesystem."}
+{"file": ".trellis/spec/guides/pre-implementation-checklist.md", "reason": "Search-before-write and readiness checklist for new APIs/types."}
+{"file": ".trellis/tasks/05-06-learning-history-export-backup/info.md", "reason": "Task-specific technical design and privacy decisions."}

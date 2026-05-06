@@ -1,0 +1,19 @@
+{"file": ".trellis/spec/product/index.md", "reason": "Check product learning-history and privacy quality criteria."}
+{"file": ".trellis/spec/product/roadmap.md", "reason": "Confirm implementation matches the Horizon 2 portability/backups item without expanding into later ecosystem work."}
+{"file": ".trellis/spec/product/privacy-security.md", "reason": "Audit raw provider output, credentials, and renderer/main privacy boundaries."}
+{"file": ".trellis/spec/product/data-model-contract.md", "reason": "Check exported tables and learning-event payload boundaries."}
+{"file": ".trellis/spec/product/validation-and-testing.md", "reason": "Verify required commands/tests for product changes."}
+{"file": ".trellis/spec/backend/api-module.md", "reason": "Check service/procedure and thin IPC handler shape."}
+{"file": ".trellis/spec/backend/database.md", "reason": "Check SQLite ownership, timestamp, and no credential export contracts."}
+{"file": ".trellis/spec/backend/type-safety.md", "reason": "Check Zod-first API schemas, discriminated unions, and explicit validation."}
+{"file": ".trellis/spec/backend/quality.md", "reason": "Check main-process imports and quality constraints."}
+{"file": ".trellis/spec/frontend/ipc-electron.md", "reason": "Check preload/window.api boundary and no direct renderer native access."}
+{"file": ".trellis/spec/frontend/electron-browser-api-restrictions.md", "reason": "Check Settings UI does not use browser dialogs or file path assumptions."}
+{"file": ".trellis/spec/frontend/react-pitfalls.md", "reason": "Check Settings state and handlers for React pitfalls."}
+{"file": ".trellis/spec/frontend/components.md", "reason": "Check UI semantics and status presentation."}
+{"file": ".trellis/spec/frontend/quality.md", "reason": "Check renderer import boundary and quality."}
+{"file": ".trellis/spec/shared/typescript.md", "reason": "Check explicit types and shared schema usage."}
+{"file": ".trellis/spec/shared/code-quality.md", "reason": "Check no non-null assertions/any and focused tests."}
+{"file": ".trellis/spec/shared/timestamp.md", "reason": "Check Unix millisecond timestamp handling in export schemas."}
+{"file": ".trellis/spec/guides/cross-layer-thinking-guide.md", "reason": "Check data flow across UI/preload/main/filesystem/database layers."}
+{"file": ".trellis/tasks/05-06-learning-history-export-backup/info.md", "reason": "Check against task-specific technical design and scoped exclusions."}
