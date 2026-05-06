@@ -1,0 +1,12 @@
+{"file":".trellis/spec/frontend/css-design.md","reason":"Inkline visual contract for editorial workspace, borders, sidebar, primary actions, ink art, and CSS validation."}
+{"file":".trellis/spec/frontend/components.md","reason":"Semantic HTML, empty-state visual balance, stable/autohide scrollbars, focus and loading patterns."}
+{"file":".trellis/spec/frontend/react-pitfalls.md","reason":"Renderer state/lifecycle and loading-state pitfalls to avoid while polishing visible UI."}
+{"file":".trellis/spec/frontend/electron-browser-api-restrictions.md","reason":"Electron renderer restrictions and requirement to test UI in Electron rather than browser only."}
+{"file":".trellis/spec/frontend/quality.md","reason":"Frontend quality commands, manual testing expectations, and forbidden patterns."}
+{"file":".trellis/spec/product/mvp-scope.md","reason":"Product scope boundaries: writing practice app, not dashboard/mock exam/generic learning platform."}
+{"file":".trellis/spec/product/learning-flow.md","reason":"Practice, template, review, rewrite, progress, stale review, and copy contracts for visible UI behavior."}
+{"file":".trellis/spec/product/privacy-security.md","reason":"Provider disclosure, Settings copy, raw-response warning, and local-first/privacy constraints."}
+{"file":".trellis/spec/product/validation-and-testing.md","reason":"Required quality checks and manual Electron UI verification for frontend/product-flow changes."}
+{"file":".trellis/spec/shared/code-quality.md","reason":"Mandatory code quality rules: no non-null assertions, no any, lint/typecheck expectations."}
+{"file":".trellis/spec/shared/typescript.md","reason":"TypeScript import/type/narrowing guidelines for renderer changes if types are touched."}
+{"file":".trellis/spec/guides/pre-implementation-checklist.md","reason":"Pre-code checklist for constants, repeated patterns, UI state lifecycle, and reuse."}

@@ -144,21 +144,22 @@ export function App(): React.JSX.Element {
 
   if (foundationState.status === 'loading') {
     return (
-      <main className="grid min-h-screen place-items-center bg-base-200 p-8">
-        <div className="rounded-xl border border-base-300 bg-base-100 p-8 text-center shadow-xl">
-          <span className="loading loading-spinner loading-lg text-primary" />
-          <p className="mt-4 font-medium text-base-content/70">Loading practice...</p>
-        </div>
+      <main className="grid min-h-screen place-items-center bg-base-200 p-8 text-base-content">
+        <section className="paper-sheet ui-chrome max-w-md px-8 py-7 text-center">
+          <span className="loading loading-spinner loading-md text-primary" />
+          <p className="mt-4 font-medium text-base-content/68">Opening Inkline...</p>
+        </section>
       </main>
     );
   }
 
   if (foundationState.status === 'error') {
     return (
-      <main className="grid min-h-screen place-items-center bg-base-200 p-8">
-        <div className="alert alert-error max-w-lg rounded-[1.5rem] shadow-xl">
-          <span>{foundationState.message}</span>
-        </div>
+      <main className="grid min-h-screen place-items-center bg-base-200 p-8 text-base-content">
+        <section className="paper-sheet max-w-lg p-7">
+          <h1 className="editorial-heading text-3xl text-base-content">Inkline could not open</h1>
+          <p className="selectable-content mt-4 text-sm leading-6 text-error/85">{foundationState.message}</p>
+        </section>
       </main>
     );
   }
@@ -771,7 +772,7 @@ function PracticePage({ initialWriting, settings, startup }: PracticePageProps):
       <div className="app-window-drag-strip" aria-hidden="true" />
       <div className="relative grid h-screen grid-cols-[19.5rem_minmax(0,1fr)]">
         <nav
-          className="quiet-sidebar relative z-10 flex flex-col overflow-hidden border-r border-base-300/45 px-9 py-9"
+          className="quiet-sidebar relative z-10 flex flex-col overflow-hidden px-9 py-9 shadow-[inset_-1px_0_rgba(36,41,54,0.045)]"
           aria-label="App areas"
         >
           <div className="relative z-10 pl-4">
@@ -817,8 +818,8 @@ function PracticePage({ initialWriting, settings, startup }: PracticePageProps):
                   <h1 id="today-page-title" className="editorial-heading text-5xl leading-none text-base-content">
                     {todayGreeting}
                   </h1>
-                  <p className="mt-4 max-w-2xl text-base leading-7 text-base-content/60">
-                    Ready to write a little in English today?
+                  <p className="ui-chrome mt-4 max-w-2xl text-base leading-7 text-base-content/60">
+                    Pick up the current draft, or begin with one focused prompt.
                   </p>
                   <h2 className="editorial-heading mt-10 max-w-[42rem] text-[2.4rem] leading-[1.12] text-base-content">
                     {practicePromptTitle}
@@ -1052,18 +1053,18 @@ function getPracticePromptTitle(writing: WritingAttemptSnapshot): string {
   }
 
   if (writing.templateId === 'journal') {
-    return 'Describe one small decision you made today.';
+    return 'Describe a real moment from today that stayed with you.';
   }
 
   if (writing.templateId === 'cet4') {
-    return 'Write about a choice that made daily life better.';
+    return 'Write about a practical change that improves daily life.';
   }
 
   if (writing.templateId === 'cet6') {
-    return 'Explain how small decisions can shape long-term growth.';
+    return 'Discuss how small decisions influence long-term growth.';
   }
 
-  return 'Write about one idea you want to express clearly.';
+  return 'Develop one idea in clear English.';
 }
 
 function NavIcon({ name }: { name: NavIconName }): React.JSX.Element {
@@ -1127,37 +1128,43 @@ function NotebookPage({
   onOpenPractice: () => void;
 }): React.JSX.Element {
   return (
-    <section className="flex min-h-0 flex-1 flex-col gap-8" aria-labelledby="notebook-page-title">
-      <div className="border-b border-base-300/60 pb-8">
+    <section className="flex min-h-0 flex-1 flex-col gap-9" aria-labelledby="notebook-page-title">
+      <header className="ui-chrome pb-2">
         <p className="text-xs font-semibold uppercase tracking-[0.18em] text-primary/70">Notebook</p>
         <h1 id="notebook-page-title" className="editorial-heading mt-4 text-5xl text-base-content">
           Useful expressions
         </h1>
         <p className="mt-4 max-w-2xl text-base leading-7 text-base-content/60">
-          Upgrade opportunities saved from review, with the phrase you used and alternatives worth reusing.
+          Phrases saved from real reviews, ready to reuse in later writing.
         </p>
-      </div>
+      </header>
 
       <LearningPageState
         isLoading={isLoading}
         isError={isError}
         isEmpty={entries.length === 0}
         emptyTitle="No saved expressions yet"
-        emptyBody="Save a reviewed draft with upgrade opportunities, then the phrases will appear here."
+        emptyBody="Save a reviewed draft with useful alternatives. They will collect here for reuse."
         onOpenPractice={onOpenPractice}
       >
-        <div className="grid max-w-4xl gap-5">
+        <div className="selectable-content grid max-w-4xl gap-4">
           {entries.map((entry) => (
-            <article key={entry.id} className="rounded-lg border border-base-300/65 bg-base-100/45 p-5">
-              <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs font-semibold uppercase tracking-[0.14em] text-base-content/45">
+            <article
+              key={entry.id}
+              className="rounded-lg bg-base-100/32 p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.7)]"
+            >
+              <div className="ui-chrome flex flex-wrap items-center gap-x-3 gap-y-1 text-xs font-semibold uppercase tracking-[0.14em] text-base-content/45">
                 <span>{formatDateKeyLabel(entry.dateKey)}</span>
                 <span>{templateTitleFor(entry.templateId)}</span>
               </div>
-              <p className="mt-4 text-sm leading-6 text-base-content/60">Source phrase</p>
+              <p className="ui-chrome mt-4 text-sm leading-6 text-base-content/55">Source phrase</p>
               <p className="mt-1 text-base leading-7 text-base-content">{entry.sourceText}</p>
               <div className="mt-4 grid gap-2">
                 {entry.suggestedAlternatives.map((alternative) => (
-                  <p key={alternative} className="border-l border-primary/35 pl-4 text-base leading-7 text-primary/90">
+                  <p
+                    key={alternative}
+                    className="rounded-md bg-primary/[0.045] px-4 py-2 text-base leading-7 text-primary/90"
+                  >
                     {alternative}
                   </p>
                 ))}
@@ -1187,34 +1194,32 @@ function ProgressPage({
   onOpenPractice: () => void;
 }): React.JSX.Element {
   return (
-    <section className="flex min-h-0 flex-1 flex-col gap-8" aria-labelledby="progress-page-title">
-      <div className="border-b border-base-300/60 pb-8">
+    <section className="flex min-h-0 flex-1 flex-col gap-9" aria-labelledby="progress-page-title">
+      <header className="ui-chrome pb-2">
         <p className="text-xs font-semibold uppercase tracking-[0.18em] text-primary/70">Progress</p>
         <h1 id="progress-page-title" className="editorial-heading mt-4 text-5xl text-base-content">
-          Recurring patterns
+          Pattern evidence
         </h1>
         <p className="mt-4 max-w-2xl text-base leading-7 text-base-content/60">
-          A quiet record of patterns the review coach has seen more than once, sorted by recurrence and recency.
+          A calm record of patterns that have appeared in saved reviews and later rewrite practice.
         </p>
-      </div>
+      </header>
 
-      <div className="grid gap-6 divide-y divide-base-300/60 md:grid-cols-3 md:divide-x md:divide-y-0">
-        <section className="pt-5 md:pt-0">
-          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-base-content/45">Draft</p>
+      <div className="ui-chrome grid max-w-4xl gap-5 md:grid-cols-3">
+        <section className="rounded-lg bg-base-100/24 p-4">
+          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-base-content/45">Current draft</p>
           <p className="mt-3 text-2xl font-semibold">{hasWritten ? 'In progress' : 'Ready'}</p>
-          <p className="mt-3 text-sm leading-6 text-base-content/60">Current writing stays focused by template.</p>
+          <p className="mt-3 text-sm leading-6 text-base-content/60">The active template keeps the session focused.</p>
         </section>
-        <section className="pt-5 md:pl-6 md:pt-0">
-          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-base-content/45">Rewrite</p>
+        <section className="rounded-lg bg-base-100/24 p-4">
+          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-base-content/45">Next rewrite</p>
           <p className="mt-3 text-2xl font-semibold">{hasPendingRewrite ? 'Waiting' : 'After review'}</p>
-          <p className="mt-3 text-sm leading-6 text-base-content/60">D+1 practice appears after saved feedback.</p>
+          <p className="mt-3 text-sm leading-6 text-base-content/60">A short repair appears after saved feedback.</p>
         </section>
-        <section className="pt-5 md:pl-6 md:pt-0">
+        <section className="rounded-lg bg-base-100/24 p-4">
           <p className="text-xs font-semibold uppercase tracking-[0.16em] text-base-content/45">Patterns</p>
           <p className="mt-3 text-2xl font-semibold">{patterns.length}</p>
-          <p className="mt-3 text-sm leading-6 text-base-content/60">
-            Active non-spelling patterns guide future review.
-          </p>
+          <p className="mt-3 text-sm leading-6 text-base-content/60">Tracked patterns guide future review focus.</p>
         </section>
       </div>
 
@@ -1223,37 +1228,43 @@ function ProgressPage({
         isError={isError}
         isEmpty={patterns.length === 0}
         emptyTitle="No recurring patterns yet"
-        emptyBody="Save a valid review and recurring grammar or wording patterns will collect here."
+        emptyBody="Save a review and repeated grammar or wording patterns will collect here."
         onOpenPractice={onOpenPractice}
       >
-        <div className="grid max-w-5xl gap-5 xl:grid-cols-2">
+        <div className="grid max-w-5xl gap-4 xl:grid-cols-2">
           {patterns.map((pattern) => (
-            <article key={pattern.id} className="rounded-lg border border-base-300/65 bg-base-100/45 p-5">
-              <div className="flex items-start justify-between gap-4">
+            <article
+              key={pattern.id}
+              className="rounded-lg bg-base-100/32 p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.7)]"
+            >
+              <div className="ui-chrome flex items-start justify-between gap-4">
                 <div>
                   <p className="text-xs font-semibold uppercase tracking-[0.14em] text-base-content/45">
                     {pattern.category.replace('_', ' ')}
                   </p>
-                  <h2 className="mt-2 text-xl font-semibold leading-7 text-base-content">{pattern.rule}</h2>
+                  <h2 className="selectable-content mt-2 text-xl font-semibold leading-7 text-base-content">
+                    {pattern.rule}
+                  </h2>
                 </div>
                 <p className="shrink-0 text-right text-sm font-semibold text-primary">
-                  {pattern.count}
-                  <span className="block text-xs font-medium text-base-content/45">times</span>
+                  {pattern.count}x<span className="block text-xs font-medium text-base-content/45">seen</span>
                 </p>
               </div>
-              <p className="mt-4 text-sm leading-6 text-base-content/62">{pattern.canonicalExample}</p>
-              <p className="mt-4 text-xs font-semibold uppercase tracking-[0.14em] text-base-content/45">
-                Last seen {formatDateKeyLabel(pattern.lastSeenDateKey)}
-              </p>
-              {pattern.recentExamples.length > 0 ? (
-                <div className="mt-3 grid gap-2">
-                  {pattern.recentExamples.slice(0, 2).map((example) => (
-                    <p key={example} className="text-sm leading-6 text-base-content/68">
-                      {example}
-                    </p>
-                  ))}
-                </div>
-              ) : null}
+              <div className="selectable-content">
+                <p className="mt-4 text-sm leading-6 text-base-content/62">{pattern.canonicalExample}</p>
+                <p className="ui-chrome mt-4 text-xs font-semibold uppercase tracking-[0.14em] text-base-content/45">
+                  Last seen {formatDateKeyLabel(pattern.lastSeenDateKey)}
+                </p>
+                {pattern.recentExamples.length > 0 ? (
+                  <div className="mt-3 grid gap-2">
+                    {pattern.recentExamples.slice(0, 2).map((example) => (
+                      <p key={example} className="text-sm leading-6 text-base-content/68">
+                        {example}
+                      </p>
+                    ))}
+                  </div>
+                ) : null}
+              </div>
             </article>
           ))}
         </div>
@@ -1280,20 +1291,20 @@ function LearningPageState({
   children: React.ReactNode;
 }): React.JSX.Element {
   if (isLoading) {
-    return <p className="text-sm text-base-content/60">Loading learning history...</p>;
+    return <p className="ui-chrome text-sm text-base-content/60">Opening learning history...</p>;
   }
 
   if (isError) {
-    return <p className="text-sm text-error">Learning history could not be loaded.</p>;
+    return <p className="selectable-content text-sm text-error">Learning history is unavailable right now.</p>;
   }
 
   if (isEmpty) {
     return (
-      <section className="max-w-2xl border-t border-base-300/60 pt-7">
+      <section className="ui-chrome max-w-2xl pt-2">
         <h2 className="text-2xl font-semibold">{emptyTitle}</h2>
         <p className="mt-4 text-sm leading-6 text-base-content/60">{emptyBody}</p>
         <button type="button" className="btn btn-primary mt-6 rounded-[0.7rem]" onClick={onOpenPractice}>
-          Open Practice
+          Start practice
         </button>
       </section>
     );
@@ -1349,22 +1360,22 @@ function FeedbackRewritePage({
   if (!preview) {
     return (
       <section className="flex min-h-0 flex-1 flex-col gap-8" aria-labelledby="feedback-page-title">
-        <div className="feedback-page__header flex min-h-[8rem] items-start justify-between gap-8 pb-3">
+        <div className="feedback-page__header ui-chrome flex min-h-[8rem] items-start justify-between gap-8 pb-3">
           <div>
-            <p className="text-sm text-base-content/55">Practice › Feedback & Rewrite</p>
+            <p className="text-sm text-base-content/55">Practice / Feedback</p>
             <h1 id="feedback-page-title" className="editorial-heading mt-4 text-5xl text-base-content">
-              Feedback & Rewrite
+              Feedback & rewrite
             </h1>
             <p className="mt-4 max-w-2xl text-base leading-7 text-base-content/60">
-              Get feedback from the Practice page after you finish a draft.
+              Finish a draft, then ask for one focused review.
             </p>
           </div>
         </div>
         <div className="feedback-empty-state relative pt-4">
-          <div className="feedback-empty-state__content max-w-xl">
-            <h2 className="text-xl font-semibold">No feedback preview yet</h2>
+          <div className="feedback-empty-state__content ui-chrome max-w-xl">
+            <h2 className="text-xl font-semibold">No review yet</h2>
             <p className="mt-3 text-sm leading-6 text-base-content/60">
-              Write first, then ask the coach for one focused note.
+              Feedback opens here after the coach reviews your draft.
             </p>
             <button type="button" className="btn btn-outline mt-6 rounded-[0.7rem]" onClick={onBackToDraft}>
               Back to draft
@@ -1388,34 +1399,30 @@ function FeedbackRewritePage({
       aria-labelledby="feedback-page-title"
       data-e2e="feedback-page"
     >
-      <div className="feedback-page__header flex min-h-[8.5rem] items-start justify-between gap-8 pb-3">
+      <div className="feedback-page__header ui-chrome flex min-h-[8.5rem] items-start justify-between gap-8 pb-3">
         <div>
-          <p className="text-sm text-base-content/55">Practice › Feedback & Rewrite</p>
+          <p className="text-sm text-base-content/55">Practice / Feedback</p>
           <h1 id="feedback-page-title" className="editorial-heading mt-4 text-5xl leading-none text-base-content">
-            Feedback & Rewrite
+            Feedback & rewrite
           </h1>
           <p className="mt-4 max-w-3xl text-base leading-7 text-base-content/60">
-            Try one small rewrite from your review, then save it when you are ready.
+            Work through one repair, then save the review to your learning history.
           </p>
         </div>
       </div>
 
       {preview.isStaleForCurrentWriting ? (
-        <div className="border-l border-warning/50 pl-4 text-sm leading-6 text-base-content/70">
-          This review is based on an earlier version of your writing.
-          <button
-            type="button"
-            className="btn btn-warning btn-sm ml-4 rounded-[0.6rem]"
-            onClick={onReviewCurrentVersion}
-          >
-            Review current version
+        <div className="ui-chrome flex flex-wrap items-center gap-3 rounded-lg bg-warning/10 px-4 py-3 text-sm leading-6 text-base-content/70">
+          <span>This review belongs to an earlier draft.</span>
+          <button type="button" className="btn btn-warning btn-sm rounded-[0.6rem]" onClick={onReviewCurrentVersion}>
+            Review current draft
           </button>
         </div>
       ) : null}
 
       <div className="grid min-h-0 gap-8 xl:grid-cols-[minmax(0,0.92fr)_minmax(0,1.25fr)]">
         <div className="grid content-start gap-9">
-          <section className="pb-1">
+          <section className="selectable-content pb-1">
             <h2 className="editorial-copy flex items-center gap-3 text-xl text-base-content">
               <span className="inline-icon text-secondary" aria-hidden="true">
                 <svg viewBox="0 0 24 24">
@@ -1429,7 +1436,7 @@ function FeedbackRewritePage({
             </p>
           </section>
 
-          <section>
+          <section className="selectable-content">
             <h2 className="editorial-copy text-xl text-base-content">One focus pattern</h2>
             <p className="mt-3 text-sm font-semibold text-primary">{focusPatternTitle}</p>
             {preview.parsedOutput.summary.whatWentWell[0] ? (
@@ -1439,16 +1446,14 @@ function FeedbackRewritePage({
             ) : null}
           </section>
 
-          <section>
+          <section className="selectable-content">
             <h2 className="editorial-copy mb-3 text-xl text-base-content">Original draft</h2>
             <HighlightedWriting content={preview.reviewedContent} corrections={preview.operations.corrections} />
           </section>
 
           {referenceRewrite ? (
-            <details className="pt-6 text-sm text-base-content/62">
-              <summary className="cursor-pointer font-medium text-base-content/70">
-                Reference rewrite and noticing-the-gap
-              </summary>
+            <details className="selectable-content pt-6 text-sm text-base-content/62">
+              <summary className="cursor-pointer font-medium text-base-content/70">Reference rewrite</summary>
               <p className="writing-practice-surface mt-3 whitespace-pre-wrap text-base leading-7 text-base-content/78">
                 {referenceRewrite.text}
               </p>
@@ -1474,7 +1479,7 @@ function FeedbackRewritePage({
               </div>
             </div>
             {focusCorrection ? (
-              <p className="mb-4 max-w-2xl text-sm leading-6 text-base-content/70">
+              <p className="selectable-content mb-4 max-w-2xl text-sm leading-6 text-base-content/70">
                 Hint: {preview.operations.selfRepair?.hint ?? focusCorrection.explanation}
               </p>
             ) : null}
@@ -1491,8 +1496,8 @@ function FeedbackRewritePage({
               spellCheck={false}
             />
             {focusCorrection && modelAnswerRevealed ? (
-              <p className="mt-4 text-sm leading-6 text-base-content/70">
-                <strong>Model answer:</strong> {focusCorrection.correctedText}
+              <p className="selectable-content mt-4 text-sm leading-6 text-base-content/70">
+                <strong>Reference answer:</strong> {focusCorrection.correctedText}
               </p>
             ) : null}
             {focusCorrection && !modelAnswerRevealed ? (
@@ -1501,7 +1506,7 @@ function FeedbackRewritePage({
                 className="btn btn-outline btn-sm mt-4 self-start rounded-[0.65rem]"
                 onClick={onRevealModelAnswer}
               >
-                Reveal model answer
+                Show reference answer
               </button>
             ) : null}
           </section>
@@ -1533,7 +1538,7 @@ function FeedbackRewritePage({
         </button>
       </div>
       {saveState === 'error' ? (
-        <p className="text-right text-sm text-error">Could not save draft before feedback.</p>
+        <p className="selectable-content text-right text-sm text-error">Could not save draft before feedback.</p>
       ) : null}
     </section>
   );

@@ -15,21 +15,21 @@ export function ReviewDisclosureDialog({
         aria-modal="true"
         aria-labelledby="review-disclosure-title"
       >
-        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-primary/70">
-          {isStarter ? 'Before first prompt generation' : 'Before first review'}
+        <p className="ui-chrome text-xs font-semibold uppercase tracking-[0.18em] text-primary/70">
+          {isStarter ? 'Before the first prompt' : 'Before the first review'}
         </p>
         <h2 id="review-disclosure-title" className="mt-2 text-2xl font-semibold tracking-[-0.03em]">
-          Provider privacy disclosure
+          What leaves your device
         </h2>
         <div className="mt-4 space-y-3 leading-7 text-base-content/65">
-          <p>Your writing stays local by default.</p>
+          <p>Your writing stays local until you ask Inkline to call your provider.</p>
           <p>
             {isStarter
-              ? 'AI will be called to generate a prompt/topic. No user essay/writing content is sent for this generation step; only the selected template and optional goal/topic are sent to your configured model provider.'
-              : 'When you click Review, the current writing attempt, selected template context, generated prompt/topic if present, optional goal/topic if present, and selected learning history will be sent to your configured model provider.'}
+              ? 'Prompt generation sends the selected template and optional goal only. Your essay draft is not sent for this step.'
+              : 'Review sends the current draft, selected template, prompt or goal when present, and bounded learning context to your configured provider.'}
           </p>
         </div>
-        <dl className="mt-6 grid gap-3 rounded-2xl border border-base-300 bg-base-200/55 p-4 text-sm">
+        <dl className="selectable-content mt-6 grid gap-3 rounded-2xl bg-base-200/55 p-4 text-sm">
           <DisclosureRow label="Provider" value={settings.provider} />
           <DisclosureRow label="Model" value={settings.model} />
           <DisclosureRow label="Local model" value={settings.isLocalModel ? 'Yes' : 'No'} />
@@ -53,7 +53,7 @@ export function ReviewDisclosureDialog({
             data-e2e={isStarter ? 'starter-disclosure-acknowledge' : 'review-disclosure-acknowledge'}
             onClick={onAcknowledge}
           >
-            {isStarter ? 'I understand, generate prompt' : 'I understand, review now'}
+            {isStarter ? 'Generate prompt' : 'Review draft'}
           </button>
         </div>
       </section>
@@ -63,7 +63,7 @@ export function ReviewDisclosureDialog({
 
 function DisclosureRow({ label, value }: { label: string; value: string }): React.JSX.Element {
   return (
-    <div className="grid gap-1 border-t border-base-300 pt-3 first:border-t-0 first:pt-0 sm:grid-cols-[11rem_minmax(0,1fr)] sm:gap-4">
+    <div className="grid gap-1 sm:grid-cols-[11rem_minmax(0,1fr)] sm:gap-4">
       <dt className="text-xs font-semibold uppercase tracking-[0.14em] text-base-content/40">{label}</dt>
       <dd className="m-0 break-words text-base-content/75">{value}</dd>
     </div>

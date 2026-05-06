@@ -12,7 +12,7 @@ export function AutosaveStatus({ state, lastAutosaveAt, error }: AutosaveStatusP
   }
 
   if (state === 'error') {
-    return <span className="text-xs text-error/80">{error ?? 'Could not save'}</span>;
+    return <span className="selectable-content text-xs text-error/80">{error ?? 'Could not save'}</span>;
   }
 
   if (lastAutosaveAt) {

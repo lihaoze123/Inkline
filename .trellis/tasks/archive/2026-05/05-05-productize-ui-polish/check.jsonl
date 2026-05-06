@@ -1,0 +1,8 @@
+{"file":".trellis/spec/frontend/css-design.md","reason":"Check final UI against Inkline visual contract, border/card usage, sidebar, ink art, and manual smoke expectations."}
+{"file":".trellis/spec/frontend/components.md","reason":"Check scrollbar, empty-state, semantic HTML, focus, and loading-state polish."}
+{"file":".trellis/spec/frontend/quality.md","reason":"Run frontend quality checks and confirm no forbidden patterns or console errors."}
+{"file":".trellis/spec/product/mvp-scope.md","reason":"Verify UI polish did not add out-of-scope dashboards, mock-exam cues, timers, scores, or workflow changes."}
+{"file":".trellis/spec/product/learning-flow.md","reason":"Verify writing/review/rewrite UI still follows the product learning-flow contracts and copy boundaries."}
+{"file":".trellis/spec/product/privacy-security.md","reason":"Verify provider disclosure and Settings raw-response/provider copy still satisfy privacy contracts."}
+{"file":".trellis/spec/product/validation-and-testing.md","reason":"Verify required lint/typecheck/test/manual Electron UI checks are performed or limitations are reported."}
+{"file":".trellis/spec/shared/code-quality.md","reason":"Check no non-null assertions, any, unused imports, or quality regressions were introduced."}
