@@ -1304,3 +1304,36 @@ Polished Inkline renderer UI copy, chrome selection behavior, scrollbars, onboar
 ### Next Steps
 
 - None - task complete
+
+
+## Session 39: Release Inkline v0.1.6
+
+**Date**: 2026-05-06
+**Task**: Release Inkline v0.1.6
+**Branch**: `main`
+
+### Summary
+
+Bumped Inkline to v0.1.6, published the GitHub Release, and verified release workflow assets uploaded successfully.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `6fb9684` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
