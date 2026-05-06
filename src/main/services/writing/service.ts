@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { z } from 'zod';
-import { and, desc, eq, gte, lte } from 'drizzle-orm';
+import { desc, eq } from 'drizzle-orm';
 import { db } from '../../db/client';
 import {
   writingAttempts,
@@ -34,6 +34,8 @@ import {
   type SaveWritingAttemptResult,
   type StarterPromptSnapshot,
   type SkipRewritePracticeInput,
+  snoozeRewritePracticeInputSchema,
+  type SnoozeRewritePracticeInput,
   type WritingAttemptSnapshot,
 } from '../../../shared/types/writing';
 import { generateStructuredObject, getAiProviderDiagnosticsFromError } from '../ai';
@@ -225,6 +227,45 @@ function rewriteTaskToSnapshot(task: RewriteTaskRow, nowMillis = Date.now()): Re
   };
 }
 
+function isD1RewriteOriginalTask(task: RewriteTaskRow): boolean {
+  return task.kind === 'rewrite_original' && task.spacedStage === 'D+1';
+}
+
+function isTerminalRewriteTask(task: RewriteTaskRow): boolean {
+  return task.status === 'completed' || task.status === 'skipped' || task.status === 'expired';
+}
+
+function isActionableRewriteTask(task: RewriteTaskRow): boolean {
+  return !isTerminalRewriteTask(task);
+}
+
+function isStaleRewriteTask(task: RewriteTaskRow, nowMillis: number): boolean {
+  return nowMillis - task.createdAt.getTime() > REWRITE_PRACTICE_MAX_AGE_MS;
+}
+
+function expireStaleRewritePractices(now = new Date()): void {
+  const nowMillis = now.getTime();
+  const tasks: RewriteTaskRow[] = db.select().from(rewriteTasks).all();
+
+  for (const task of tasks) {
+    if (!isD1RewriteOriginalTask(task) || !isActionableRewriteTask(task) || !isStaleRewriteTask(task, nowMillis)) {
+      continue;
+    }
+
+    db.update(rewriteTasks).set({ status: 'expired' }).where(eq(rewriteTasks.id, task.id)).run();
+  }
+}
+
+function canOccupyRewritePracticeSlot(task: RewriteTaskRow, now: Date): boolean {
+  return (
+    isD1RewriteOriginalTask(task) &&
+    isActionableRewriteTask(task) &&
+    task.dueAt !== null &&
+    task.dueAt.getTime() <= now.getTime() &&
+    !isStaleRewriteTask(task, now.getTime())
+  );
+}
+
 function getActiveRevision(entry: WritingAttempt): WritingRevision | null {
   if (!entry.activeRevisionId) {
     return null;
@@ -244,23 +285,19 @@ function getMostRecentStaleReview(attemptId: string): ReviewRun | undefined {
 }
 
 function getPendingRewritePractice(now = new Date()): RewriteTaskRow | null {
-  const cutoff = new Date(now.getTime() - REWRITE_PRACTICE_MAX_AGE_MS);
+  expireStaleRewritePractices(now);
 
   return (
     db
       .select()
       .from(rewriteTasks)
-      .where(
-        and(
-          eq(rewriteTasks.status, 'pending'),
-          eq(rewriteTasks.kind, 'rewrite_original'),
-          lte(rewriteTasks.dueAt, now),
-          gte(rewriteTasks.createdAt, cutoff),
-        ),
-      )
-      .orderBy(desc(rewriteTasks.dueAt), desc(rewriteTasks.createdAt))
       .all()
-      .find((task) => task.spacedStage === 'D+1') ?? null
+      .filter((task) => canOccupyRewritePracticeSlot(task, now))
+      .sort(
+        (left, right) =>
+          (right.dueAt?.getTime() ?? 0) - (left.dueAt?.getTime() ?? 0) ||
+          right.createdAt.getTime() - left.createdAt.getTime(),
+      )[0] ?? null
   );
 }
 
@@ -729,6 +766,7 @@ export async function completeRewritePractice(
     return { success: false, error: parseResult.error.issues[0].message };
   }
 
+  expireStaleRewritePractices();
   const task = db.select().from(rewriteTasks).where(eq(rewriteTasks.id, parseResult.data.rewriteTaskId)).get();
   if (!task) {
     return { success: false, error: 'Rewrite practice was not found.' };
@@ -736,7 +774,7 @@ export async function completeRewritePractice(
 
   const currentWriting = getWritingForRewriteTask(task);
 
-  if (task.status !== 'pending' && task.status !== 'in_progress') {
+  if (isTerminalRewriteTask(task)) {
     return { success: true, writing: currentWriting, rewritePractice: rewriteTaskToSnapshot(task) };
   }
 
@@ -789,18 +827,15 @@ export function skipRewritePractice(input: SkipRewritePracticeInput): RewritePra
     return { success: false, error: parseResult.error.issues[0].message };
   }
 
+  expireStaleRewritePractices();
   const task = db.select().from(rewriteTasks).where(eq(rewriteTasks.id, parseResult.data.rewriteTaskId)).get();
   if (!task) {
     return { success: false, error: 'Rewrite practice was not found.' };
   }
 
-  const reviewRun = db.select().from(reviewRuns).where(eq(reviewRuns.id, task.reviewRunId)).get();
-  const entry = reviewRun
-    ? db.select().from(writingAttempts).where(eq(writingAttempts.id, reviewRun.writingAttemptId)).get()
-    : undefined;
-  const currentWriting = entry ? buildSnapshot(entry) : getWritingAttempt();
+  const currentWriting = getWritingForRewriteTask(task);
 
-  if (task.status !== 'pending' && task.status !== 'in_progress') {
+  if (isTerminalRewriteTask(task)) {
     return { success: true, writing: currentWriting, rewritePractice: rewriteTaskToSnapshot(task) };
   }
 
@@ -814,6 +849,39 @@ export function skipRewritePractice(input: SkipRewritePracticeInput): RewritePra
     .returning()
     .get();
 
-  const updatedWriting = entry ? buildSnapshot(entry) : getWritingAttempt();
+  const updatedWriting = getWritingForRewriteTask(updatedTask);
+  return { success: true, writing: updatedWriting, rewritePractice: rewriteTaskToSnapshot(updatedTask) };
+}
+
+export function snoozeRewritePractice(input: SnoozeRewritePracticeInput): RewritePracticeUpdateResult {
+  const parseResult = snoozeRewritePracticeInputSchema.safeParse(input);
+  if (!parseResult.success) {
+    return { success: false, error: parseResult.error.issues[0].message };
+  }
+
+  const now = new Date();
+  expireStaleRewritePractices(now);
+  const task = db.select().from(rewriteTasks).where(eq(rewriteTasks.id, parseResult.data.rewriteTaskId)).get();
+  if (!task) {
+    return { success: false, error: 'Rewrite practice was not found.' };
+  }
+
+  const currentWriting = getWritingForRewriteTask(task);
+
+  if (isTerminalRewriteTask(task)) {
+    return { success: true, writing: currentWriting, rewritePractice: rewriteTaskToSnapshot(task) };
+  }
+
+  const updatedTask = db
+    .update(rewriteTasks)
+    .set({
+      status: 'snoozed',
+      dueAt: new Date(now.getTime() + ONE_DAY_MS),
+    })
+    .where(eq(rewriteTasks.id, parseResult.data.rewriteTaskId))
+    .returning()
+    .get();
+
+  const updatedWriting = getWritingForRewriteTask(updatedTask);
   return { success: true, writing: updatedWriting, rewritePractice: rewriteTaskToSnapshot(updatedTask) };
 }

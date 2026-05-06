@@ -38,9 +38,20 @@ function createD1RewritePractice(createdAt: number): RewritePracticeRecord {
 }
 
 function selectPracticeSlot(tasks: RewritePracticeRecord[], now: number): RewritePracticeRecord | null {
+  for (const task of tasks) {
+    if (
+      task.practiceKind === 'rewrite_original' &&
+      task.spacedStage === 'D+1' &&
+      (task.status === 'pending' || task.status === 'in_progress' || task.status === 'snoozed') &&
+      now - task.createdAt > MAX_AGE_MS
+    ) {
+      task.status = 'expired';
+    }
+  }
+
   return (
     tasks
-      .filter((task) => task.status === 'pending')
+      .filter((task) => task.status === 'pending' || task.status === 'in_progress' || task.status === 'snoozed')
       .filter((task) => task.practiceKind === 'rewrite_original' && task.spacedStage === 'D+1')
       .filter((task) => task.dueAt <= now)
       .filter((task) => now - task.createdAt <= MAX_AGE_MS)
@@ -62,6 +73,14 @@ function skipPractice(task: RewritePracticeRecord, now: number): RewritePractice
     ...task,
     status: 'skipped',
     skippedAt: now,
+  };
+}
+
+function snoozePractice(task: RewritePracticeRecord, now: number): RewritePracticeRecord {
+  return {
+    ...task,
+    status: 'snoozed',
+    dueAt: now + ONE_DAY_MS,
   };
 }
 
@@ -106,13 +125,30 @@ describe('D+1 rewrite practice contract', () => {
     expect(skipped.skippedAt).toBe(now);
   });
 
-  it('de-prioritizes tasks older than 7 days from the practice slot', () => {
+  it('snoozes rewrite practice for one day without completing it', () => {
+    const now = Date.UTC(2026, 3, 30, 12);
+    const snoozed = snoozePractice(createD1RewritePractice(now - ONE_DAY_MS), now);
+
+    expect(snoozed.status).toBe('snoozed');
+    expect(snoozed.dueAt).toBe(now + ONE_DAY_MS);
+    expect(snoozed.completedAt).toBeNull();
+  });
+
+  it('returns due snoozed rewrite practice to the practice slot', () => {
+    const now = Date.UTC(2026, 4, 1, 12);
+    const snoozed = snoozePractice(createD1RewritePractice(now - ONE_DAY_MS), now - ONE_DAY_MS);
+
+    expect(selectPracticeSlot([snoozed], now)).toMatchObject({ id: 'rewrite_1', status: 'snoozed' });
+  });
+
+  it('expires tasks older than 7 days before selecting the practice slot', () => {
     const now = Date.UTC(2026, 4, 8, 12);
     const staleTask = createD1RewritePractice(now - MAX_AGE_MS - 1);
     const freshTask = createD1RewritePractice(now - ONE_DAY_MS);
     freshTask.id = 'fresh_rewrite';
 
     expect(selectPracticeSlot([staleTask], now)).toBeNull();
+    expect(staleTask.status).toBe('expired');
     expect(selectPracticeSlot([staleTask, freshTask], now)).toMatchObject({ id: 'fresh_rewrite' });
   });
 });

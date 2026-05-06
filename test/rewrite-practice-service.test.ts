@@ -11,8 +11,10 @@ import type { db as appDatabase } from '../src/main/db/client';
 import type * as AiRuntimeConfigModule from '../src/main/services/ai/runtime-config';
 import type {
   completeRewritePractice as completeRewritePracticeFunction,
+  getDueRewritePracticeForPractice as getDueRewritePracticeForPracticeFunction,
   retryRewriteCheck as retryRewriteCheckFunction,
   skipRewritePractice as skipRewritePracticeFunction,
+  snoozeRewritePractice as snoozeRewritePracticeFunction,
 } from '../src/main/services/writing/service';
 
 type AppDatabase = typeof appDatabase;
@@ -64,6 +66,8 @@ vi.mock('../src/main/services/settings/service', () => ({
 
 const now = new Date('2026-04-30T12:00:00.000Z');
 vi.setSystemTime(now);
+const ONE_DAY_MS = 24 * 60 * 60 * 1000;
+const REWRITE_PRACTICE_MAX_AGE_MS = 7 * ONE_DAY_MS;
 
 const tableNames = new Map<object, TableName>([
   [writingAttempts, 'writingAttempts'],
@@ -138,7 +142,7 @@ class FakeWritingDatabase {
     this.store = emptyStore();
   }
 
-  seedPracticeWithPendingRewrite(): void {
+  seedPracticeWithPendingRewrite(task: RewriteTaskRow = createPendingRewriteTask('rewrite_1')): void {
     this.store.writingAttempts.push({
       id: 'journal_1',
       dateKey: '2026-04-30',
@@ -176,7 +180,11 @@ class FakeWritingDatabase {
       createdAt: now,
       updatedAt: now,
     });
-    this.store.rewriteTasks.push(createPendingRewriteTask('rewrite_1'));
+    this.store.rewriteTasks.push(task);
+  }
+
+  seedRewriteTask(task: RewriteTaskRow): void {
+    this.store.rewriteTasks.push(task);
   }
 
   seedCompletedRewriteCheck(): void {
@@ -277,9 +285,19 @@ async function loadSkipRewritePractice(): Promise<typeof skipRewritePracticeFunc
   return module.skipRewritePractice;
 }
 
+async function loadSnoozeRewritePractice(): Promise<typeof snoozeRewritePracticeFunction> {
+  const module = await import('../src/main/services/writing/service');
+  return module.snoozeRewritePractice;
+}
+
 async function loadRetryRewriteCheck(): Promise<typeof retryRewriteCheckFunction> {
   const module = await import('../src/main/services/writing/service');
   return module.retryRewriteCheck;
+}
+
+async function loadGetDueRewritePracticeForPractice(): Promise<typeof getDueRewritePracticeForPracticeFunction> {
+  const module = await import('../src/main/services/writing/service');
+  return module.getDueRewritePracticeForPractice;
 }
 
 describe('rewrite practice service updates', () => {
@@ -496,6 +514,135 @@ describe('rewrite practice service updates', () => {
     expect(result.writing?.pendingRewritePractice).toBeNull();
     expect(result.rewritePractice).toMatchObject({ id: 'rewrite_1', status: 'skipped' });
     expect(fakeDatabase.rewriteTask('rewrite_1')).toMatchObject({ status: 'skipped', skippedAt: now });
+  });
+
+  it('snoozes rewrite practice for one day without creating a rewrite check', async () => {
+    fakeDatabase.reset();
+    fakeDatabase.seedPracticeWithPendingRewrite();
+    const snoozeRewritePractice = await loadSnoozeRewritePractice();
+
+    const result = snoozeRewritePractice({ rewriteTaskId: 'rewrite_1' });
+
+    expect(result.success).toBe(true);
+    expect(result.writing?.pendingRewritePractice).toBeNull();
+    expect(result.rewritePractice).toMatchObject({
+      id: 'rewrite_1',
+      status: 'snoozed',
+      dueAt: now.getTime() + ONE_DAY_MS,
+      latestRewriteCheck: null,
+    });
+    expect(fakeDatabase.rewriteTask('rewrite_1')).toMatchObject({
+      status: 'snoozed',
+      dueAt: new Date(now.getTime() + ONE_DAY_MS),
+    });
+    expect(fakeDatabase.rewriteChecks()).toHaveLength(0);
+  });
+
+  it('returns due snoozed rewrite practice to the practice slot', async () => {
+    fakeDatabase.reset();
+    fakeDatabase.seedPracticeWithPendingRewrite({
+      ...createPendingRewriteTask('rewrite_1'),
+      status: 'snoozed',
+      dueAt: now,
+    });
+    const getDueRewritePracticeForPractice = await loadGetDueRewritePracticeForPractice();
+
+    const result = getDueRewritePracticeForPractice(now);
+
+    expect(result).toMatchObject({ id: 'rewrite_1', status: 'snoozed' });
+  });
+
+  it('expires stale D+1 rewrite practice before selecting the practice slot', async () => {
+    fakeDatabase.reset();
+    const staleRewrite = {
+      ...createPendingRewriteTask('rewrite_stale'),
+      createdAt: new Date(now.getTime() - REWRITE_PRACTICE_MAX_AGE_MS - 1),
+      dueAt: new Date(now.getTime() - ONE_DAY_MS),
+    };
+    const freshRewrite = createPendingRewriteTask('rewrite_fresh');
+    fakeDatabase.seedPracticeWithPendingRewrite(staleRewrite);
+    fakeDatabase.seedRewriteTask(freshRewrite);
+    const getDueRewritePracticeForPractice = await loadGetDueRewritePracticeForPractice();
+
+    const result = getDueRewritePracticeForPractice(now);
+
+    expect(result).toMatchObject({ id: 'rewrite_fresh' });
+    expect(fakeDatabase.rewriteTask('rewrite_stale')).toMatchObject({ status: 'expired' });
+  });
+
+  it('does not mutate terminal rewrite practice when complete is requested', async () => {
+    fakeDatabase.reset();
+    fakeDatabase.seedPracticeWithPendingRewrite({
+      ...createPendingRewriteTask('rewrite_1'),
+      status: 'skipped',
+      skippedAt: now,
+    });
+    const completeRewritePractice = await loadCompleteRewritePractice();
+
+    const result = await completeRewritePractice({ rewriteTaskId: 'rewrite_1', userRewriteText: 'I went home.' });
+
+    expect(result.success).toBe(true);
+    expect(result.rewritePractice).toMatchObject({
+      id: 'rewrite_1',
+      status: 'skipped',
+      userRewriteText: null,
+    });
+    expect(fakeDatabase.rewriteTask('rewrite_1')).toMatchObject({
+      status: 'skipped',
+      skippedAt: now,
+      userRewriteText: null,
+      completedAt: null,
+    });
+    expect(fakeDatabase.rewriteChecks()).toHaveLength(0);
+    expect(mocks.generateStructuredObject).not.toHaveBeenCalled();
+  });
+
+  it('does not mutate terminal rewrite practice when skip is requested', async () => {
+    fakeDatabase.reset();
+    fakeDatabase.seedPracticeWithPendingRewrite({
+      ...createPendingRewriteTask('rewrite_1'),
+      status: 'expired',
+    });
+    const skipRewritePractice = await loadSkipRewritePractice();
+
+    const result = skipRewritePractice({ rewriteTaskId: 'rewrite_1' });
+
+    expect(result.success).toBe(true);
+    expect(result.rewritePractice).toMatchObject({
+      id: 'rewrite_1',
+      status: 'expired',
+    });
+    expect(fakeDatabase.rewriteTask('rewrite_1')).toMatchObject({
+      status: 'expired',
+      skippedAt: null,
+      completedAt: null,
+    });
+  });
+
+  it('does not mutate terminal rewrite practice when snooze is requested', async () => {
+    fakeDatabase.reset();
+    fakeDatabase.seedPracticeWithPendingRewrite({
+      ...createPendingRewriteTask('rewrite_1'),
+      status: 'completed',
+      completedAt: now,
+      userRewriteText: 'I went home.',
+    });
+    const snoozeRewritePractice = await loadSnoozeRewritePractice();
+
+    const result = snoozeRewritePractice({ rewriteTaskId: 'rewrite_1' });
+
+    expect(result.success).toBe(true);
+    expect(result.rewritePractice).toMatchObject({
+      id: 'rewrite_1',
+      status: 'completed',
+      dueAt: now.getTime(),
+    });
+    expect(fakeDatabase.rewriteTask('rewrite_1')).toMatchObject({
+      status: 'completed',
+      dueAt: now,
+      userRewriteText: 'I went home.',
+    });
+    expect(fakeDatabase.rewriteChecks()).toHaveLength(0);
   });
 });
 

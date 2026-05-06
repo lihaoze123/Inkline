@@ -545,7 +545,7 @@ Future review input comes from the semantic pattern archive owned by the app.
 
 ### 1. Scope / Trigger
 
-- Trigger: Any task that changes saved-review rewrite task creation, `WritingAttemptSnapshot.pendingRewritePractice`, rewrite practice IPC, or rewrite task completion/skip persistence.
+- Trigger: Any task that changes saved-review rewrite task creation, `WritingAttemptSnapshot.pendingRewritePractice`, rewrite practice IPC, or rewrite task complete/skip/snooze/expire persistence.
 - v0.1 supports one due D+1 `rewrite_original` practice surfaced in Practice; this is not the full rewrite queue.
 
 ### 2. Signatures
@@ -568,6 +568,7 @@ Future review input comes from the semantic pattern archive owned by the app.
 - IPC/API:
   - `window.api.writing.completeRewritePractice({ rewriteTaskId: string, userRewriteText: string }): RewritePracticeUpdateResult`
   - `window.api.writing.skipRewritePractice({ rewriteTaskId: string }): RewritePracticeUpdateResult`
+  - `window.api.writing.snoozeRewritePractice({ rewriteTaskId: string }): RewritePracticeUpdateResult`
   - `RewritePracticeUpdateResult = { success: boolean; writing?: WritingAttemptSnapshot; rewritePractice?: RewritePracticeSnapshot | null; error?: string }`
 
 ### 3. Contracts
@@ -575,11 +576,15 @@ Future review input comes from the semantic pattern archive owned by the app.
 - `saveReviewRun` may create at most one pending rewrite task per saved review.
 - The saved task must be `kind = 'rewrite_original'`, `spaced_stage = 'D+1'`, `status = 'pending'`, and `due_at = saved_at + 1 day`.
 - The task must practice the single focus correction only. It must not be generated from a low-confidence correction or a non-focus correction.
-- Practice selects one pending due rewrite task where `kind = 'rewrite_original'`, `spaced_stage = 'D+1'`, `due_at <= now`, and `created_at >= now - 7 days`.
+- Before selecting the Practice rewrite slot, stale actionable D+1 tasks older than 7 days must be marked `expired`.
+- Practice selects one actionable due rewrite task where `kind = 'rewrite_original'`, `spaced_stage = 'D+1'`, `status in ('pending', 'in_progress', 'snoozed')`, `due_at <= now`, and `created_at >= now - 7 days`.
 - Rewrite practice must not block writing editor use or autosave.
 - The native model sentence stays hidden while the task is pending and is revealed only after the user submits a rewrite, or in a future flow that explicitly supports reveal.
 - Completing a task stores trimmed `user_rewrite_text`, sets `status = 'completed'`, sets `completed_at`, returns a fresh writing snapshot, and still returns the completed `rewritePractice` so the renderer can reveal the native model after the pending slot is empty.
 - Skipping a task sets `status = 'skipped'`, sets `skipped_at`, returns a fresh writing snapshot, and removes the card from the pending Practice slot.
+- Snoozing a task sets `status = 'snoozed'`, moves `due_at` one day forward from the current time, returns a fresh writing snapshot, removes the card from the pending Practice slot, and creates no `rewrite_checks` row.
+- Due snoozed tasks may return to the Practice slot when `due_at <= now`; they remain lifecycle state only and do not advance learning evidence.
+- Terminal tasks (`completed`, `skipped`, `expired`) are no-op for complete/skip/snooze requests: return success with the current task snapshot and do not duplicate transitions or create check attempts.
 - All timestamp fields crossing IPC are Unix milliseconds numbers, not ISO strings.
 
 ### 4. Validation & Error Matrix
@@ -591,18 +596,24 @@ Future review input comes from the semantic pattern archive owned by the app.
 | Rewrite operation does not reference the focus correction | Do not create a rewrite task. |
 | Multiple D+1 rewrite operations exist | Create at most the first valid focus rewrite task. |
 | Pending task is not due yet | Do not surface it in `pendingRewritePractice`. |
-| Pending task is older than 7 days | Do not occupy the main Practice rewrite slot. |
+| Pending/in-progress/snoozed task is older than 7 days | Mark `expired`; do not occupy the main Practice rewrite slot. |
 | Complete input has blank `userRewriteText` | Return `{ success: false, error }`; do not update the task. |
-| Complete/skip task ID is missing | Return `{ success: false, error: 'Rewrite practice was not found.' }`. |
-| Complete/skip task is already terminal | Return success with the current task snapshot and no duplicate status transition. |
+| Complete/skip/snooze task ID is missing | Return `{ success: false, error: 'Rewrite practice was not found.' }`. |
+| Complete/skip/snooze task is already terminal | Return success with the current task snapshot and no duplicate status transition. |
+| Snooze request succeeds | Set status `snoozed`, set `due_at = now + 1 day`, return fresh writing snapshot, and do not create rewrite-check rows. |
+| Snoozed task is not due yet | Do not surface it in `pendingRewritePractice`. |
+| Snoozed task is due | It may occupy the Practice rewrite slot like other actionable D+1 work. |
 
 ### 5. Good/Base/Bad Cases
 
 - Good: A saved valid review creates one D+1 focus rewrite task; next day Practice shows it, writing still works, submitting reveals the native model and stores the trimmed rewrite.
 - Base: The user skips the due practice; Practice removes the card and still allows normal writing/review.
+- Base: The user snoozes the due practice; Practice removes the card, stores a one-day-later `dueAt`, and records no rewrite-check attempt.
+- Base: A due snoozed task returns to the Practice slot without changing learning evidence.
 - Base: A task older than 7 days remains in storage/history but no longer occupies the main Practice slot.
 - Bad: A low-confidence or non-focus correction generates rewrite practice.
 - Bad: The renderer derives the post-submit reveal card only from `writing.pendingRewritePractice`, so completion removes the card before the native model can be shown.
+- Bad: A terminal skipped or expired snapshot remains rendered with submit, snooze, or skip actions.
 - Bad: Date fields return ISO strings over IPC or compare seconds to milliseconds.
 
 ### 6. Tests Required
@@ -615,9 +626,14 @@ Future review input comes from the semantic pattern archive owned by the app.
   - Assert Practice returns one due pending D+1 task and excludes not-due, non-D+1, terminal, and older-than-7-days tasks.
   - Assert complete stores trimmed `userRewriteText`, sets `completedAt`, removes pending Practice task, and returns completed `rewritePractice` for UI reveal.
   - Assert skip sets `skippedAt` and removes pending Practice task.
+  - Assert snooze sets `status = 'snoozed'`, advances `dueAt` by one day, removes pending Practice task, and creates no `rewrite_checks`.
+  - Assert due snoozed tasks can return to the Practice slot.
+  - Assert stale actionable tasks are marked `expired` before slot selection.
+  - Assert complete/skip/snooze are no-op for terminal tasks.
 - UI smoke/manual test:
-  - Pending card shows original sentence, focus pattern, input, and Skip.
+  - Pending card shows original sentence, focus pattern, input, Skip, and Snooze.
   - Native model is hidden before submit and visible after submit.
+  - Snooze removes the card from the current Practice slot without showing success/failure learning copy.
   - Writing editor remains editable/autosaves while the rewrite card is present.
 
 ### 7. Wrong vs Correct
@@ -646,6 +662,23 @@ const practice = completedRewritePractice ?? writing.pendingRewritePractice;
 ```
 
 The pending Practice slot stays empty after completion, while the completed task remains available long enough to show the native model result.
+
+#### Wrong
+
+```typescript
+const canSubmit = practice.status !== 'completed';
+```
+
+This leaves skipped or expired snapshots actionable if they are returned after a no-op lifecycle request.
+
+#### Correct
+
+```typescript
+const isTerminal = practice.status === 'completed' || practice.status === 'skipped' || practice.status === 'expired';
+const canSubmit = !isTerminal && inputValue.trim().length > 0;
+```
+
+Terminal lifecycle states are visible history only; they must not expose submit, skip, or snooze actions.
 
 ## Scenario: Rewrite Check Attempt Baseline
 

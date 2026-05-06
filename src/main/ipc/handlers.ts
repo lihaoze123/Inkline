@@ -38,6 +38,7 @@ import {
   saveWritingAttemptInputSchema,
   saveWritingAttemptResultSchema,
   skipRewritePracticeInputSchema,
+  snoozeRewritePracticeInputSchema,
   writingAttemptSnapshotSchema,
 } from '../../shared/types/writing';
 import { getDatabasePath } from '../db/client';
@@ -56,6 +57,7 @@ import {
   retryRewriteCheck,
   saveWritingAttempt,
   skipRewritePractice,
+  snoozeRewritePractice,
 } from '../services/writing/service';
 import { getRuntimeTimeZone, getRuntimeTimeZoneOffsetMinutes } from '../env-setup';
 import { acknowledgeReviewDisclosure } from '../services/review/lib/disclosure';
@@ -118,6 +120,11 @@ export function registerIpcHandlers(migrationResult: MigrationResult): void {
   ipcMain.handle(IPC_CHANNELS.WRITING.SKIP_REWRITE_PRACTICE, (_event, input: unknown): unknown => {
     const parsedInput = skipRewritePracticeInputSchema.parse(input);
     return rewritePracticeUpdateResultSchema.parse(skipRewritePractice(parsedInput));
+  });
+
+  ipcMain.handle(IPC_CHANNELS.WRITING.SNOOZE_REWRITE_PRACTICE, (_event, input: unknown): unknown => {
+    const parsedInput = snoozeRewritePracticeInputSchema.parse(input);
+    return rewritePracticeUpdateResultSchema.parse(snoozeRewritePractice(parsedInput));
   });
 
   ipcMain.handle(IPC_CHANNELS.WRITING.RETRY_REWRITE_CHECK, async (_event, input: unknown): Promise<unknown> => {

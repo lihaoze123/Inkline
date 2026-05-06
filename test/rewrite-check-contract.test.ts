@@ -5,6 +5,7 @@ import {
   rewriteCheckSnapshotSchema,
   rewriteCheckStatusSchema,
   rewritePracticeSnapshotSchema,
+  snoozeRewritePracticeInputSchema,
 } from '../src/shared/types/writing';
 
 const completedRewriteCheck = {
@@ -93,5 +94,11 @@ describe('rewrite-check shared writing contracts', () => {
         rewriteCheck: completedRewriteCheck,
       }),
     ).toMatchObject({ success: true, rewriteCheck: { status: 'completed', outcome: 'partly_correct' } });
+  });
+
+  it('defines snooze input for rewrite practice lifecycle updates', () => {
+    expect(snoozeRewritePracticeInputSchema.parse({ rewriteTaskId: 'rewrite_1' })).toEqual({
+      rewriteTaskId: 'rewrite_1',
+    });
   });
 });

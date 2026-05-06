@@ -28,6 +28,7 @@ export function LearningPanel({
   onCompleteRewritePractice,
   onRetryRewriteCheck,
   onSkipRewritePractice,
+  onSnoozeRewritePractice,
   onReviewCurrentVersion,
 }: LearningPanelProps): React.JSX.Element {
   const statusSentence =
@@ -66,6 +67,7 @@ export function LearningPanel({
             onComplete={onCompleteRewritePractice}
             onRetryCheck={onRetryRewriteCheck}
             onSkip={onSkipRewritePractice}
+            onSnooze={onSnoozeRewritePractice}
           />
         </details>
       ) : null}
@@ -167,6 +169,7 @@ function RewritePracticeCard({
   onComplete,
   onRetryCheck,
   onSkip,
+  onSnooze,
 }: {
   practice: WritingAttemptSnapshot['pendingRewritePractice'];
   inputValue: string;
@@ -176,6 +179,7 @@ function RewritePracticeCard({
   onComplete: () => void;
   onRetryCheck: () => void;
   onSkip: () => void;
+  onSnooze: () => void;
 }): React.JSX.Element | null {
   if (!practice) {
     return null;
@@ -183,8 +187,10 @@ function RewritePracticeCard({
 
   const latestCheck = practice.latestRewriteCheck;
   const isCompleted = practice.status === 'completed';
+  const isTerminal = isCompleted || practice.status === 'skipped' || practice.status === 'expired';
   const isCheckInProgress = isChecking || latestCheck?.status === 'pending' || latestCheck?.status === 'in_progress';
-  const canSubmit = inputValue.trim().length > 0 && !isCompleted && !isCheckInProgress;
+  const canAct = !isTerminal;
+  const canSubmit = inputValue.trim().length > 0 && canAct && !isCheckInProgress;
   const showNativeModel = isCompleted && Boolean(practice.userRewriteText);
 
   return (
@@ -210,7 +216,7 @@ function RewritePracticeCard({
           value={inputValue}
           onChange={(event) => onInputChange(event.target.value)}
           placeholder="Rewrite the sentence in your own words."
-          disabled={isCompleted || isCheckInProgress}
+          disabled={!canAct || isCheckInProgress}
           data-e2e="rewrite-practice-input"
         />
         <div className="mt-4 flex flex-wrap gap-2">
@@ -223,15 +229,27 @@ function RewritePracticeCard({
           >
             {isCheckInProgress ? 'Checking rewrite...' : isCompleted ? 'Rewrite submitted' : 'Submit rewrite'}
           </button>
-          {!isCompleted ? (
-            <button
-              type="button"
-              className="btn btn-ghost btn-sm rounded-xl"
-              disabled={isCheckInProgress}
-              onClick={onSkip}
-            >
-              Skip
-            </button>
+          {canAct ? (
+            <>
+              <button
+                type="button"
+                className="btn btn-ghost btn-sm rounded-xl"
+                disabled={isCheckInProgress}
+                data-e2e="rewrite-practice-snooze"
+                onClick={onSnooze}
+              >
+                Snooze
+              </button>
+              <button
+                type="button"
+                className="btn btn-ghost btn-sm rounded-xl"
+                disabled={isCheckInProgress}
+                data-e2e="rewrite-practice-skip"
+                onClick={onSkip}
+              >
+                Skip
+              </button>
+            </>
           ) : null}
         </div>
         {isCheckInProgress ? (
@@ -241,9 +259,19 @@ function RewritePracticeCard({
           <p className="selectable-content mt-4 rounded-xl bg-base-100/55 p-3 text-sm leading-6">
             <strong>Reference sentence:</strong> {practice.nativeModelSentence}
           </p>
-        ) : (
+        ) : canAct ? (
           <p className="ui-chrome mt-4 text-sm text-base-content/50">Reference sentence appears after you submit.</p>
-        )}
+        ) : null}
+        {practice.status === 'expired' ? (
+          <p className="ui-chrome mt-4 text-sm leading-6 text-base-content/55">
+            This rewrite window was missed. Learning evidence is unchanged.
+          </p>
+        ) : null}
+        {practice.status === 'skipped' ? (
+          <p className="ui-chrome mt-4 text-sm leading-6 text-base-content/55">
+            This rewrite was skipped. Learning evidence is unchanged.
+          </p>
+        ) : null}
         {latestCheck ? (
           <RewriteCheckFeedbackCard check={latestCheck} isChecking={isCheckInProgress} onRetryCheck={onRetryCheck} />
         ) : null}

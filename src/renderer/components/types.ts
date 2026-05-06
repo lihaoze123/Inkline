@@ -92,6 +92,7 @@ export type LearningPanelProps = {
   onCompleteRewritePractice: () => void;
   onRetryRewriteCheck: () => void;
   onSkipRewritePractice: () => void;
+  onSnoozeRewritePractice: () => void;
   onReviewCurrentVersion: () => void;
 };
 

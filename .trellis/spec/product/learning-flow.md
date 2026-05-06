@@ -247,7 +247,7 @@ A rewrite practice includes:
 - Focus pattern.
 - Input field.
 - Skip action.
-- Snooze action only if the task explicitly implements snooze.
+- Snooze action for deferring the task by one day without changing learning evidence.
 
 Rewrite-check is completed baseline behavior for submitted D+1 rewrites. The remaining rewrite-practice roadmap expands lifecycle and transfer semantics rather than reopening rewrite-check scope.
 

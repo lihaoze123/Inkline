@@ -18,6 +18,7 @@ import type {
   SaveWritingAttemptInput,
   SaveWritingAttemptResult,
   SkipRewritePracticeInput,
+  SnoozeRewritePracticeInput,
   WritingAttemptSnapshot,
   WritingTemplateId,
 } from '@shared/types/writing';
@@ -162,6 +163,19 @@ export function useSkipRewritePractice(): UseMutationResult<
 
   return useMutation({
     mutationFn: (input: SkipRewritePracticeInput) => window.api.writing.skipRewritePractice(input),
+    onSuccess: (result) => updateRewritePracticeCache(queryClient, result),
+  });
+}
+
+export function useSnoozeRewritePractice(): UseMutationResult<
+  RewritePracticeUpdateResult,
+  Error,
+  SnoozeRewritePracticeInput
+> {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (input: SnoozeRewritePracticeInput) => window.api.writing.snoozeRewritePractice(input),
     onSuccess: (result) => updateRewritePracticeCache(queryClient, result),
   });
 }

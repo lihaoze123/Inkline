@@ -92,6 +92,58 @@ describe('renderer query configuration', () => {
     });
   });
 
+  it('removes snoozed rewrite practice from cached writing attempts', () => {
+    const queryClient = createRendererQueryClient();
+    const pendingRewritePractice: NonNullable<WritingAttemptSnapshot['pendingRewritePractice']> = {
+      id: 'rewrite-1',
+      reviewRunId: 'review-run-1',
+      originalSentence: 'it can make people more confidence',
+      focusPattern: 'make + object + adjective',
+      nativeModelSentence: 'it can make people more confident',
+      prompt: 'Rewrite the sentence with the adjective form.',
+      practiceKind: 'rewrite_original',
+      spacedStage: 'D+1',
+      status: 'pending',
+      userRewriteText: null,
+      latestRewriteCheck: null,
+      dueAt: 1777546800000,
+      createdAt: 1777460400000,
+      isOlderThanSevenDays: false,
+    };
+    const journalWriting: WritingAttemptSnapshot = {
+      ...makeWritingAttempt(),
+      attemptId: 'attempt-journal',
+      templateId: 'journal',
+      pendingRewritePractice,
+    };
+    const freeWriting: WritingAttemptSnapshot = {
+      ...makeWritingAttempt(),
+      attemptId: 'attempt-free',
+      templateId: 'free',
+      pendingRewritePractice,
+    };
+
+    queryClient.setQueryData(queryKeys.writing.attempt('journal'), journalWriting);
+    queryClient.setQueryData(queryKeys.writing.attempt('free'), freeWriting);
+
+    updateRewritePracticeCache(queryClient, {
+      success: true,
+      writing: { ...freeWriting, pendingRewritePractice: null },
+      rewritePractice: {
+        ...pendingRewritePractice,
+        status: 'snoozed',
+        dueAt: 1777633200000,
+      },
+    });
+
+    expect(queryClient.getQueryData<WritingAttemptSnapshot>(queryKeys.writing.attempt('journal'))).toMatchObject({
+      pendingRewritePractice: null,
+    });
+    expect(queryClient.getQueryData<WritingAttemptSnapshot>(queryKeys.writing.attempt('free'))).toMatchObject({
+      pendingRewritePractice: null,
+    });
+  });
+
   it('updates rewrite practice cache from a completion result with persisted check feedback', () => {
     const queryClient = createRendererQueryClient();
     const completedCheck: RewriteCheckSnapshot = {

@@ -146,6 +146,10 @@ export const skipRewritePracticeInputSchema = z.object({
   rewriteTaskId: z.string().min(1),
 });
 
+export const snoozeRewritePracticeInputSchema = z.object({
+  rewriteTaskId: z.string().min(1),
+});
+
 export const rewritePracticeUpdateResultSchema = z.object({
   success: z.boolean(),
   writing: writingAttemptSnapshotSchema.optional(),
@@ -154,6 +158,7 @@ export const rewritePracticeUpdateResultSchema = z.object({
 });
 
 export const completeRewritePracticeResultSchema = rewritePracticeUpdateResultSchema;
+export const snoozeRewritePracticeResultSchema = rewritePracticeUpdateResultSchema;
 
 export const retryRewriteCheckInputSchema = z.object({
   rewriteTaskId: z.string().min(1),
@@ -202,8 +207,10 @@ export type SaveWritingAttemptInput = z.infer<typeof saveWritingAttemptInputSche
 export type SaveWritingAttemptResult = z.infer<typeof saveWritingAttemptResultSchema>;
 export type CompleteRewritePracticeInput = z.infer<typeof completeRewritePracticeInputSchema>;
 export type SkipRewritePracticeInput = z.infer<typeof skipRewritePracticeInputSchema>;
+export type SnoozeRewritePracticeInput = z.infer<typeof snoozeRewritePracticeInputSchema>;
 export type RewritePracticeUpdateResult = z.infer<typeof rewritePracticeUpdateResultSchema>;
 export type CompleteRewritePracticeResult = z.infer<typeof completeRewritePracticeResultSchema>;
+export type SnoozeRewritePracticeResult = z.infer<typeof snoozeRewritePracticeResultSchema>;
 export type RetryRewriteCheckInput = z.infer<typeof retryRewriteCheckInputSchema>;
 export type RetryRewriteCheckResult = z.infer<typeof retryRewriteCheckResultSchema>;
 export type GenerateStarterPromptInput = z.infer<typeof generateStarterPromptInputSchema>;

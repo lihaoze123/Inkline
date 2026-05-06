@@ -42,6 +42,7 @@ import {
   useRetryRewriteCheck,
   useSaveWritingAttempt,
   useSkipRewritePractice,
+  useSnoozeRewritePractice,
   useWritingAttempt,
 } from './query/writing';
 
@@ -196,6 +197,7 @@ function PracticePage({ initialWriting, settings, startup }: PracticePageProps):
     useCompleteRewritePractice();
   const { mutateAsync: retryRewriteCheckMutation, isPending: isRetryRewriteCheckPending } = useRetryRewriteCheck();
   const { mutateAsync: skipRewritePracticeMutation } = useSkipRewritePractice();
+  const { mutateAsync: snoozeRewritePracticeMutation } = useSnoozeRewritePractice();
   const { mutateAsync: setDefaultProviderMutation } = useSetDefaultProvider();
   const { mutateAsync: setOnboardingIntroVersionSeenMutation, isPending: isOnboardingIntroDismissPending } =
     useSetOnboardingIntroVersionSeen();
@@ -543,8 +545,13 @@ function PracticePage({ initialWriting, settings, startup }: PracticePageProps):
         if (result.writing) {
           updateWritingCache(result.writing);
         }
-        setCompletedRewritePractice(result.rewritePractice);
-        setRewritePracticeInput(result.rewritePractice.userRewriteText ?? rewritePracticeInput.trim());
+        if (result.rewritePractice.status === 'completed') {
+          setCompletedRewritePractice(result.rewritePractice);
+          setRewritePracticeInput(result.rewritePractice.userRewriteText ?? rewritePracticeInput.trim());
+        } else {
+          setCompletedRewritePractice(null);
+          setRewritePracticeInput('');
+        }
         return;
       }
 
@@ -610,6 +617,29 @@ function PracticePage({ initialWriting, settings, startup }: PracticePageProps):
       setRewritePracticeError(getErrorMessage(error, 'Unable to skip rewrite practice.'));
     }
   }, [skipRewritePracticeMutation, updateWritingCache, writing.pendingRewritePractice]);
+
+  const snoozePendingRewritePractice = useCallback(async (): Promise<void> => {
+    if (!writing.pendingRewritePractice) {
+      return;
+    }
+
+    setRewritePracticeError(null);
+
+    try {
+      const result = await snoozeRewritePracticeMutation({ rewriteTaskId: writing.pendingRewritePractice.id });
+
+      if (result.success && result.writing) {
+        updateWritingCache(result.writing);
+        setCompletedRewritePractice(null);
+        setRewritePracticeInput('');
+        return;
+      }
+
+      setRewritePracticeError(result.error ?? 'Unable to snooze rewrite practice.');
+    } catch (error) {
+      setRewritePracticeError(getErrorMessage(error, 'Unable to snooze rewrite practice.'));
+    }
+  }, [snoozeRewritePracticeMutation, updateWritingCache, writing.pendingRewritePractice]);
 
   const acknowledgeDisclosureAndReview = useCallback(async (): Promise<void> => {
     setReviewError(null);
@@ -891,6 +921,9 @@ function PracticePage({ initialWriting, settings, startup }: PracticePageProps):
                       }}
                       onSkipRewritePractice={() => {
                         void skipPendingRewritePractice();
+                      }}
+                      onSnoozeRewritePractice={() => {
+                        void snoozePendingRewritePractice();
                       }}
                       onReviewCurrentVersion={() => {
                         void reviewCurrentContent();

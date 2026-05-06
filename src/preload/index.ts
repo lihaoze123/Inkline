@@ -19,6 +19,7 @@ import type {
   SaveWritingAttemptInput,
   SaveWritingAttemptResult,
   SkipRewritePracticeInput,
+  SnoozeRewritePracticeInput,
   WritingAttemptSnapshot,
 } from '../shared/types/writing';
 import type {
@@ -60,6 +61,8 @@ const api = {
       ipcRenderer.invoke(IPC_CHANNELS.WRITING.COMPLETE_REWRITE_PRACTICE, input),
     skipRewritePractice: (input: SkipRewritePracticeInput): Promise<RewritePracticeUpdateResult> =>
       ipcRenderer.invoke(IPC_CHANNELS.WRITING.SKIP_REWRITE_PRACTICE, input),
+    snoozeRewritePractice: (input: SnoozeRewritePracticeInput): Promise<RewritePracticeUpdateResult> =>
+      ipcRenderer.invoke(IPC_CHANNELS.WRITING.SNOOZE_REWRITE_PRACTICE, input),
     retryRewriteCheck: (input: RetryRewriteCheckInput): Promise<RetryRewriteCheckResult> =>
       ipcRenderer.invoke(IPC_CHANNELS.WRITING.RETRY_REWRITE_CHECK, input),
   },
