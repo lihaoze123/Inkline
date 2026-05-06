@@ -1,0 +1,24 @@
+{"file": ".trellis/tasks/05-06-pattern-status-lifecycle/prd.md", "reason": "Task requirements and acceptance criteria for the derived pattern lifecycle read model."}
+{"file": ".trellis/spec/product/index.md", "reason": "Product quality gates for learning assets and Progress behavior."}
+{"file": ".trellis/spec/product/roadmap.md", "reason": "Horizon 2 sequencing and constraints around lifecycle/mastery wording."}
+{"file": ".trellis/spec/product/mvp-scope.md", "reason": "v0.2 learning-assets scope and remaining boundaries."}
+{"file": ".trellis/spec/product/learning-flow.md", "reason": "Learner-facing repair/transfer evidence copy and no-mastered constraints."}
+{"file": ".trellis/spec/product/data-model-contract.md", "reason": "Authoritative contract for evidence derivation, D+3/D+7 transfer, merge rollup, and Progress IPC."}
+{"file": ".trellis/spec/product/validation-and-testing.md", "reason": "Quality expectations and required test coverage."}
+{"file": ".trellis/spec/backend/index.md", "reason": "Backend checklist for learning-assets service changes."}
+{"file": ".trellis/spec/backend/api-module.md", "reason": "Service/API organization and Zod validation patterns."}
+{"file": ".trellis/spec/backend/error-handling.md", "reason": "Safe error behavior for service read-model changes."}
+{"file": ".trellis/spec/backend/type-safety.md", "reason": "Zod-first types and discriminated union narrowing rules."}
+{"file": ".trellis/spec/frontend/index.md", "reason": "Frontend checklist for Progress UI changes."}
+{"file": ".trellis/spec/frontend/ipc-electron.md", "reason": "Typed preload/window.api boundary rules."}
+{"file": ".trellis/spec/frontend/components.md", "reason": "Accessible component and loading/empty state patterns."}
+{"file": ".trellis/spec/frontend/react-pitfalls.md", "reason": "React state/dependency pitfalls relevant to Progress rendering."}
+{"file": ".trellis/spec/frontend/quality.md", "reason": "Renderer import and code quality constraints."}
+{"file": ".trellis/spec/shared/index.md", "reason": "Shared type and quality checklist."}
+{"file": ".trellis/spec/shared/code-quality.md", "reason": "Mandatory no-non-null and code quality rules."}
+{"file": ".trellis/spec/shared/typescript.md", "reason": "Explicit return types and type import conventions."}
+{"file": ".trellis/spec/shared/timestamp.md", "reason": "Unix millisecond timestamp contract for lifecycle context."}
+{"file": ".trellis/spec/guides/index.md", "reason": "Thinking-guide routing for cross-layer read-model changes."}
+{"file": ".trellis/spec/guides/cross-layer-thinking-guide.md", "reason": "DB-to-UI data flow checklist for lifecycle fields."}
+{"file": ".trellis/spec/guides/semantic-change-checklist.md", "reason": "Lifecycle status is a semantic read-model change."}
+{"file": ".trellis/spec/guides/code-reuse-thinking-guide.md", "reason": "Avoid duplicating evidence/context derivation logic."}

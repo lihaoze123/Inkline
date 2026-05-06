@@ -1,0 +1,23 @@
+{"file": ".trellis/tasks/05-06-pattern-status-lifecycle/prd.md", "reason": "Acceptance criteria and scope for verification."}
+{"file": ".trellis/spec/product/index.md", "reason": "Product quality gates for learning assets and Progress behavior."}
+{"file": ".trellis/spec/product/roadmap.md", "reason": "Verify lifecycle stays within Horizon 2 and avoids premature mastery."}
+{"file": ".trellis/spec/product/mvp-scope.md", "reason": "Verify v0.2 scope and exclusions."}
+{"file": ".trellis/spec/product/learning-flow.md", "reason": "Verify learner-facing lifecycle copy and outcome semantics."}
+{"file": ".trellis/spec/product/data-model-contract.md", "reason": "Verify evidence, transfer, and merge rollup contract."}
+{"file": ".trellis/spec/product/validation-and-testing.md", "reason": "Verify test and quality expectations."}
+{"file": ".trellis/spec/backend/index.md", "reason": "Backend quality checklist."}
+{"file": ".trellis/spec/backend/api-module.md", "reason": "Verify service/API organization."}
+{"file": ".trellis/spec/backend/error-handling.md", "reason": "Verify safe read-model behavior."}
+{"file": ".trellis/spec/backend/type-safety.md", "reason": "Verify Zod-first shared types and narrowing."}
+{"file": ".trellis/spec/frontend/index.md", "reason": "Frontend quality checklist."}
+{"file": ".trellis/spec/frontend/ipc-electron.md", "reason": "Verify renderer uses typed preload API only."}
+{"file": ".trellis/spec/frontend/components.md", "reason": "Verify accessible Progress rendering."}
+{"file": ".trellis/spec/frontend/react-pitfalls.md", "reason": "Verify React state/dependency handling."}
+{"file": ".trellis/spec/frontend/quality.md", "reason": "Renderer import and quality constraints."}
+{"file": ".trellis/spec/shared/index.md", "reason": "Shared quality checklist."}
+{"file": ".trellis/spec/shared/code-quality.md", "reason": "Mandatory shared code quality rules."}
+{"file": ".trellis/spec/shared/typescript.md", "reason": "Explicit return types and type import conventions."}
+{"file": ".trellis/spec/shared/timestamp.md", "reason": "Verify timestamp fields remain Unix milliseconds."}
+{"file": ".trellis/spec/guides/cross-layer-thinking-guide.md", "reason": "Verify DB-to-UI data flow completeness."}
+{"file": ".trellis/spec/guides/semantic-change-checklist.md", "reason": "Verify semantic lifecycle status changes are complete."}
+{"file": ".trellis/spec/guides/code-reuse-thinking-guide.md", "reason": "Verify no duplicate evidence/status derivation."}
