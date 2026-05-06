@@ -442,7 +442,7 @@ Pattern merge is v0.2+. Historical corrections keep original pattern IDs, and di
 
 ### 1. Scope / Trigger
 
-- Trigger: Any task that changes `error_patterns`, `notebook_entries`, review input pattern selection, review save persistence, or Notebook/Progress IPC.
+- Trigger: Any task that changes `error_patterns`, `notebook_entries`, review input pattern selection, review save persistence, derived pattern evidence, or Notebook/Progress IPC.
 - This is a cross-layer contract: validated review operations -> save transaction -> SQLite learning assets -> preload IPC -> renderer queries -> Notebook/Progress UI.
 
 ### 2. Signatures
@@ -467,6 +467,9 @@ error_patterns(
 
 corrections.pattern_id text null references error_patterns(id) on delete set null
 
+rewrite_tasks.review_run_id text not null references review_runs(id) on delete cascade
+rewrite_checks.rewrite_task_id text not null references rewrite_tasks(id) on delete cascade
+
 notebook_entries(
   id text primary key,
   review_run_id text not null references review_runs(id) on delete cascade,
@@ -482,6 +485,37 @@ notebook_entries(
 Preload API:
 
 ```ts
+type PatternEvidenceStage =
+  | 'needs_repair'
+  | 'repaired_once'
+  | 'transferred_once'
+  | 'stable_after_spaced_reuse';
+
+type PatternEvidenceSummary = {
+  stage: PatternEvidenceStage;
+  latestRepair: {
+    rewriteTaskId: string;
+    practiceKind: 'rewrite_original';
+    spacedStage: 'D+1';
+    status: 'pending' | 'in_progress' | 'completed' | 'skipped' | 'snoozed' | 'expired';
+    dueAt: number | null;
+    completedAt: number | null;
+    createdAt: number;
+    latestCheck: {
+      id: string;
+      status: 'pending' | 'in_progress' | 'completed' | 'failed' | 'retryable';
+      outcome: 'correct' | 'partly_correct' | 'incorrect' | null;
+      completedAt: number | null;
+      updatedAt: number;
+    } | null;
+  } | null;
+};
+
+type ErrorPatternSnapshot = {
+  // existing pattern fields
+  evidence?: PatternEvidenceSummary;
+};
+
 window.api.learningAssets.listErrorPatterns(): Promise<ErrorPatternSnapshot[]>;
 window.api.learningAssets.listNotebookEntries(): Promise<NotebookEntrySnapshot[]>;
 ```
@@ -495,6 +529,13 @@ window.api.learningAssets.listNotebookEntries(): Promise<NotebookEntrySnapshot[]
 - `selectActiveReviewPatterns` reads active non-spelling `error_patterns`, sorts by count and recency, and respects `existingPatternsLimit`.
 - Upgrade opportunities must store the reviewed source phrase, 1-3 suggested alternatives, optional reason, date key, template, and review run ID.
 - Invalid review output and unsaved review previews must not update `error_patterns`, `notebook_entries`, or correction links.
+- `listErrorPatterns` derives `evidence` at query time; do not add a stored evidence-state column in the first version.
+- D+1 repair evidence links an `error_patterns` row to rewrite practice through saved focus corrections: `corrections.pattern_id` plus `corrections.category = 'fix'`, joined to D+1 `rewrite_tasks` by `review_run_id`.
+- Evidence derivation must filter rewrite tasks to `kind = 'rewrite_original'` and `spaced_stage = 'D+1'`.
+- For one rewrite task, the latest completed check is decisive: latest completed `correct` advances to `repaired_once`; latest completed `partly_correct` or `incorrect` remains `needs_repair`.
+- Retryable/failed/in-progress check state is visible context but does not remove prior correct evidence for another D+1 task already counted for that pattern.
+- `skipped`, `snoozed`, and `expired` repair tasks are lifecycle context only; they must not advance evidence stage.
+- Progress must invalidate pattern evidence after rewrite practice/check mutations because evidence is derived from `rewrite_tasks` and `rewrite_checks`, not only from `error_patterns`.
 
 ### 4. Validation & Error Matrix
 
@@ -505,14 +546,23 @@ window.api.learningAssets.listNotebookEntries(): Promise<NotebookEntrySnapshot[]
 | New suggestion is same-category and rule-similar to an existing pattern | Reuse the existing pattern and increment it. |
 | Upgrade `sourceText` is not in reviewed writing | Validation is invalid; save never receives notebook operation. |
 | Save transaction fails after pattern/notebook writes begin | Roll back all review save side effects. |
+| Pattern has no linked D+1 rewrite task | Return `evidence.stage = 'needs_repair'` and `latestRepair = null`. |
+| Linked D+1 task has latest completed check `correct` | Return `evidence.stage = 'repaired_once'`. |
+| Linked D+1 task has latest completed check `partly_correct` or `incorrect` | Keep `evidence.stage = 'needs_repair'` for that task. |
+| Linked D+1 task is `skipped`, `snoozed`, or `expired` | Show lifecycle context without advancing evidence. |
+| Rewrite check mutation completes/retries | Invalidate `learningAssets.errorPatterns` in the renderer query cache. |
 
 ### 5. Good/Base/Bad Cases
 
 - Good: A saved review reuses `tense_past_narrative`, increments its count, links the correction, and shows the pattern in Progress.
+- Good: A D+1 rewrite with latest completed `correct` check shows `Repaired once` in Progress.
 - Good: A valid upgrade for `very good` persists as a Notebook entry only when `very good` appears in the reviewed writing.
 - Base: A spelling correction can persist as a correction without becoming an active review pattern.
+- Base: A pattern with a skipped, snoozed, expired, partly-correct, or incorrect D+1 repair stays `Needs repair` while showing the latest context.
 - Bad: Future review input is built from recent correction row IDs instead of semantic `error_patterns`.
 - Bad: A review preview updates counts before the user explicitly saves.
+- Bad: Progress derives evidence from task `completed` status instead of latest completed rewrite-check outcome.
+- Bad: Progress query stays fresh after a rewrite-check mutation and displays stale evidence.
 
 ### 6. Tests Required
 
@@ -522,6 +572,10 @@ window.api.learningAssets.listNotebookEntries(): Promise<NotebookEntrySnapshot[]
 - Validation test: upgrade source must appear in writing content.
 - Validation test: upgrade cap violations return invalid and empty operations.
 - Service/API test: active review patterns exclude spelling and respect the cap.
+- Service/API test: pattern evidence derives `needs_repair` and `repaired_once` from linked D+1 tasks and latest completed checks.
+- Service/API test: `partly_correct`, `incorrect`, skipped, snoozed, and expired context does not advance evidence.
+- Renderer query test: rewrite practice/check mutation invalidates `learningAssets.errorPatterns`.
+- Progress render test: evidence label/copy is shown separately from review count and does not use `mastered` or gamified wording.
 
 ### 7. Wrong vs Correct
 
@@ -532,6 +586,22 @@ const existingPatterns = db.select().from(corrections).all();
 ```
 
 This treats individual corrections as reusable patterns, which creates unstable IDs and noisy future review input.
+
+#### Wrong
+
+```ts
+const stage = task.status === 'completed' ? 'repaired_once' : 'needs_repair';
+```
+
+This treats activity completion as learning success.
+
+#### Correct
+
+```ts
+const stage = latestCompletedCheck?.outcome === 'correct' ? 'repaired_once' : 'needs_repair';
+```
+
+Only rewrite-check outcome advances the first evidence stage.
 
 #### Correct
 

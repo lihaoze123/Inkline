@@ -40,6 +40,8 @@ Stable after spaced reuse
 
 Do not show `mastered` in the first transfer-evidence version. If later specs add a richer mastery lifecycle, it must be based on more than one delayed new-context success.
 
+First-version Progress derives a read model from saved patterns, D+1 rewrite tasks, and rewrite checks. It should show the evidence label and the latest D+1 repair context, but review count remains separate from learning evidence. `skipped`, `snoozed`, `expired`, `partly_correct`, and `incorrect` are useful context, not advancement.
+
 ## Scenario: Practice Entry and Template Flow
 
 ### 1. Scope / Trigger

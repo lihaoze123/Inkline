@@ -217,6 +217,40 @@ describe('renderer query configuration', () => {
     });
   });
 
+  it('invalidates pattern evidence after rewrite practice state changes', () => {
+    const queryClient = createRendererQueryClient();
+    const pendingRewritePractice: NonNullable<WritingAttemptSnapshot['pendingRewritePractice']> = {
+      id: 'rewrite-1',
+      reviewRunId: 'review-run-1',
+      originalSentence: 'it can make people more confidence',
+      focusPattern: 'make + object + adjective',
+      nativeModelSentence: 'it can make people more confident',
+      prompt: 'Rewrite the sentence with the adjective form.',
+      practiceKind: 'rewrite_original',
+      spacedStage: 'D+1',
+      status: 'pending',
+      userRewriteText: null,
+      latestRewriteCheck: null,
+      dueAt: 1777546800000,
+      createdAt: 1777460400000,
+      isOlderThanSevenDays: false,
+    };
+
+    queryClient.setQueryData(queryKeys.learningAssets.errorPatterns, []);
+
+    updateRewritePracticeCache(queryClient, {
+      success: true,
+      writing: { ...makeWritingAttempt(), pendingRewritePractice: null },
+      rewritePractice: {
+        ...pendingRewritePractice,
+        status: 'completed',
+        userRewriteText: 'it can make people more confident',
+      },
+    });
+
+    expect(queryClient.getQueryState(queryKeys.learningAssets.errorPatterns)?.isInvalidated).toBe(true);
+  });
+
   it('updates rewrite practice cache from a retry check result', () => {
     const queryClient = createRendererQueryClient();
     const retryableCheck: RewriteCheckSnapshot = {

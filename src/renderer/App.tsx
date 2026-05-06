@@ -10,7 +10,7 @@ import {
   type SettingsSnapshot,
   type SetProviderConfigInput,
 } from '@shared/types/settings';
-import type { ErrorPatternSnapshot, NotebookEntrySnapshot } from '@shared/types/learning-assets';
+import type { NotebookEntrySnapshot } from '@shared/types/learning-assets';
 import { WritingEditorCard } from './components/WritingEditorCard';
 import { LearningPanel } from './components/LearningPanel';
 import { RevealAnswerDialog } from './components/RevealAnswerDialog';
@@ -18,6 +18,7 @@ import { ReviewDisclosureDialog } from './components/ReviewDisclosureDialog';
 import { SettingsPage } from './components/SettingsPage';
 import { OnboardingIntro } from './components/OnboardingIntro';
 import { PracticeHeader } from './components/PracticeHeader';
+import { ProgressPage } from './components/ProgressPage';
 import { getFocusCorrection, HighlightedWriting, patternRule } from './components/review-utils';
 import feedbackInkLandscapeUrl from './assets/feedback-ink-landscape.png';
 import type { ReviewProgressModel, ReviewState, SaveState } from './components/types';
@@ -1203,101 +1204,6 @@ function NotebookPage({
                 ))}
               </div>
               {entry.reason ? <p className="mt-4 text-sm leading-6 text-base-content/62">{entry.reason}</p> : null}
-            </article>
-          ))}
-        </div>
-      </LearningPageState>
-    </section>
-  );
-}
-
-function ProgressPage({
-  patterns,
-  isLoading,
-  isError,
-  hasWritten,
-  hasPendingRewrite,
-  onOpenPractice,
-}: {
-  patterns: ErrorPatternSnapshot[];
-  isLoading: boolean;
-  isError: boolean;
-  hasWritten: boolean;
-  hasPendingRewrite: boolean;
-  onOpenPractice: () => void;
-}): React.JSX.Element {
-  return (
-    <section className="flex min-h-0 flex-1 flex-col gap-9" aria-labelledby="progress-page-title">
-      <header className="ui-chrome pb-2">
-        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-primary/70">Progress</p>
-        <h1 id="progress-page-title" className="editorial-heading mt-4 text-5xl text-base-content">
-          Pattern evidence
-        </h1>
-        <p className="mt-4 max-w-2xl text-base leading-7 text-base-content/60">
-          A calm record of patterns that have appeared in saved reviews and later rewrite practice.
-        </p>
-      </header>
-
-      <div className="ui-chrome grid max-w-4xl gap-5 md:grid-cols-3">
-        <section className="rounded-lg bg-base-100/24 p-4">
-          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-base-content/45">Current draft</p>
-          <p className="mt-3 text-2xl font-semibold">{hasWritten ? 'In progress' : 'Ready'}</p>
-          <p className="mt-3 text-sm leading-6 text-base-content/60">The active template keeps the session focused.</p>
-        </section>
-        <section className="rounded-lg bg-base-100/24 p-4">
-          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-base-content/45">Next rewrite</p>
-          <p className="mt-3 text-2xl font-semibold">{hasPendingRewrite ? 'Waiting' : 'After review'}</p>
-          <p className="mt-3 text-sm leading-6 text-base-content/60">A short repair appears after saved feedback.</p>
-        </section>
-        <section className="rounded-lg bg-base-100/24 p-4">
-          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-base-content/45">Patterns</p>
-          <p className="mt-3 text-2xl font-semibold">{patterns.length}</p>
-          <p className="mt-3 text-sm leading-6 text-base-content/60">Tracked patterns guide future review focus.</p>
-        </section>
-      </div>
-
-      <LearningPageState
-        isLoading={isLoading}
-        isError={isError}
-        isEmpty={patterns.length === 0}
-        emptyTitle="No recurring patterns yet"
-        emptyBody="Save a review and repeated grammar or wording patterns will collect here."
-        onOpenPractice={onOpenPractice}
-      >
-        <div className="grid max-w-5xl gap-4 xl:grid-cols-2">
-          {patterns.map((pattern) => (
-            <article
-              key={pattern.id}
-              className="rounded-lg bg-base-100/32 p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.7)]"
-            >
-              <div className="ui-chrome flex items-start justify-between gap-4">
-                <div>
-                  <p className="text-xs font-semibold uppercase tracking-[0.14em] text-base-content/45">
-                    {pattern.category.replace('_', ' ')}
-                  </p>
-                  <h2 className="selectable-content mt-2 text-xl font-semibold leading-7 text-base-content">
-                    {pattern.rule}
-                  </h2>
-                </div>
-                <p className="shrink-0 text-right text-sm font-semibold text-primary">
-                  {pattern.count}x<span className="block text-xs font-medium text-base-content/45">seen</span>
-                </p>
-              </div>
-              <div className="selectable-content">
-                <p className="mt-4 text-sm leading-6 text-base-content/62">{pattern.canonicalExample}</p>
-                <p className="ui-chrome mt-4 text-xs font-semibold uppercase tracking-[0.14em] text-base-content/45">
-                  Last seen {formatDateKeyLabel(pattern.lastSeenDateKey)}
-                </p>
-                {pattern.recentExamples.length > 0 ? (
-                  <div className="mt-3 grid gap-2">
-                    {pattern.recentExamples.slice(0, 2).map((example) => (
-                      <p key={example} className="text-sm leading-6 text-base-content/68">
-                        {example}
-                      </p>
-                    ))}
-                  </div>
-                ) : null}
-              </div>
             </article>
           ))}
         </div>

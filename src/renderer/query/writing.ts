@@ -63,6 +63,8 @@ export function updateRewritePracticeCache(
     return;
   }
 
+  void queryClient.invalidateQueries({ queryKey: queryKeys.learningAssets.errorPatterns });
+
   if (result.writing) {
     updateWritingAttemptCache(queryClient, result.writing);
     queryClient.setQueriesData<WritingAttemptSnapshot>({ queryKey: queryKeys.writing.attempts }, (cachedWriting) => {

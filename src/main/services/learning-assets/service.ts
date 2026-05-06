@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
-import { desc, eq } from 'drizzle-orm';
+import { and, desc, eq, inArray } from 'drizzle-orm';
 import { db } from '../../db/client';
-import { errorPatterns, notebookEntries } from '../../db/schema';
+import { corrections, errorPatterns, notebookEntries, rewriteChecks, rewriteTasks } from '../../db/schema';
 import { arePatternRulesSimilar, normalizePatternKey } from '../../../shared/review-contract/patterns';
 import type { ErrorPattern } from '../../../shared/review-contract/schemas';
 import type { PatternOperationSnapshot, PreviewOperationsSnapshot } from '../../../shared/types/review';
@@ -12,14 +12,45 @@ import {
   type ListErrorPatternsOutput,
   type ListNotebookEntriesOutput,
   type NotebookEntrySnapshot,
+  type PatternEvidenceCheckSummary,
+  type PatternEvidenceRepairSummary,
+  type PatternEvidenceStage,
+  type PatternEvidenceSummary,
 } from '../../../shared/types/learning-assets';
-import type { WritingTemplateId } from '../../../shared/types/writing';
+import type {
+  RewriteCheckOutcome,
+  RewriteCheckStatus,
+  RewritePracticeStatus,
+  WritingTemplateId,
+} from '../../../shared/types/writing';
 
 const RECENT_EXAMPLES_LIMIT = 5;
 const LIST_LIMIT = 50;
 
 type LearningAssetTx = Pick<typeof db, 'select' | 'insert' | 'update'>;
 type ErrorPatternRow = typeof errorPatterns.$inferSelect;
+type EvidenceRepairTask = {
+  patternId: string;
+  repair: PatternEvidenceRepairSummary;
+  latestCompletedOutcome: RewriteCheckOutcome | null;
+  latestCompletedRank: number | null;
+  contextRank: number;
+};
+
+export type PatternEvidenceQueryRow = {
+  patternId: string | null;
+  rewriteTaskId: string;
+  rewriteTaskStatus: RewritePracticeStatus;
+  dueAt: Date | null;
+  completedAt: Date | null;
+  taskCreatedAt: Date;
+  checkId: string | null;
+  checkStatus: RewriteCheckStatus | null;
+  checkOutcome: RewriteCheckOutcome | null;
+  checkCompletedAt: Date | null;
+  checkUpdatedAt: Date | null;
+  checkCreatedAt: Date | null;
+};
 
 export type PersistedPatternLink = {
   patternId: string;
@@ -39,7 +70,7 @@ function parseStringArray(value: string): string[] {
   return parsed.filter((item): item is string => typeof item === 'string' && item.trim().length > 0);
 }
 
-function patternToSnapshot(pattern: ErrorPatternRow): ErrorPatternSnapshot {
+function patternToSnapshot(pattern: ErrorPatternRow, evidence: PatternEvidenceSummary): ErrorPatternSnapshot {
   return {
     id: pattern.id,
     patternKey: pattern.patternKey,
@@ -53,6 +84,7 @@ function patternToSnapshot(pattern: ErrorPatternRow): ErrorPatternSnapshot {
     active: pattern.active,
     createdAt: pattern.createdAt.getTime(),
     updatedAt: pattern.updatedAt.getTime(),
+    evidence,
   };
 }
 
@@ -69,16 +101,196 @@ function notebookEntryToSnapshot(entry: typeof notebookEntries.$inferSelect): No
   };
 }
 
-export function listErrorPatterns(): ListErrorPatternsOutput {
-  const patterns = db
+export function listErrorPatterns(database: typeof db = db): ListErrorPatternsOutput {
+  const patternRows = database
     .select()
     .from(errorPatterns)
     .orderBy(desc(errorPatterns.count), desc(errorPatterns.updatedAt))
     .limit(LIST_LIMIT)
-    .all()
-    .map(patternToSnapshot);
+    .all();
+
+  const patternIds = patternRows.map((pattern) => pattern.id);
+  const evidenceByPatternId = derivePatternEvidenceSummaries(selectPatternEvidenceRows(database, patternIds));
+  const patterns = patternRows.map((pattern) =>
+    patternToSnapshot(pattern, evidenceByPatternId.get(pattern.id) ?? defaultEvidenceSummary()),
+  );
 
   return listErrorPatternsOutputSchema.parse(patterns);
+}
+
+function selectPatternEvidenceRows(database: typeof db, patternIds: string[]): PatternEvidenceQueryRow[] {
+  if (patternIds.length === 0) {
+    return [];
+  }
+
+  return database
+    .select({
+      patternId: corrections.patternId,
+      rewriteTaskId: rewriteTasks.id,
+      rewriteTaskStatus: rewriteTasks.status,
+      dueAt: rewriteTasks.dueAt,
+      completedAt: rewriteTasks.completedAt,
+      taskCreatedAt: rewriteTasks.createdAt,
+      checkId: rewriteChecks.id,
+      checkStatus: rewriteChecks.status,
+      checkOutcome: rewriteChecks.outcome,
+      checkCompletedAt: rewriteChecks.completedAt,
+      checkUpdatedAt: rewriteChecks.updatedAt,
+      checkCreatedAt: rewriteChecks.createdAt,
+    })
+    .from(corrections)
+    .innerJoin(rewriteTasks, eq(corrections.reviewRunId, rewriteTasks.reviewRunId))
+    .leftJoin(rewriteChecks, eq(rewriteChecks.rewriteTaskId, rewriteTasks.id))
+    .where(
+      and(
+        inArray(corrections.patternId, patternIds),
+        eq(corrections.category, 'fix'),
+        eq(rewriteTasks.kind, 'rewrite_original'),
+        eq(rewriteTasks.spacedStage, 'D+1'),
+      ),
+    )
+    .all();
+}
+
+export function derivePatternEvidenceSummaries(rows: PatternEvidenceQueryRow[]): Map<string, PatternEvidenceSummary> {
+  const tasks = new Map<string, EvidenceRepairTask>();
+
+  rows.forEach((row) => {
+    if (!row.patternId) {
+      return;
+    }
+
+    const taskKey = `${row.patternId}:${row.rewriteTaskId}`;
+    const existingTask = tasks.get(taskKey);
+    const task = existingTask ?? createEvidenceRepairTask(row, row.patternId);
+    const check = checkSummaryFromRow(row);
+
+    if (check) {
+      const currentCheckRank = task.repair.latestCheck ? checkContextRank(task.repair.latestCheck) : null;
+      const rowCheckRank = rowCheckContextRank(row);
+      if (currentCheckRank === null || rowCheckRank > currentCheckRank) {
+        task.repair = { ...task.repair, latestCheck: check };
+      }
+
+      if (check.status === 'completed' && check.outcome !== null) {
+        const completedRank = rowCompletedCheckRank(row);
+        if (task.latestCompletedRank === null || completedRank > task.latestCompletedRank) {
+          task.latestCompletedOutcome = check.outcome;
+          task.latestCompletedRank = completedRank;
+        }
+      }
+    }
+
+    task.contextRank = Math.max(task.contextRank, repairContextRank(task.repair));
+    tasks.set(taskKey, task);
+  });
+
+  const summaries = new Map<string, PatternEvidenceSummary>();
+  tasks.forEach((task) => {
+    const current = summaries.get(task.patternId) ?? defaultEvidenceSummary();
+    const stage = strongestEvidenceStage(
+      current.stage,
+      task.latestCompletedOutcome === 'correct' ? 'repaired_once' : 'needs_repair',
+    );
+    const latestRepair =
+      current.latestRepair && repairContextRank(current.latestRepair) >= task.contextRank
+        ? current.latestRepair
+        : task.repair;
+
+    summaries.set(task.patternId, { stage, latestRepair });
+  });
+
+  return summaries;
+}
+
+function createEvidenceRepairTask(row: PatternEvidenceQueryRow, patternId: string): EvidenceRepairTask {
+  return {
+    patternId,
+    repair: {
+      rewriteTaskId: row.rewriteTaskId,
+      practiceKind: 'rewrite_original',
+      spacedStage: 'D+1',
+      status: row.rewriteTaskStatus,
+      dueAt: dateToMillis(row.dueAt),
+      completedAt: dateToMillis(row.completedAt),
+      createdAt: row.taskCreatedAt.getTime(),
+      latestCheck: null,
+    },
+    latestCompletedOutcome: null,
+    latestCompletedRank: null,
+    contextRank: taskContextRank(row),
+  };
+}
+
+function checkSummaryFromRow(row: PatternEvidenceQueryRow): PatternEvidenceCheckSummary | null {
+  if (!row.checkId || !row.checkStatus || !row.checkUpdatedAt) {
+    return null;
+  }
+
+  return {
+    id: row.checkId,
+    status: row.checkStatus,
+    outcome: row.checkStatus === 'completed' ? row.checkOutcome : null,
+    completedAt: dateToMillis(row.checkCompletedAt),
+    updatedAt: row.checkUpdatedAt.getTime(),
+  };
+}
+
+function defaultEvidenceSummary(): PatternEvidenceSummary {
+  return {
+    stage: 'needs_repair',
+    latestRepair: null,
+  };
+}
+
+function strongestEvidenceStage(current: PatternEvidenceStage, next: PatternEvidenceStage): PatternEvidenceStage {
+  if (current === 'stable_after_spaced_reuse' || next === 'stable_after_spaced_reuse') {
+    return 'stable_after_spaced_reuse';
+  }
+  if (current === 'transferred_once' || next === 'transferred_once') {
+    return 'transferred_once';
+  }
+  if (current === 'repaired_once' || next === 'repaired_once') {
+    return 'repaired_once';
+  }
+  return 'needs_repair';
+}
+
+function repairContextRank(repair: PatternEvidenceRepairSummary): number {
+  return Math.max(
+    repair.latestCheck ? checkContextRank(repair.latestCheck) : 0,
+    repair.completedAt ?? 0,
+    repair.dueAt ?? 0,
+    repair.createdAt,
+  );
+}
+
+function checkContextRank(check: PatternEvidenceCheckSummary): number {
+  return Math.max(check.completedAt ?? 0, check.updatedAt);
+}
+
+function taskContextRank(row: PatternEvidenceQueryRow): number {
+  return Math.max(dateToMillis(row.completedAt) ?? 0, dateToMillis(row.dueAt) ?? 0, row.taskCreatedAt.getTime());
+}
+
+function rowCheckContextRank(row: PatternEvidenceQueryRow): number {
+  return Math.max(
+    dateToMillis(row.checkCompletedAt) ?? 0,
+    dateToMillis(row.checkUpdatedAt) ?? 0,
+    dateToMillis(row.checkCreatedAt) ?? 0,
+  );
+}
+
+function rowCompletedCheckRank(row: PatternEvidenceQueryRow): number {
+  return Math.max(
+    dateToMillis(row.checkCompletedAt) ?? 0,
+    dateToMillis(row.checkUpdatedAt) ?? 0,
+    dateToMillis(row.checkCreatedAt) ?? 0,
+  );
+}
+
+function dateToMillis(value: Date | null): number | null {
+  return value ? value.getTime() : null;
 }
 
 export function listNotebookEntries(): ListNotebookEntriesOutput {
