@@ -1,0 +1,14 @@
+{"file": ".trellis/spec/product/roadmap.md", "reason": "Roadmap source for Horizon 3 scenario pack sequencing and shared-engine constraints."}
+{"file": ".trellis/spec/product/mvp-scope.md", "reason": "Defines out-of-scope template editing, AI co-writing, dashboards, scoring, and parallel engines."}
+{"file": ".trellis/spec/product/learning-flow.md", "reason": "Practice template flow, user goal/starter prompt behavior, and editor-first product contracts."}
+{"file": ".trellis/spec/product/review-agent-contract.md", "reason": "Template-aware review input and userGoal context boundaries."}
+{"file": ".trellis/spec/frontend/index.md", "reason": "Frontend implementation entrypoint and mandatory guideline routing."}
+{"file": ".trellis/spec/frontend/react-pitfalls.md", "reason": "React state/dependency patterns for goal-chip interactions."}
+{"file": ".trellis/spec/frontend/components.md", "reason": "Semantic buttons and compact component layout guidance."}
+{"file": ".trellis/spec/frontend/type-safety.md", "reason": "Shared type imports and explicit exported function type guidance."}
+{"file": ".trellis/spec/frontend/css-design.md", "reason": "Inkline editorial UI contract and quiet Practice surface constraints."}
+{"file": ".trellis/spec/frontend/quality.md", "reason": "Frontend quality bar and forbidden patterns."}
+{"file": ".trellis/spec/shared/code-quality.md", "reason": "Shared no-any/no-non-null assertion and testing rules."}
+{"file": ".trellis/spec/shared/typescript.md", "reason": "TypeScript explicit return type and type import guidance."}
+{"file": ".trellis/spec/guides/pre-implementation-checklist.md", "reason": "Checklist for reuse, scope, and edge cases before implementation."}
+{"file": ".trellis/tasks/05-06-scenario-pack-foundation/info.md", "reason": "Task-specific implementation notes and constraints."}

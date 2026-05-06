@@ -1,0 +1,14 @@
+{"file": ".trellis/spec/product/roadmap.md", "reason": "Verify scenario pack implementation stays within Horizon 3 thin scenario-track sequencing."}
+{"file": ".trellis/spec/product/mvp-scope.md", "reason": "Check no template editing, AI co-writing, dashboard, score, or parallel engine behavior slipped in."}
+{"file": ".trellis/spec/product/learning-flow.md", "reason": "Verify Practice template flow, userGoal, starter prompt, and editor-first contracts."}
+{"file": ".trellis/spec/product/review-agent-contract.md", "reason": "Verify review input compatibility and no schema/provider changes were introduced."}
+{"file": ".trellis/spec/frontend/index.md", "reason": "Frontend quality checklist entrypoint."}
+{"file": ".trellis/spec/frontend/react-pitfalls.md", "reason": "Review React state, callback, and controlled input behavior."}
+{"file": ".trellis/spec/frontend/components.md", "reason": "Review semantic buttons and layout behavior."}
+{"file": ".trellis/spec/frontend/type-safety.md", "reason": "Review shared type usage and exported function typing."}
+{"file": ".trellis/spec/frontend/css-design.md", "reason": "Review Inkline visual contract and avoid noisy dashboard styling."}
+{"file": ".trellis/spec/frontend/quality.md", "reason": "Review lint/typecheck/test quality expectations."}
+{"file": ".trellis/spec/shared/code-quality.md", "reason": "Review no-any/no-non-null assertion and testing requirements."}
+{"file": ".trellis/spec/shared/typescript.md", "reason": "Review TypeScript conventions."}
+{"file": ".trellis/tasks/05-06-scenario-pack-foundation/prd.md", "reason": "Verify acceptance criteria and out-of-scope list."}
+{"file": ".trellis/tasks/05-06-scenario-pack-foundation/info.md", "reason": "Verify task-specific implementation notes and risk constraints."}
