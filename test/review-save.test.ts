@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import {
   corrections,
   errorPatterns,
+  learningEvents,
   notebookEntries,
   writingAttempts,
   writingRevisions,
@@ -13,6 +14,7 @@ import {
 import type {
   corrections as correctionsTable,
   errorPatterns as errorPatternsTable,
+  learningEvents as learningEventsTable,
   notebookEntries as notebookEntriesTable,
   writingAttempts as writingAttemptsTable,
   writingRevisions as writingRevisionsTable,
@@ -33,6 +35,7 @@ type WritingRevisionRow = typeof writingRevisionsTable.$inferSelect;
 type ReviewRunRow = typeof reviewRunsTable.$inferSelect;
 type CorrectionRow = typeof correctionsTable.$inferSelect;
 type ErrorPatternRow = typeof errorPatternsTable.$inferSelect;
+type LearningEventRow = typeof learningEventsTable.$inferSelect;
 type NotebookEntryRow = typeof notebookEntriesTable.$inferSelect;
 type SelfRepairAttemptRow = typeof selfRepairAttemptsTable.$inferSelect;
 type ReferenceRewriteRow = typeof referenceRewritesTable.$inferSelect;
@@ -44,6 +47,7 @@ type StoredRow =
   | ReviewRunRow
   | CorrectionRow
   | ErrorPatternRow
+  | LearningEventRow
   | NotebookEntryRow
   | SelfRepairAttemptRow
   | ReferenceRewriteRow
@@ -55,6 +59,7 @@ type TableName =
   | 'reviewRuns'
   | 'corrections'
   | 'errorPatterns'
+  | 'learningEvents'
   | 'notebookEntries'
   | 'selfRepairAttempts'
   | 'referenceRewrites'
@@ -66,6 +71,7 @@ type RowStore = {
   reviewRuns: ReviewRunRow[];
   corrections: CorrectionRow[];
   errorPatterns: ErrorPatternRow[];
+  learningEvents: LearningEventRow[];
   notebookEntries: NotebookEntryRow[];
   selfRepairAttempts: SelfRepairAttemptRow[];
   referenceRewrites: ReferenceRewriteRow[];
@@ -108,6 +114,7 @@ const tableNames = new Map<object, TableName>([
   [reviewRuns, 'reviewRuns'],
   [corrections, 'corrections'],
   [errorPatterns, 'errorPatterns'],
+  [learningEvents, 'learningEvents'],
   [notebookEntries, 'notebookEntries'],
   [selfRepairAttempts, 'selfRepairAttempts'],
   [referenceRewrites, 'referenceRewrites'],
@@ -287,6 +294,10 @@ class FakeReviewDatabase {
     return [...this.store.errorPatterns];
   }
 
+  savedLearningEvents(): LearningEventRow[] {
+    return [...this.store.learningEvents];
+  }
+
   savedNotebookEntries(): NotebookEntryRow[] {
     return [...this.store.notebookEntries];
   }
@@ -322,6 +333,14 @@ class FakeReviewDatabase {
           updatedAt: now,
         } as ErrorPatternRow;
         this.store.errorPatterns.push(inserted);
+        return inserted;
+      }
+      case 'learningEvents': {
+        const inserted = {
+          ...row,
+          createdAt: now,
+        } as LearningEventRow;
+        this.store.learningEvents.push(inserted);
         return inserted;
       }
       case 'notebookEntries': {
@@ -500,6 +519,21 @@ describe('saveReviewRun transaction', () => {
     expect(database.count('selfRepairAttempts')).toBe(1);
     expect(database.count('referenceRewrites')).toBe(1);
     expect(database.count('rewriteTasks')).toBe(1);
+    expect(
+      database
+        .savedLearningEvents()
+        .map((event) => event.eventType)
+        .sort(),
+    ).toEqual(['review_saved', 'rewrite_task_created']);
+    expect(database.savedLearningEvents()).toHaveLength(2);
+    expect(database.savedLearningEvents().find((event) => event.eventType === 'review_saved')).toMatchObject({
+      reviewRunId: 'review_1',
+      dedupeKey: 'review_saved:review_1:review_saved',
+    });
+    expect(database.savedLearningEvents().find((event) => event.eventType === 'rewrite_task_created')).toMatchObject({
+      reviewRunId: 'review_1',
+      dedupeKey: expect.stringContaining('rewrite_task_created:rewrite_'),
+    });
     expect(database.savedRewriteTasks()[0]).toMatchObject({
       originalSentence: 'I go home',
       focusPattern: 'Use past tense for completed actions.',
@@ -1080,6 +1114,11 @@ describe('saveReviewRun transaction', () => {
     expect(result).toMatchObject({ success: true });
     expect(database.reviewRun()?.status).toBe('stale');
     expect(database.writingAttempt()?.lastReviewRunId).toBe('older_review');
+    expect(database.savedLearningEvents().find((event) => event.eventType === 'review_saved')).toMatchObject({
+      reviewRunId: 'review_1',
+      dedupeKey: 'review_saved:review_1:stale',
+      payloadJson: expect.stringContaining('"saveAsStaleHistory":true'),
+    });
   });
 
   it('rejects a review that lacks one anchored focus correction', async () => {
@@ -1119,6 +1158,7 @@ function emptyStore(): RowStore {
     reviewRuns: [],
     corrections: [],
     errorPatterns: [],
+    learningEvents: [],
     notebookEntries: [],
     selfRepairAttempts: [],
     referenceRewrites: [],
@@ -1145,6 +1185,11 @@ function cloneStore(store: RowStore): RowStore {
       ...row,
       createdAt: cloneDate(row.createdAt),
       updatedAt: cloneDate(row.updatedAt),
+    })),
+    learningEvents: store.learningEvents.map((row) => ({
+      ...row,
+      occurredAt: cloneDate(row.occurredAt),
+      createdAt: cloneDate(row.createdAt),
     })),
     notebookEntries: store.notebookEntries.map((row) => ({ ...row, createdAt: cloneDate(row.createdAt) })),
     selfRepairAttempts: store.selfRepairAttempts.map((row) => ({ ...row, createdAt: cloneDate(row.createdAt) })),

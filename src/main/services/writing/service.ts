@@ -54,6 +54,7 @@ import {
   type AiProviderDiagnostics,
   type AiProviderFailureKind,
 } from '../../../shared/types/ai';
+import { appendLearningEvent } from '../learning-assets/service';
 
 const starterPromptGenerationSchema = z.object({
   prompt: z.string().trim().min(1),
@@ -87,6 +88,8 @@ function revisionToSnapshot(revision: WritingRevision): WritingAttemptSnapshot['
 
 type RewriteTaskRow = typeof rewriteTasksTable.$inferSelect;
 type RewriteCheckRow = typeof rewriteChecksTable.$inferSelect;
+type WritingEventDatabase = Pick<typeof db, 'select' | 'insert'>;
+type RewriteCheckEventTrigger = 'submit' | 'retry';
 
 const ONE_DAY_MS = 24 * 60 * 60 * 1000;
 const THREE_DAYS_MS = 3 * ONE_DAY_MS;
@@ -210,6 +213,104 @@ function getLatestCompletedRewriteCheck(rewriteTaskId: string): RewriteCheckRow 
   );
 }
 
+function getFocusPatternIdForRewriteTask(
+  task: RewriteTaskRow,
+  database: Pick<typeof db, 'select'> = db,
+): string | null {
+  const focusCorrection = database
+    .select()
+    .from(corrections)
+    .where(eq(corrections.reviewRunId, task.reviewRunId))
+    .all()
+    .find((correction) => correction.category === 'fix' && correction.patternId !== null);
+
+  return focusCorrection?.patternId ?? null;
+}
+
+function rewriteTaskEventPayload(task: RewriteTaskRow, extra: Record<string, unknown> = {}): Record<string, unknown> {
+  return {
+    practiceKind: task.kind,
+    spacedStage: task.spacedStage,
+    status: task.status,
+    ...extra,
+  };
+}
+
+function appendRewriteSubmittedEvent(
+  previousTask: RewriteTaskRow,
+  updatedTask: RewriteTaskRow,
+  submissionKind: 'initial' | 'recovery',
+  database: WritingEventDatabase = db,
+): void {
+  const completedAt = updatedTask.completedAt ?? new Date();
+  appendLearningEvent(
+    {
+      eventType: 'rewrite_submitted',
+      occurredAt: completedAt,
+      dedupeKey: `rewrite_submitted:${updatedTask.id}:${completedAt.getTime()}`,
+      reviewRunId: updatedTask.reviewRunId,
+      patternId: getFocusPatternIdForRewriteTask(updatedTask, database),
+      rewriteTaskId: updatedTask.id,
+      payload: rewriteTaskEventPayload(updatedTask, {
+        previousStatus: previousTask.status,
+        newStatus: updatedTask.status,
+        submissionKind,
+      }),
+    },
+    database,
+  );
+}
+
+function appendRewriteCheckRecordedEvent(
+  task: RewriteTaskRow,
+  check: RewriteCheckRow,
+  trigger: RewriteCheckEventTrigger,
+  database: WritingEventDatabase = db,
+): void {
+  appendLearningEvent(
+    {
+      eventType: 'rewrite_check_recorded',
+      occurredAt: check.completedAt ?? check.updatedAt,
+      dedupeKey: `rewrite_check_recorded:${check.id}`,
+      reviewRunId: task.reviewRunId,
+      patternId: getFocusPatternIdForRewriteTask(task, database),
+      rewriteTaskId: task.id,
+      rewriteCheckId: check.id,
+      payload: rewriteTaskEventPayload(task, {
+        trigger,
+        checkStatus: check.status,
+        outcome: check.outcome,
+        hasValidationErrors: parseStringArrayJson(check.validationErrorsJson)?.length ? true : false,
+        hasErrorMessage: Boolean(check.errorMessage),
+      }),
+    },
+    database,
+  );
+}
+
+function appendRewriteRetryRequestedEvent(
+  task: RewriteTaskRow,
+  check: RewriteCheckRow,
+  database: WritingEventDatabase = db,
+): void {
+  appendLearningEvent(
+    {
+      eventType: 'rewrite_retry_requested',
+      occurredAt: check.createdAt,
+      dedupeKey: `rewrite_retry_requested:${task.id}:${check.id}`,
+      reviewRunId: task.reviewRunId,
+      patternId: getFocusPatternIdForRewriteTask(task, database),
+      rewriteTaskId: task.id,
+      rewriteCheckId: check.id,
+      payload: rewriteTaskEventPayload(task, {
+        checkStatus: check.status,
+        previousSavedRewrite: true,
+      }),
+    },
+    database,
+  );
+}
+
 function rewriteCheckToSnapshot(check: RewriteCheckRow): RewriteCheckSnapshot {
   return {
     id: check.id,
@@ -320,7 +421,35 @@ function expireStaleRewritePractices(now = new Date()): void {
       continue;
     }
 
-    db.update(rewriteTasks).set({ status: 'expired' }).where(eq(rewriteTasks.id, task.id)).run();
+    db.transaction((tx) => {
+      const updatedTask = tx
+        .update(rewriteTasks)
+        .set({ status: 'expired' })
+        .where(eq(rewriteTasks.id, task.id))
+        .returning()
+        .get();
+
+      if (!updatedTask) {
+        throw new Error('Expired rewrite task was not returned.');
+      }
+
+      appendLearningEvent(
+        {
+          eventType: 'rewrite_expired',
+          occurredAt: now,
+          dedupeKey: `rewrite_expired:${task.id}`,
+          reviewRunId: task.reviewRunId,
+          patternId: getFocusPatternIdForRewriteTask(task, tx),
+          rewriteTaskId: task.id,
+          payload: rewriteTaskEventPayload(updatedTask, {
+            previousStatus: task.status,
+            newStatus: updatedTask.status,
+            dueAt: task.dueAt?.getTime() ?? null,
+          }),
+        },
+        tx,
+      );
+    });
   }
 }
 
@@ -776,20 +905,62 @@ function buildRewriteCheckDiagnosticsForError(
   return diagnostics;
 }
 
-async function evaluateRewriteCheck(task: RewriteTaskRow, userRewriteText: string): Promise<RewriteCheckRow> {
+type RewriteCheckResultPatch = {
+  status: 'completed' | 'retryable';
+  outcome: 'correct' | 'partly_correct' | 'incorrect' | null;
+  feedback?: string | null;
+  provider: string | null;
+  model: string | null;
+  validationErrorsJson: string;
+  errorMessage: string | null;
+  diagnosticsJson: string | null;
+  completedAt: Date;
+};
+
+function recordRewriteCheckResult(
+  task: RewriteTaskRow,
+  checkId: string,
+  trigger: RewriteCheckEventTrigger,
+  patch: RewriteCheckResultPatch,
+): RewriteCheckRow {
+  return db.transaction((tx) => {
+    const check = tx.update(rewriteChecks).set(patch).where(eq(rewriteChecks.id, checkId)).returning().get();
+    if (!check) {
+      throw new Error('Rewrite check result was not returned.');
+    }
+
+    appendRewriteCheckRecordedEvent(task, check, trigger, tx);
+    return check;
+  });
+}
+
+async function evaluateRewriteCheck(
+  task: RewriteTaskRow,
+  userRewriteText: string,
+  trigger: RewriteCheckEventTrigger,
+): Promise<RewriteCheckRow> {
   const checkId = createId('rewrite_check');
-  const startedCheck = db
-    .insert(rewriteChecks)
-    .values({
-      id: checkId,
-      rewriteTaskId: task.id,
-      status: 'in_progress',
-      validationErrorsJson: JSON.stringify([]),
-    })
-    .returning()
-    .get();
+  const startedCheck = db.transaction((tx) => {
+    const check = tx
+      .insert(rewriteChecks)
+      .values({
+        id: checkId,
+        rewriteTaskId: task.id,
+        status: 'in_progress',
+        validationErrorsJson: JSON.stringify([]),
+      })
+      .returning()
+      .get();
+
+    if (trigger === 'retry') {
+      appendRewriteRetryRequestedEvent(task, check, tx);
+    }
+
+    return check;
+  });
 
   let providerMetadata: { provider: string | null; model: string | null } = { provider: null, model: null };
+  let resultPatch: RewriteCheckResultPatch;
 
   try {
     const { getSettingsSnapshot } = await import('../settings/service');
@@ -821,28 +992,20 @@ async function evaluateRewriteCheck(task: RewriteTaskRow, userRewriteText: strin
     if (!parsed.success) {
       const userFacingMessage = userFacingRewriteCheckError('validation_failed');
       const validationErrors = parsed.error.issues.map((issue) => issue.message);
-      return db
-        .update(rewriteChecks)
-        .set({
-          status: 'retryable',
-          outcome: null,
-          provider: providerMetadata.provider,
-          model: providerMetadata.model,
-          validationErrorsJson: JSON.stringify(validationErrors.length > 0 ? validationErrors : [userFacingMessage]),
-          errorMessage: userFacingMessage,
-          diagnosticsJson: providerDiagnostics
-            ? JSON.stringify(sanitizeRewriteCheckDiagnostics(providerDiagnostics, 'validation_failed'))
-            : null,
-          completedAt: new Date(),
-        })
-        .where(eq(rewriteChecks.id, startedCheck.id))
-        .returning()
-        .get();
-    }
-
-    return db
-      .update(rewriteChecks)
-      .set({
+      resultPatch = {
+        status: 'retryable',
+        outcome: null,
+        provider: providerMetadata.provider,
+        model: providerMetadata.model,
+        validationErrorsJson: JSON.stringify(validationErrors.length > 0 ? validationErrors : [userFacingMessage]),
+        errorMessage: userFacingMessage,
+        diagnosticsJson: providerDiagnostics
+          ? JSON.stringify(sanitizeRewriteCheckDiagnostics(providerDiagnostics, 'validation_failed'))
+          : null,
+        completedAt: new Date(),
+      };
+    } else {
+      resultPatch = {
         status: 'completed',
         outcome: parsed.data.outcome,
         feedback: parsed.data.feedback,
@@ -852,10 +1015,8 @@ async function evaluateRewriteCheck(task: RewriteTaskRow, userRewriteText: strin
         errorMessage: null,
         diagnosticsJson: providerDiagnostics ? JSON.stringify(providerDiagnostics) : null,
         completedAt: new Date(),
-      })
-      .where(eq(rewriteChecks.id, startedCheck.id))
-      .returning()
-      .get();
+      };
+    }
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Rewrite check failed.';
     const existingDiagnostics = getAiProviderDiagnosticsFromError(error);
@@ -865,22 +1026,19 @@ async function evaluateRewriteCheck(task: RewriteTaskRow, userRewriteText: strin
       failureKind === 'missing_config' ? sanitizeAiProviderDiagnosticText(message) : userFacingMessage;
     const diagnostics = buildRewriteCheckDiagnosticsForError(error, failureKind, existingDiagnostics);
 
-    return db
-      .update(rewriteChecks)
-      .set({
-        status: 'retryable',
-        outcome: null,
-        provider: providerMetadata.provider,
-        model: providerMetadata.model,
-        validationErrorsJson: JSON.stringify([persistedMessage]),
-        errorMessage: userFacingMessage,
-        diagnosticsJson: JSON.stringify(diagnostics),
-        completedAt: new Date(),
-      })
-      .where(eq(rewriteChecks.id, startedCheck.id))
-      .returning()
-      .get();
+    resultPatch = {
+      status: 'retryable',
+      outcome: null,
+      provider: providerMetadata.provider,
+      model: providerMetadata.model,
+      validationErrorsJson: JSON.stringify([persistedMessage]),
+      errorMessage: userFacingMessage,
+      diagnosticsJson: JSON.stringify(diagnostics),
+      completedAt: new Date(),
+    };
   }
+
+  return recordRewriteCheckResult(task, startedCheck.id, trigger, resultPatch);
 }
 
 function parsePatternFingerprintJson(value: string | null): PatternFingerprint | null {
@@ -916,18 +1074,12 @@ function parseNewContextPromptContractForEvaluation(task: RewriteTaskRow): NewCo
 }
 
 function getFocusPatternFingerprintForRewriteTask(task: RewriteTaskRow): PatternFingerprint | null {
-  const focusCorrection = db
-    .select()
-    .from(corrections)
-    .where(eq(corrections.reviewRunId, task.reviewRunId))
-    .all()
-    .find((correction) => correction.category === 'fix' && correction.patternId !== null);
-
-  if (!focusCorrection?.patternId) {
+  const patternId = getFocusPatternIdForRewriteTask(task);
+  if (!patternId) {
     return null;
   }
 
-  const pattern = db.select().from(errorPatterns).where(eq(errorPatterns.id, focusCorrection.patternId)).get();
+  const pattern = db.select().from(errorPatterns).where(eq(errorPatterns.id, patternId)).get();
   return parsePatternFingerprintJson(pattern?.fingerprintJson ?? null);
 }
 
@@ -1005,7 +1157,10 @@ function getNextNewContextReuseStage(
   return null;
 }
 
-function maybeGenerateNextNewContextReuseTask(sourceTask: RewriteTaskRow, check: RewriteCheckRow): void {
+function maybeGenerateNextNewContextReuseTask(
+  sourceTask: RewriteTaskRow,
+  check: RewriteCheckRow,
+): RewriteTaskRow | null {
   const nextStage = getNextNewContextReuseStage(sourceTask);
 
   if (
@@ -1016,33 +1171,59 @@ function maybeGenerateNextNewContextReuseTask(sourceTask: RewriteTaskRow, check:
     !check.completedAt ||
     hasNewContextReuseTaskForReview(sourceTask.reviewRunId, nextStage.spacedStage)
   ) {
-    return;
+    return null;
   }
 
   const contract = getNewContextPromptContractForNextTask(sourceTask);
   if (!contract) {
-    return;
+    return null;
   }
   const prompt = buildVisibleNewContextPrompt(contract.forbiddenHints);
   if (containsForbiddenLeakage(prompt, contract.forbiddenHints)) {
-    return;
+    return null;
   }
 
-  db.insert(rewriteTasks)
-    .values({
-      id: createId('rewrite'),
-      reviewRunId: sourceTask.reviewRunId,
-      originalSentence: 'New-context reuse practice',
-      focusPattern: sourceTask.focusPattern,
-      nativeModelSentence: '',
-      prompt,
-      promptContractJson: JSON.stringify(contract),
-      kind: 'new_context_reuse',
-      spacedStage: nextStage.spacedStage,
-      status: 'pending',
-      dueAt: new Date(check.completedAt.getTime() + nextStage.delayMs),
-    })
-    .run();
+  const completedAt = check.completedAt;
+  return db.transaction((tx) => {
+    const task = tx
+      .insert(rewriteTasks)
+      .values({
+        id: createId('rewrite'),
+        reviewRunId: sourceTask.reviewRunId,
+        originalSentence: 'New-context reuse practice',
+        focusPattern: sourceTask.focusPattern,
+        nativeModelSentence: '',
+        prompt,
+        promptContractJson: JSON.stringify(contract),
+        kind: 'new_context_reuse',
+        spacedStage: nextStage.spacedStage,
+        status: 'pending',
+        dueAt: new Date(completedAt.getTime() + nextStage.delayMs),
+      })
+      .returning()
+      .get();
+
+    appendLearningEvent(
+      {
+        eventType: 'rewrite_task_created',
+        occurredAt: task.createdAt,
+        dedupeKey: `rewrite_task_created:${task.id}`,
+        reviewRunId: task.reviewRunId,
+        patternId: getFocusPatternIdForRewriteTask(sourceTask, tx),
+        rewriteTaskId: task.id,
+        rewriteCheckId: check.id,
+        payload: rewriteTaskEventPayload(task, {
+          source: 'rewrite_check_correct',
+          sourceRewriteTaskId: sourceTask.id,
+          sourceRewriteCheckId: check.id,
+          dueAt: task.dueAt?.getTime() ?? null,
+        }),
+      },
+      tx,
+    );
+
+    return task;
+  });
 }
 
 export async function completeRewritePractice(
@@ -1065,20 +1246,30 @@ export async function completeRewritePractice(
     return { success: true, writing: currentWriting, rewritePractice: rewriteTaskToSnapshot(task) };
   }
 
-  const updatedTask = db
-    .update(rewriteTasks)
-    .set({
-      status: 'completed',
-      userRewriteText: parseResult.data.userRewriteText.trim(),
-      completedAt: new Date(),
-    })
-    .where(eq(rewriteTasks.id, parseResult.data.rewriteTaskId))
-    .returning()
-    .get();
+  const submissionKind = task.status === 'completed' ? 'recovery' : 'initial';
+  const updatedTask = db.transaction((tx) => {
+    const result = tx
+      .update(rewriteTasks)
+      .set({
+        status: 'completed',
+        userRewriteText: parseResult.data.userRewriteText.trim(),
+        completedAt: new Date(),
+      })
+      .where(eq(rewriteTasks.id, parseResult.data.rewriteTaskId))
+      .returning()
+      .get();
 
+    if (!result) {
+      throw new Error('Completed rewrite task was not returned.');
+    }
+
+    appendRewriteSubmittedEvent(task, result, submissionKind, tx);
+    return result;
+  });
   const check = await evaluateRewriteCheck(
     updatedTask,
     updatedTask.userRewriteText ?? parseResult.data.userRewriteText.trim(),
+    'submit',
   );
   maybeGenerateNextNewContextReuseTask(updatedTask, check);
 
@@ -1102,7 +1293,7 @@ export async function retryRewriteCheck(input: RetryRewriteCheckInput): Promise<
     return { success: false, error: 'Rewrite check needs a saved rewrite before retrying.' };
   }
 
-  const check = await evaluateRewriteCheck(task, userRewriteText);
+  const check = await evaluateRewriteCheck(task, userRewriteText, 'retry');
   maybeGenerateNextNewContextReuseTask(task, check);
   const writing = getWritingForRewriteTask(task);
   return {
@@ -1131,16 +1322,39 @@ export function skipRewritePractice(input: SkipRewritePracticeInput): RewritePra
     return { success: true, writing: currentWriting, rewritePractice: rewriteTaskToSnapshot(task) };
   }
 
-  const updatedTask = db
-    .update(rewriteTasks)
-    .set({
-      status: 'skipped',
-      skippedAt: new Date(),
-    })
-    .where(eq(rewriteTasks.id, parseResult.data.rewriteTaskId))
-    .returning()
-    .get();
+  const updatedTask = db.transaction((tx) => {
+    const result = tx
+      .update(rewriteTasks)
+      .set({
+        status: 'skipped',
+        skippedAt: new Date(),
+      })
+      .where(eq(rewriteTasks.id, parseResult.data.rewriteTaskId))
+      .returning()
+      .get();
 
+    if (!result) {
+      throw new Error('Skipped rewrite task was not returned.');
+    }
+
+    appendLearningEvent(
+      {
+        eventType: 'rewrite_skipped',
+        occurredAt: result.skippedAt ?? new Date(),
+        dedupeKey: `rewrite_skipped:${result.id}`,
+        reviewRunId: result.reviewRunId,
+        patternId: getFocusPatternIdForRewriteTask(result, tx),
+        rewriteTaskId: result.id,
+        payload: rewriteTaskEventPayload(result, {
+          previousStatus: task.status,
+          newStatus: result.status,
+        }),
+      },
+      tx,
+    );
+
+    return result;
+  });
   const updatedWriting = getWritingForRewriteTask(updatedTask);
   return { success: true, writing: updatedWriting, rewritePractice: rewriteTaskToSnapshot(updatedTask) };
 }
@@ -1164,16 +1378,40 @@ export function snoozeRewritePractice(input: SnoozeRewritePracticeInput): Rewrit
     return { success: true, writing: currentWriting, rewritePractice: rewriteTaskToSnapshot(task) };
   }
 
-  const updatedTask = db
-    .update(rewriteTasks)
-    .set({
-      status: 'snoozed',
-      dueAt: new Date(now.getTime() + ONE_DAY_MS),
-    })
-    .where(eq(rewriteTasks.id, parseResult.data.rewriteTaskId))
-    .returning()
-    .get();
+  const updatedTask = db.transaction((tx) => {
+    const result = tx
+      .update(rewriteTasks)
+      .set({
+        status: 'snoozed',
+        dueAt: new Date(now.getTime() + ONE_DAY_MS),
+      })
+      .where(eq(rewriteTasks.id, parseResult.data.rewriteTaskId))
+      .returning()
+      .get();
 
+    if (!result) {
+      throw new Error('Snoozed rewrite task was not returned.');
+    }
+
+    appendLearningEvent(
+      {
+        eventType: 'rewrite_snoozed',
+        occurredAt: now,
+        dedupeKey: `rewrite_snoozed:${result.id}:${result.dueAt?.getTime() ?? now.getTime()}`,
+        reviewRunId: result.reviewRunId,
+        patternId: getFocusPatternIdForRewriteTask(result, tx),
+        rewriteTaskId: result.id,
+        payload: rewriteTaskEventPayload(result, {
+          previousStatus: task.status,
+          newStatus: result.status,
+          dueAt: result.dueAt?.getTime() ?? null,
+        }),
+      },
+      tx,
+    );
+
+    return result;
+  });
   const updatedWriting = getWritingForRewriteTask(updatedTask);
   return { success: true, writing: updatedWriting, rewritePractice: rewriteTaskToSnapshot(updatedTask) };
 }

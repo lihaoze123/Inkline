@@ -2,6 +2,33 @@ import { z } from 'zod';
 import { correctionCategorySchema } from '../review-contract/schemas';
 import { rewriteCheckOutcomeSchema, rewriteCheckStatusSchema, rewritePracticeStatusSchema } from './writing';
 
+export const learningEventTypeSchema = z.enum([
+  'review_saved',
+  'rewrite_task_created',
+  'rewrite_submitted',
+  'rewrite_check_recorded',
+  'rewrite_retry_requested',
+  'rewrite_skipped',
+  'rewrite_snoozed',
+  'rewrite_expired',
+  'pattern_merged',
+]);
+
+export const learningEventPayloadSchema = z.record(z.string(), z.unknown());
+
+export const learningEventSnapshotSchema = z.object({
+  id: z.string().min(1),
+  eventType: learningEventTypeSchema,
+  occurredAt: z.number(),
+  dedupeKey: z.string().min(1).nullable(),
+  reviewRunId: z.string().min(1).nullable(),
+  patternId: z.string().min(1).nullable(),
+  rewriteTaskId: z.string().min(1).nullable(),
+  rewriteCheckId: z.string().min(1).nullable(),
+  payload: learningEventPayloadSchema,
+  createdAt: z.number(),
+});
+
 export const patternEvidenceStageSchema = z.enum([
   'needs_repair',
   'repaired_once',
@@ -138,7 +165,10 @@ export const notebookEntrySnapshotSchema = z.object({
 
 export const listErrorPatternsOutputSchema = z.array(errorPatternSnapshotSchema);
 export const listNotebookEntriesOutputSchema = z.array(notebookEntrySnapshotSchema);
+export const listLearningEventsOutputSchema = z.array(learningEventSnapshotSchema);
 
+export type LearningEventType = z.infer<typeof learningEventTypeSchema>;
+export type LearningEventSnapshot = z.infer<typeof learningEventSnapshotSchema>;
 export type ErrorPatternSnapshot = z.infer<typeof errorPatternSnapshotSchema>;
 export type MergeErrorPatternsInput = z.infer<typeof mergeErrorPatternsInputSchema>;
 export type MergeErrorPatternsResult = z.infer<typeof mergeErrorPatternsResultSchema>;
@@ -152,3 +182,4 @@ export type PatternEvidenceSummary = z.infer<typeof patternEvidenceSummarySchema
 export type PatternLifecycleSummary = z.infer<typeof patternLifecycleSummarySchema>;
 export type ListErrorPatternsOutput = z.infer<typeof listErrorPatternsOutputSchema>;
 export type ListNotebookEntriesOutput = z.infer<typeof listNotebookEntriesOutputSchema>;
+export type ListLearningEventsOutput = z.infer<typeof listLearningEventsOutputSchema>;

@@ -82,4 +82,20 @@ describe('database foundation migration', () => {
     expect(migrationSql).toContain('ALTER TABLE `error_patterns` ADD `merged_into_pattern_id` text');
     expect(migrationSql).toContain('ALTER TABLE `error_patterns` ADD `merged_at` integer');
   });
+
+  it('adds durable learning events with dedupe and parent links', () => {
+    const migrationSql = readFileSync(path.resolve(process.cwd(), 'drizzle/0011_learning_events.sql'), 'utf8');
+
+    expect(migrationSql).toContain('CREATE TABLE `learning_events`');
+    expect(migrationSql).toContain('`event_type` text NOT NULL');
+    expect(migrationSql).toContain('`occurred_at` integer NOT NULL');
+    expect(migrationSql).toContain('`dedupe_key` text');
+    expect(migrationSql).toContain('`payload_json` text DEFAULT');
+    expect(migrationSql).toContain('FOREIGN KEY (`review_run_id`) REFERENCES `review_runs`(`id`)');
+    expect(migrationSql).toContain('FOREIGN KEY (`pattern_id`) REFERENCES `error_patterns`(`id`)');
+    expect(migrationSql).toContain('FOREIGN KEY (`rewrite_task_id`) REFERENCES `rewrite_tasks`(`id`)');
+    expect(migrationSql).toContain('FOREIGN KEY (`rewrite_check_id`) REFERENCES `rewrite_checks`(`id`)');
+    expect(migrationSql).toContain('CREATE UNIQUE INDEX `learning_events_dedupe_key_unique`');
+    expect(migrationSql).toContain("'rewrite_retry_requested'");
+  });
 });

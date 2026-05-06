@@ -1,5 +1,5 @@
 import { sql } from 'drizzle-orm';
-import { integer, sqliteTable, text, uniqueIndex } from 'drizzle-orm/sqlite-core';
+import { index, integer, sqliteTable, text, uniqueIndex } from 'drizzle-orm/sqlite-core';
 
 export const writingAttempts = sqliteTable(
   'writing_attempts',
@@ -209,6 +209,40 @@ export const rewriteChecks = sqliteTable('rewrite_checks', {
   completedAt: integer('completed_at', { mode: 'timestamp_ms' }),
 });
 
+export const learningEvents = sqliteTable(
+  'learning_events',
+  {
+    id: text('id').primaryKey(),
+    eventType: text('event_type', {
+      enum: [
+        'review_saved',
+        'rewrite_task_created',
+        'rewrite_submitted',
+        'rewrite_check_recorded',
+        'rewrite_retry_requested',
+        'rewrite_skipped',
+        'rewrite_snoozed',
+        'rewrite_expired',
+        'pattern_merged',
+      ],
+    }).notNull(),
+    occurredAt: integer('occurred_at', { mode: 'timestamp_ms' }).notNull(),
+    dedupeKey: text('dedupe_key'),
+    reviewRunId: text('review_run_id').references(() => reviewRuns.id, { onDelete: 'set null' }),
+    patternId: text('pattern_id').references(() => errorPatterns.id, { onDelete: 'set null' }),
+    rewriteTaskId: text('rewrite_task_id').references(() => rewriteTasks.id, { onDelete: 'set null' }),
+    rewriteCheckId: text('rewrite_check_id').references(() => rewriteChecks.id, { onDelete: 'set null' }),
+    payloadJson: text('payload_json').notNull().default('{}'),
+    createdAt: integer('created_at', { mode: 'timestamp_ms' })
+      .notNull()
+      .default(sql`(unixepoch() * 1000)`),
+  },
+  (table) => [
+    uniqueIndex('learning_events_dedupe_key_unique').on(table.dedupeKey),
+    index('learning_events_occurred_at_idx').on(table.occurredAt),
+  ],
+);
+
 export type WritingAttempt = typeof writingAttempts.$inferSelect;
 export type InsertWritingAttempt = typeof writingAttempts.$inferInsert;
 export type WritingRevision = typeof writingRevisions.$inferSelect;
@@ -217,3 +251,5 @@ export type ReviewRun = typeof reviewRuns.$inferSelect;
 export type InsertReviewRun = typeof reviewRuns.$inferInsert;
 export type RewriteCheck = typeof rewriteChecks.$inferSelect;
 export type InsertRewriteCheck = typeof rewriteChecks.$inferInsert;
+export type LearningEvent = typeof learningEvents.$inferSelect;
+export type InsertLearningEvent = typeof learningEvents.$inferInsert;

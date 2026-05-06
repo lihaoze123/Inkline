@@ -24,9 +24,138 @@ rewrite_tasks
 rewrite_checks
 error_patterns
 notebook_entries
+learning_events
 ```
 
 The app may keep fields needed by later revisions, but it must not expose future workflows unless the task requires them.
+
+## Scenario: Learning Event Log
+
+### 1. Scope / Trigger
+
+- Trigger: Any task that changes review save, rewrite submit/check/retry, rewrite skip/snooze/expiry, D+3/D+7 task generation, pattern merge, `learning_events`, or `window.api.learningAssets.listLearningEvents`.
+- The learning event log is an append-only audit trail. It explains durable learning mutations but is not the source of truth for Progress, mastery, or evidence state.
+
+### 2. Signatures
+
+SQLite table:
+
+```text
+learning_events(
+  id text primary key,
+  event_type text not null,
+  occurred_at integer timestamp_ms not null,
+  dedupe_key text unique null,
+  review_run_id text null references review_runs(id) on delete set null,
+  pattern_id text null references error_patterns(id) on delete set null,
+  rewrite_task_id text null references rewrite_tasks(id) on delete set null,
+  rewrite_check_id text null references rewrite_checks(id) on delete set null,
+  payload_json text not null default '{}',
+  created_at integer timestamp_ms not null
+)
+```
+
+Shared event snapshot:
+
+```ts
+type LearningEventType =
+  | 'review_saved'
+  | 'rewrite_task_created'
+  | 'rewrite_submitted'
+  | 'rewrite_check_recorded'
+  | 'rewrite_retry_requested'
+  | 'rewrite_skipped'
+  | 'rewrite_snoozed'
+  | 'rewrite_expired'
+  | 'pattern_merged';
+
+type LearningEventSnapshot = {
+  id: string;
+  eventType: LearningEventType;
+  occurredAt: number;
+  dedupeKey: string | null;
+  reviewRunId: string | null;
+  patternId: string | null;
+  rewriteTaskId: string | null;
+  rewriteCheckId: string | null;
+  payload: Record<string, unknown>;
+  createdAt: number;
+};
+```
+
+Preload API:
+
+```ts
+window.api.learningAssets.listLearningEvents(): Promise<LearningEventSnapshot[]>;
+```
+
+### 3. Contracts
+
+- Event rows are append-only. Existing event rows must not be updated to reinterpret history.
+- `occurred_at` and `created_at` use Unix milliseconds through Drizzle `timestamp_ms`; IPC snapshots expose numbers.
+- `dedupe_key` is nullable and unique. Repeated idempotent calls must not create duplicate event rows.
+- Parent links use `on delete set null` so historical events remain readable if a future cleanup removes a parent row.
+- Payloads may contain compact metadata such as status, stage, kind, outcome, source/target pattern IDs, and due timestamps.
+- Payloads must not contain raw provider output, API keys, hidden fingerprints/prompt contracts, or full user writing/rewrite text.
+- Read APIs return recent events newest-first with parsed payload objects and a bounded limit.
+- Progress and evidence read models remain derived from durable patterns, tasks, and checks; never derive learning success directly from event rows.
+
+### 4. Validation & Error Matrix
+
+| Condition | Behavior |
+| --- | --- |
+| Duplicate non-null `dedupe_key` | Ignore the duplicate append; keep one row for the logical mutation. |
+| Payload is missing | Persist `{}`. |
+| Payload is malformed in storage | Read API returns `{}` for that payload rather than exposing parse failure. |
+| Review save is repeated after `review_saved` or `stale` | Return the existing save result and do not append a new event. |
+| Rewrite complete/skip/snooze receives terminal no-op task | Return current snapshot and do not append a new event. |
+| Retry is requested before saved rewrite text exists | Return validation error and do not append retry/check events. |
+| D+3/D+7 task generation is skipped for weak outcome or missing contract | Preserve the check result and do not append a task-created event. |
+
+### 5. Good/Base/Bad Cases
+
+- Good: First save of a valid review appends `review_saved` and, when a D+1 task is inserted, `rewrite_task_created`.
+- Good: A rewrite submit appends `rewrite_submitted`, appends `rewrite_check_recorded`, and appends `rewrite_task_created` only if a D+3/D+7 task is actually inserted.
+- Base: A retryable evaluator failure still appends `rewrite_check_recorded` with `checkStatus: 'retryable'`, without treating it as a learner outcome.
+- Base: Pattern merge appends one `pattern_merged` event after a successful merge and no event after rejected validation.
+- Bad: Event payload stores the submitted rewrite text, raw model JSON, hidden prompt contract, or provider key material.
+- Bad: Progress uses `learning_events` counts or event types to claim repair, transfer, stability, or mastery.
+
+### 6. Tests Required
+
+- Migration test: `0011_learning_events.sql` creates the table, parent links, timestamp fields, dedupe index, and event-type check.
+- Shared schema test: `LearningEventSnapshot` parses numeric timestamps and object payloads; event type enum contains no mastery vocabulary.
+- Append helper test: duplicate dedupe keys produce one event and read snapshots parse payload JSON.
+- Review save test: first save logs review/task events once; repeated save does not duplicate events; stale-history save logs `review_saved` with stale metadata.
+- Rewrite lifecycle test: submit/recovery, check completion/retryable, retry, D+3/D+7 creation, skip, snooze, and expiry log only on actual mutations.
+- Merge test: successful merge logs `pattern_merged`; rejected merge logs nothing.
+- IPC/preload contract test or typecheck: `learningAssets.listLearningEvents` returns the shared list output schema.
+
+### 7. Wrong vs Correct
+
+#### Wrong
+
+```ts
+appendLearningEvent({
+  eventType: 'rewrite_submitted',
+  payload: { userRewriteText, rawModelOutput },
+});
+```
+
+This leaks learner writing and provider output into an audit surface that future export/debug flows may expose.
+
+#### Correct
+
+```ts
+appendLearningEvent({
+  eventType: 'rewrite_submitted',
+  rewriteTaskId: task.id,
+  dedupeKey: `rewrite_submitted:${task.id}:${completedAt.getTime()}`,
+  payload: { practiceKind: task.kind, spacedStage: task.spacedStage, submissionKind: 'recovery' },
+});
+```
+
+The event links durable rows and stores compact mutation metadata while leaving writing text in the canonical tables.
 
 ## Scenario: Pattern Fingerprint Persistence
 

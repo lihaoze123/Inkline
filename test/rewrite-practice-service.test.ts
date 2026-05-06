@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   corrections,
   errorPatterns,
+  learningEvents,
   writingAttempts,
   writingRevisions,
   reviewRuns,
@@ -11,6 +12,7 @@ import {
 import type {
   corrections as correctionsTable,
   errorPatterns as errorPatternsTable,
+  learningEvents as learningEventsTable,
   writingAttempts as writingAttemptsTable,
   writingRevisions as writingRevisionsTable,
   reviewRuns as reviewRunsTable,
@@ -35,6 +37,7 @@ type RewriteCheckRow = typeof rewriteChecksTable.$inferSelect;
 type RewriteTaskRow = typeof rewriteTasksTable.$inferSelect;
 type ErrorPatternRow = typeof errorPatternsTable.$inferSelect;
 type CorrectionRow = typeof correctionsTable.$inferSelect;
+type LearningEventRow = typeof learningEventsTable.$inferSelect;
 type StoredRow =
   | WritingAttemptRow
   | WritingRevisionRow
@@ -42,7 +45,8 @@ type StoredRow =
   | RewriteCheckRow
   | RewriteTaskRow
   | ErrorPatternRow
-  | CorrectionRow;
+  | CorrectionRow
+  | LearningEventRow;
 type TableName =
   | 'writingAttempts'
   | 'writingRevisions'
@@ -50,7 +54,8 @@ type TableName =
   | 'rewriteChecks'
   | 'rewriteTasks'
   | 'errorPatterns'
-  | 'corrections';
+  | 'corrections'
+  | 'learningEvents';
 
 const mocks = vi.hoisted(() => ({
   generateStructuredObject: vi.fn(),
@@ -67,6 +72,7 @@ type RowStore = {
   rewriteTasks: RewriteTaskRow[];
   errorPatterns: ErrorPatternRow[];
   corrections: CorrectionRow[];
+  learningEvents: LearningEventRow[];
 };
 
 vi.mock('../src/main/db/client', () => ({
@@ -106,10 +112,12 @@ const tableNames = new Map<object, TableName>([
   [rewriteTasks, 'rewriteTasks'],
   [errorPatterns, 'errorPatterns'],
   [corrections, 'corrections'],
+  [learningEvents, 'learningEvents'],
 ]);
 
 class FakeWritingDatabase {
   private store: RowStore = emptyStore();
+  public failOnInsertTable: TableName | null = null;
 
   select(): {
     from: (table: unknown) => {
@@ -139,6 +147,10 @@ class FakeWritingDatabase {
     return {
       values: (value: unknown) => {
         const tableNameValue = tableName(table);
+        if (this.failOnInsertTable === tableNameValue) {
+          throw new Error(`Injected insert failure for ${tableNameValue}`);
+        }
+
         const row = {
           ...(value as Record<string, unknown>),
           createdAt: now,
@@ -169,8 +181,19 @@ class FakeWritingDatabase {
     };
   }
 
+  transaction<T>(callback: (tx: this) => T): T {
+    const snapshot = cloneStore(this.store);
+    try {
+      return callback(this);
+    } catch (error) {
+      this.store = snapshot;
+      throw error;
+    }
+  }
+
   reset(): void {
     this.store = emptyStore();
+    this.failOnInsertTable = null;
   }
 
   seedPracticeWithPendingRewrite(task: RewriteTaskRow = createPendingRewriteTask('rewrite_1')): void {
@@ -285,6 +308,10 @@ class FakeWritingDatabase {
     return [...this.store.rewriteTasks];
   }
 
+  learningEvents(): LearningEventRow[] {
+    return [...this.store.learningEvents];
+  }
+
   asAppDatabase(): AppDatabase {
     return this as unknown as AppDatabase;
   }
@@ -319,6 +346,19 @@ class FakeWritingDatabase {
       return new QueryResult(
         this.store.corrections.filter(
           (row) => row.id === value || row.reviewRunId === value || row.patternId === value,
+        ),
+      );
+    }
+
+    if (table === 'learningEvents') {
+      return new QueryResult(
+        this.store.learningEvents.filter(
+          (row) =>
+            row.id === value ||
+            row.dedupeKey === value ||
+            row.reviewRunId === value ||
+            row.rewriteTaskId === value ||
+            row.rewriteCheckId === value,
         ),
       );
     }
@@ -434,6 +474,40 @@ describe('rewrite practice service updates', () => {
       userRewriteText: 'I went home.',
       completedAt: now,
     });
+    expect(fakeDatabase.learningEvents().map((event) => event.eventType)).toEqual([
+      'rewrite_submitted',
+      'rewrite_check_recorded',
+    ]);
+    expect(fakeDatabase.learningEvents()[0]).toMatchObject({
+      rewriteTaskId: 'rewrite_1',
+      dedupeKey: `rewrite_submitted:rewrite_1:${now.getTime()}`,
+      payloadJson: expect.stringContaining('"submissionKind":"initial"'),
+    });
+    expect(fakeDatabase.learningEvents()[1]).toMatchObject({
+      rewriteTaskId: 'rewrite_1',
+      rewriteCheckId: expect.stringContaining('rewrite_check_'),
+      dedupeKey: expect.stringContaining('rewrite_check_recorded:rewrite_check_'),
+    });
+  });
+
+  it('rolls back rewrite submission when the learning event cannot be appended', async () => {
+    fakeDatabase.reset();
+    fakeDatabase.seedPracticeWithPendingRewrite();
+    fakeDatabase.failOnInsertTable = 'learningEvents';
+    const completeRewritePractice = await loadCompleteRewritePractice();
+
+    await expect(
+      completeRewritePractice({ rewriteTaskId: 'rewrite_1', userRewriteText: 'I went home.' }),
+    ).rejects.toThrow('Injected insert failure for learningEvents');
+
+    expect(fakeDatabase.rewriteTask('rewrite_1')).toMatchObject({
+      status: 'pending',
+      userRewriteText: null,
+      completedAt: null,
+    });
+    expect(fakeDatabase.rewriteChecks()).toHaveLength(0);
+    expect(fakeDatabase.learningEvents()).toHaveLength(0);
+    expect(mocks.generateStructuredObject).not.toHaveBeenCalled();
   });
 
   it('exposes the latest rewrite check snapshot when a rewrite task is returned', async () => {
@@ -512,6 +586,16 @@ describe('rewrite practice service updates', () => {
       forbiddenHints: ['went home'],
       expectedPatternFamily: 'grammar',
     });
+    expect(fakeDatabase.learningEvents().map((event) => event.eventType)).toEqual([
+      'rewrite_submitted',
+      'rewrite_check_recorded',
+      'rewrite_task_created',
+    ]);
+    expect(fakeDatabase.learningEvents().find((event) => event.eventType === 'rewrite_task_created')).toMatchObject({
+      rewriteTaskId: d3Tasks[0]?.id,
+      rewriteCheckId: expect.stringContaining('rewrite_check_'),
+      payloadJson: expect.stringContaining('"spacedStage":"D+3"'),
+    });
   });
 
   it('does not create D+3 for partly correct or incorrect D+1 checks even when a fingerprint exists', async () => {
@@ -587,6 +671,11 @@ describe('rewrite practice service updates', () => {
         'rewrite_check_initial',
         expect.any(String),
       ]);
+      expect(fakeDatabase.learningEvents()[0]).toMatchObject({
+        eventType: 'rewrite_submitted',
+        rewriteTaskId: 'rewrite_1',
+        payloadJson: expect.stringContaining('"submissionKind":"recovery"'),
+      });
     },
   );
 
@@ -798,6 +887,17 @@ describe('rewrite practice service updates', () => {
     expect(fakeDatabase.rewriteChecks()).toHaveLength(2);
     expect(mocks.generateStructuredObject).toHaveBeenCalledTimes(1);
     expect(mocks.generateStructuredObject.mock.calls[0]?.[0].userPrompt).toContain('I went home.');
+    expect(
+      fakeDatabase
+        .learningEvents()
+        .slice(-2)
+        .map((event) => event.eventType),
+    ).toEqual(['rewrite_retry_requested', 'rewrite_check_recorded']);
+    expect(fakeDatabase.learningEvents().at(-2)).toMatchObject({
+      rewriteTaskId: 'rewrite_1',
+      rewriteCheckId: result.rewriteCheck?.id,
+      dedupeKey: `rewrite_retry_requested:rewrite_1:${result.rewriteCheck?.id}`,
+    });
   });
 
   it('creates D+3 when retrying a D+1 check succeeds as correct and no D+3 exists yet', async () => {
@@ -1082,6 +1182,12 @@ describe('rewrite practice service updates', () => {
     });
     expect(result.rewritePractice?.latestRewriteCheck).toMatchObject({ status: 'retryable', outcome: null });
     expect(fakeDatabase.rewriteChecks()).toHaveLength(2);
+    expect(
+      fakeDatabase
+        .learningEvents()
+        .slice(-2)
+        .map((event) => event.eventType),
+    ).toEqual(['rewrite_retry_requested', 'rewrite_check_recorded']);
   });
 
   it('removes skipped rewrite practice from the pending practice slot', async () => {
@@ -1095,6 +1201,29 @@ describe('rewrite practice service updates', () => {
     expect(result.writing?.pendingRewritePractice).toBeNull();
     expect(result.rewritePractice).toMatchObject({ id: 'rewrite_1', status: 'skipped' });
     expect(fakeDatabase.rewriteTask('rewrite_1')).toMatchObject({ status: 'skipped', skippedAt: now });
+    expect(fakeDatabase.learningEvents()).toHaveLength(1);
+    expect(fakeDatabase.learningEvents()[0]).toMatchObject({
+      eventType: 'rewrite_skipped',
+      rewriteTaskId: 'rewrite_1',
+      dedupeKey: 'rewrite_skipped:rewrite_1',
+    });
+  });
+
+  it('rolls back skip status when the learning event cannot be appended', async () => {
+    fakeDatabase.reset();
+    fakeDatabase.seedPracticeWithPendingRewrite();
+    fakeDatabase.failOnInsertTable = 'learningEvents';
+    const skipRewritePractice = await loadSkipRewritePractice();
+
+    expect(() => skipRewritePractice({ rewriteTaskId: 'rewrite_1' })).toThrow(
+      'Injected insert failure for learningEvents',
+    );
+
+    expect(fakeDatabase.rewriteTask('rewrite_1')).toMatchObject({
+      status: 'pending',
+      skippedAt: null,
+    });
+    expect(fakeDatabase.learningEvents()).toHaveLength(0);
   });
 
   it('snoozes rewrite practice for one day without creating a rewrite check', async () => {
@@ -1117,6 +1246,12 @@ describe('rewrite practice service updates', () => {
       dueAt: new Date(now.getTime() + ONE_DAY_MS),
     });
     expect(fakeDatabase.rewriteChecks()).toHaveLength(0);
+    expect(fakeDatabase.learningEvents()).toHaveLength(1);
+    expect(fakeDatabase.learningEvents()[0]).toMatchObject({
+      eventType: 'rewrite_snoozed',
+      rewriteTaskId: 'rewrite_1',
+      dedupeKey: `rewrite_snoozed:rewrite_1:${now.getTime() + ONE_DAY_MS}`,
+    });
   });
 
   it('returns due snoozed rewrite practice to the practice slot', async () => {
@@ -1171,6 +1306,12 @@ describe('rewrite practice service updates', () => {
 
     expect(result).toMatchObject({ id: 'rewrite_fresh' });
     expect(fakeDatabase.rewriteTask('rewrite_stale')).toMatchObject({ status: 'expired' });
+    expect(fakeDatabase.learningEvents()).toHaveLength(1);
+    expect(fakeDatabase.learningEvents()[0]).toMatchObject({
+      eventType: 'rewrite_expired',
+      rewriteTaskId: 'rewrite_stale',
+      dedupeKey: 'rewrite_expired:rewrite_stale',
+    });
   });
 
   it('does not mutate terminal rewrite practice when complete is requested', async () => {
@@ -1197,6 +1338,7 @@ describe('rewrite practice service updates', () => {
       completedAt: null,
     });
     expect(fakeDatabase.rewriteChecks()).toHaveLength(0);
+    expect(fakeDatabase.learningEvents()).toHaveLength(0);
     expect(mocks.generateStructuredObject).not.toHaveBeenCalled();
   });
 
@@ -1220,6 +1362,7 @@ describe('rewrite practice service updates', () => {
       skippedAt: null,
       completedAt: null,
     });
+    expect(fakeDatabase.learningEvents()).toHaveLength(0);
   });
 
   it('does not mutate terminal rewrite practice when snooze is requested', async () => {
@@ -1246,6 +1389,7 @@ describe('rewrite practice service updates', () => {
       userRewriteText: 'I went home.',
     });
     expect(fakeDatabase.rewriteChecks()).toHaveLength(0);
+    expect(fakeDatabase.learningEvents()).toHaveLength(0);
   });
 });
 
@@ -1423,7 +1567,61 @@ function emptyStore(): RowStore {
     rewriteTasks: [],
     errorPatterns: [],
     corrections: [],
+    learningEvents: [],
   };
+}
+
+function cloneStore(store: RowStore): RowStore {
+  return {
+    writingAttempts: store.writingAttempts.map((row) => ({
+      ...row,
+      reviewedAt: cloneNullableDate(row.reviewedAt),
+      createdAt: cloneDate(row.createdAt),
+      updatedAt: cloneDate(row.updatedAt),
+    })),
+    writingRevisions: store.writingRevisions.map((row) => ({
+      ...row,
+      createdAt: cloneDate(row.createdAt),
+    })),
+    reviewRuns: store.reviewRuns.map((row) => ({
+      ...row,
+      createdAt: cloneDate(row.createdAt),
+      updatedAt: cloneDate(row.updatedAt),
+    })),
+    rewriteChecks: store.rewriteChecks.map((row) => ({
+      ...row,
+      createdAt: cloneDate(row.createdAt),
+      updatedAt: cloneDate(row.updatedAt),
+      completedAt: cloneNullableDate(row.completedAt),
+    })),
+    rewriteTasks: store.rewriteTasks.map((row) => ({
+      ...row,
+      dueAt: cloneNullableDate(row.dueAt),
+      completedAt: cloneNullableDate(row.completedAt),
+      skippedAt: cloneNullableDate(row.skippedAt),
+      createdAt: cloneDate(row.createdAt),
+    })),
+    errorPatterns: store.errorPatterns.map((row) => ({
+      ...row,
+      mergedAt: cloneNullableDate(row.mergedAt),
+      createdAt: cloneDate(row.createdAt),
+      updatedAt: cloneDate(row.updatedAt),
+    })),
+    corrections: store.corrections.map((row) => ({ ...row })),
+    learningEvents: store.learningEvents.map((row) => ({
+      ...row,
+      occurredAt: cloneDate(row.occurredAt),
+      createdAt: cloneDate(row.createdAt),
+    })),
+  };
+}
+
+function cloneDate(value: Date): Date {
+  return new Date(value.getTime());
+}
+
+function cloneNullableDate(value: Date | null): Date | null {
+  return value ? cloneDate(value) : null;
 }
 
 function tableName(table: unknown): TableName {

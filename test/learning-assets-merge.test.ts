@@ -1,8 +1,9 @@
 import { describe, expect, it, vi } from 'vitest';
-import { corrections, errorPatterns, rewriteChecks, rewriteTasks } from '../src/main/db/schema';
+import { corrections, errorPatterns, learningEvents, rewriteChecks, rewriteTasks } from '../src/main/db/schema';
 import type {
   corrections as correctionsTable,
   errorPatterns as errorPatternsTable,
+  learningEvents as learningEventsTable,
   rewriteChecks as rewriteChecksTable,
   rewriteTasks as rewriteTasksTable,
 } from '../src/main/db/schema';
@@ -25,13 +26,15 @@ type ErrorPatternRow = typeof errorPatternsTable.$inferSelect;
 type CorrectionRow = typeof correctionsTable.$inferSelect;
 type RewriteTaskRow = typeof rewriteTasksTable.$inferSelect;
 type RewriteCheckRow = typeof rewriteChecksTable.$inferSelect;
-type StoredRow = ErrorPatternRow | CorrectionRow | RewriteTaskRow | RewriteCheckRow;
-type TableName = 'errorPatterns' | 'corrections' | 'rewriteTasks' | 'rewriteChecks';
+type LearningEventRow = typeof learningEventsTable.$inferSelect;
+type StoredRow = ErrorPatternRow | CorrectionRow | RewriteTaskRow | RewriteCheckRow | LearningEventRow;
+type TableName = 'errorPatterns' | 'corrections' | 'rewriteTasks' | 'rewriteChecks' | 'learningEvents';
 type RowStore = {
   errorPatterns: ErrorPatternRow[];
   corrections: CorrectionRow[];
   rewriteTasks: RewriteTaskRow[];
   rewriteChecks: RewriteCheckRow[];
+  learningEvents: LearningEventRow[];
 };
 
 const baseDate = new Date('2026-05-06T08:00:00.000Z');
@@ -40,6 +43,7 @@ const tableNames = new Map<object, TableName>([
   [corrections, 'corrections'],
   [rewriteTasks, 'rewriteTasks'],
   [rewriteChecks, 'rewriteChecks'],
+  [learningEvents, 'learningEvents'],
 ]);
 
 describe('learning-assets pattern merge', () => {
@@ -114,6 +118,13 @@ describe('learning-assets pattern merge', () => {
     expect(listedPatterns[0]?.evidence?.stage).toBe('repaired_once');
     expect(listedPatterns[0]?.lifecycle.status).toBe('ready_for_transfer');
     expect(activeReviewPatterns.map((pattern) => pattern.id)).toEqual(['pattern_target']);
+    expect(database.learningEvents()).toHaveLength(1);
+    expect(database.learningEvents()[0]).toMatchObject({
+      eventType: 'pattern_merged',
+      patternId: 'pattern_target',
+      dedupeKey: 'pattern_merged:pattern_source:pattern_target',
+      payloadJson: expect.stringContaining('"sourcePatternId":"pattern_source"'),
+    });
   });
 
   it('rolls merged source transfer context into the target pattern lifecycle', () => {
@@ -209,6 +220,7 @@ describe('learning-assets pattern merge', () => {
       mergedIntoPatternId: null,
       count: 1,
     });
+    expect(database.learningEvents()).toHaveLength(0);
   });
 });
 
@@ -218,6 +230,7 @@ class FakeLearningAssetsDatabase {
     corrections: [],
     rewriteTasks: [],
     rewriteChecks: [],
+    learningEvents: [],
   };
 
   asAppDatabase(): AppDatabase {
@@ -277,6 +290,29 @@ class FakeLearningAssetsDatabase {
           };
         },
       }),
+    };
+  }
+
+  insert(table: unknown): {
+    values: (value: unknown) => { returning: () => { get: () => LearningEventRow }; run: () => void };
+  } {
+    const name = tableName(table);
+    return {
+      values: (value) => {
+        if (name !== 'learningEvents') {
+          throw new Error(`Unsupported insert table: ${name}`);
+        }
+
+        const event = {
+          ...(value as Record<string, unknown>),
+          createdAt: baseDate,
+        } as LearningEventRow;
+        this.store.learningEvents.push(event);
+        return {
+          returning: () => ({ get: () => event }),
+          run: () => undefined,
+        };
+      },
     };
   }
 
@@ -456,6 +492,10 @@ class FakeLearningAssetsDatabase {
     return correction;
   }
 
+  learningEvents(): LearningEventRow[] {
+    return [...this.store.learningEvents];
+  }
+
   private selectFrom(table: TableName): SelectFromResult {
     if (table === 'corrections') {
       return {
@@ -466,6 +506,19 @@ class FakeLearningAssetsDatabase {
             }),
           }),
         }),
+      };
+    }
+
+    if (table === 'learningEvents') {
+      return {
+        where: (condition: unknown) => {
+          const dedupeKey = firstStringInCondition(condition);
+          return {
+            get: () => this.store.learningEvents.find((event) => event.dedupeKey === dedupeKey),
+            all: () => this.store.learningEvents.filter((event) => event.dedupeKey === dedupeKey),
+          };
+        },
+        all: () => [...this.store.learningEvents],
       };
     }
 
@@ -671,6 +724,11 @@ function cloneStore(store: RowStore): RowStore {
       createdAt: cloneDate(row.createdAt),
       updatedAt: cloneDate(row.updatedAt),
       completedAt: cloneNullableDate(row.completedAt),
+    })),
+    learningEvents: store.learningEvents.map((row) => ({
+      ...row,
+      occurredAt: cloneDate(row.occurredAt),
+      createdAt: cloneDate(row.createdAt),
     })),
   };
 }

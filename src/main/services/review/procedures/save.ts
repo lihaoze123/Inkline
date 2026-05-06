@@ -16,7 +16,7 @@ import {
   type SaveReviewInput,
   type SaveReviewOutput,
 } from '../../../../shared/types/review';
-import { persistNotebookEntries, persistPatternOperations } from '../../learning-assets/service';
+import { appendLearningEvent, persistNotebookEntries, persistPatternOperations } from '../../learning-assets/service';
 import { getWritingAttempt } from '../../writing/service';
 import { shouldForceE2eRewritePracticeDueNow } from '../../ai/e2e-mock';
 import { reviewRunToSnapshot } from '../lib/snapshots';
@@ -110,6 +110,7 @@ export function saveReviewRun(input: SaveReviewInput, options: SaveReviewOptions
         reviewRunId: reviewRun.id,
         dateKey: activeEntry.dateKey,
       });
+      const focusPatternLink = patternLinks.get(focusCorrectionIndex);
 
       operations.corrections.forEach((operation) => {
         if (operation.status === 'low_confidence' || operation.startOffset === null || operation.endOffset === null) {
@@ -176,6 +177,7 @@ export function saveReviewRun(input: SaveReviewInput, options: SaveReviewOptions
       const rewritePractice = operations.rewritePractice.find(
         (operation) => operation.kind === 'rewrite_original' && operation.dueOffsetDays === 1,
       );
+      let rewriteTaskCreated = false;
       if (rewritePractice) {
         const referencesFocusCorrection = rewritePractice.focusCorrectionIndexes.includes(focusCorrectionIndex);
         const referencesLowConfidence = rewritePractice.focusCorrectionIndexes.some((correctionIndex) => {
@@ -184,9 +186,12 @@ export function saveReviewRun(input: SaveReviewInput, options: SaveReviewOptions
         });
 
         if (referencesFocusCorrection && !referencesLowConfidence) {
-          tx.insert(rewriteTasks)
+          const rewriteTaskId = createId('rewrite');
+          const dueAt = shouldForceE2eRewritePracticeDueNow() ? new Date() : new Date(Date.now() + ONE_DAY_MS);
+          const rewriteTask = tx
+            .insert(rewriteTasks)
             .values({
-              id: createId('rewrite'),
+              id: rewriteTaskId,
               reviewRunId: reviewRun.id,
               originalSentence: focusCorrections[0].originalText,
               focusPattern: patternLabelFor(focusCorrections[0]),
@@ -195,9 +200,29 @@ export function saveReviewRun(input: SaveReviewInput, options: SaveReviewOptions
               kind: rewritePractice.kind,
               spacedStage: 'D+1',
               status: 'pending',
-              dueAt: shouldForceE2eRewritePracticeDueNow() ? new Date() : new Date(Date.now() + ONE_DAY_MS),
+              dueAt,
             })
-            .run();
+            .returning()
+            .get();
+
+          appendLearningEvent(
+            {
+              eventType: 'rewrite_task_created',
+              occurredAt: rewriteTask.createdAt,
+              dedupeKey: `rewrite_task_created:${rewriteTask.id}`,
+              reviewRunId: reviewRun.id,
+              patternId: focusPatternLink?.patternId ?? null,
+              rewriteTaskId: rewriteTask.id,
+              payload: {
+                source: 'review_save',
+                practiceKind: rewriteTask.kind,
+                spacedStage: rewriteTask.spacedStage,
+                dueAt: dueAt.getTime(),
+              },
+            },
+            tx,
+          );
+          rewriteTaskCreated = true;
         }
       }
 
@@ -208,6 +233,28 @@ export function saveReviewRun(input: SaveReviewInput, options: SaveReviewOptions
         .where(eq(reviewRuns.id, reviewRun.id))
         .returning()
         .get();
+
+      if (!finalRun) {
+        throw new Error('Saved review run was not returned.');
+      }
+
+      appendLearningEvent(
+        {
+          eventType: 'review_saved',
+          occurredAt: finalRun.updatedAt,
+          dedupeKey: `review_saved:${reviewRun.id}:${finalStatus}`,
+          reviewRunId: reviewRun.id,
+          patternId: focusPatternLink?.patternId ?? null,
+          payload: {
+            finalStatus,
+            saveAsStaleHistory,
+            templateId: activeEntry.templateId,
+            savedCorrectionCount: correctionIdByIndex.size,
+            rewriteTaskCreated,
+          },
+        },
+        tx,
+      );
 
       if (!saveAsStaleHistory) {
         tx.update(writingAttempts)

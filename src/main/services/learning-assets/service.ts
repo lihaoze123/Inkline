@@ -1,7 +1,14 @@
 import { randomUUID } from 'node:crypto';
 import { and, desc, eq, inArray, isNull, or } from 'drizzle-orm';
 import { db } from '../../db/client';
-import { corrections, errorPatterns, notebookEntries, rewriteChecks, rewriteTasks } from '../../db/schema';
+import {
+  corrections,
+  errorPatterns,
+  learningEvents,
+  notebookEntries,
+  rewriteChecks,
+  rewriteTasks,
+} from '../../db/schema';
 import { arePatternRulesSimilar, normalizePatternKey } from '../../../shared/review-contract/patterns';
 import type { ErrorPattern, PatternFingerprint } from '../../../shared/review-contract/schemas';
 import type {
@@ -9,12 +16,17 @@ import type {
   PersistedPreviewOperationsSnapshot,
 } from '../../../shared/types/review';
 import {
+  learningEventPayloadSchema,
+  listLearningEventsOutputSchema,
   listErrorPatternsOutputSchema,
   listNotebookEntriesOutputSchema,
   mergeErrorPatternsInputSchema,
   mergeErrorPatternsResultSchema,
   type ErrorPatternSnapshot,
+  type LearningEventSnapshot,
+  type LearningEventType,
   type ListErrorPatternsOutput,
+  type ListLearningEventsOutput,
   type ListNotebookEntriesOutput,
   type MergeErrorPatternsResult,
   type NotebookEntrySnapshot,
@@ -37,8 +49,10 @@ const RECENT_EXAMPLES_LIMIT = 5;
 const LIST_LIMIT = 50;
 
 type LearningAssetTx = Pick<typeof db, 'select' | 'insert' | 'update'>;
+type LearningEventTx = Pick<typeof db, 'select' | 'insert'>;
 type LearningAssetDatabase = typeof db;
 type ErrorPatternRow = typeof errorPatterns.$inferSelect;
+type LearningEventRow = typeof learningEvents.$inferSelect;
 type PatternMergeTargetMap = Map<string, string>;
 type EvidenceRepairTask = {
   patternId: string;
@@ -55,6 +69,17 @@ type EvidenceTransferTask = {
   contextRank: number;
 };
 type RewriteTaskKind = 'rewrite_original' | 'new_context_reuse' | 'pattern_detection';
+
+export type AppendLearningEventInput = {
+  eventType: LearningEventType;
+  occurredAt?: Date;
+  dedupeKey?: string | null;
+  reviewRunId?: string | null;
+  patternId?: string | null;
+  rewriteTaskId?: string | null;
+  rewriteCheckId?: string | null;
+  payload?: Record<string, unknown>;
+};
 
 const lifecycleCopy: Record<PatternLifecycleStatus, { label: string; description: string }> = {
   repair_needed: {
@@ -629,6 +654,75 @@ function dateToMillis(value: Date | null): number | null {
   return value ? value.getTime() : null;
 }
 
+function parsePayloadObject(value: string): Record<string, unknown> {
+  try {
+    const parsed = JSON.parse(value) as unknown;
+    return typeof parsed === 'object' && parsed !== null && !Array.isArray(parsed)
+      ? (parsed as Record<string, unknown>)
+      : {};
+  } catch {
+    return {};
+  }
+}
+
+function learningEventToSnapshot(event: LearningEventRow): LearningEventSnapshot {
+  return {
+    id: event.id,
+    eventType: event.eventType,
+    occurredAt: event.occurredAt.getTime(),
+    dedupeKey: event.dedupeKey,
+    reviewRunId: event.reviewRunId,
+    patternId: event.patternId,
+    rewriteTaskId: event.rewriteTaskId,
+    rewriteCheckId: event.rewriteCheckId,
+    payload: parsePayloadObject(event.payloadJson),
+    createdAt: event.createdAt.getTime(),
+  };
+}
+
+export function appendLearningEvent(
+  input: AppendLearningEventInput,
+  database: LearningEventTx = db,
+): LearningEventSnapshot | null {
+  const dedupeKey = input.dedupeKey?.trim() || null;
+  if (dedupeKey) {
+    const existing = database.select().from(learningEvents).where(eq(learningEvents.dedupeKey, dedupeKey)).get();
+    if (existing) {
+      return null;
+    }
+  }
+
+  const event = database
+    .insert(learningEvents)
+    .values({
+      id: createId('learning_event'),
+      eventType: input.eventType,
+      occurredAt: input.occurredAt ?? new Date(),
+      dedupeKey,
+      reviewRunId: input.reviewRunId ?? null,
+      patternId: input.patternId ?? null,
+      rewriteTaskId: input.rewriteTaskId ?? null,
+      rewriteCheckId: input.rewriteCheckId ?? null,
+      payloadJson: JSON.stringify(learningEventPayloadSchema.parse(input.payload ?? {})),
+    })
+    .returning()
+    .get();
+
+  return learningEventToSnapshot(event);
+}
+
+export function listLearningEvents(database: LearningAssetDatabase = db): ListLearningEventsOutput {
+  const events = database
+    .select()
+    .from(learningEvents)
+    .orderBy(desc(learningEvents.occurredAt), desc(learningEvents.createdAt))
+    .limit(LIST_LIMIT)
+    .all()
+    .map(learningEventToSnapshot);
+
+  return listLearningEventsOutputSchema.parse(events);
+}
+
 export function listNotebookEntries(): ListNotebookEntriesOutput {
   const entries = db
     .select()
@@ -696,6 +790,24 @@ export function mergeErrorPatterns(input: unknown, database: LearningAssetDataba
         })
         .where(eq(errorPatterns.id, validMerge.sourcePattern.id))
         .run();
+
+      appendLearningEvent(
+        {
+          eventType: 'pattern_merged',
+          occurredAt: now,
+          dedupeKey: `pattern_merged:${validMerge.sourcePattern.id}:${validMerge.targetPattern.id}`,
+          patternId: validMerge.targetPattern.id,
+          payload: {
+            sourcePatternId: validMerge.sourcePattern.id,
+            targetPatternId: validMerge.targetPattern.id,
+            category: validMerge.targetPattern.category,
+            sourceCount: validMerge.sourcePattern.count,
+            targetCountBefore: validMerge.targetPattern.count,
+            targetCountAfter: mergedTarget.count,
+          },
+        },
+        tx,
+      );
 
       return mergedTarget;
     });

@@ -78,6 +78,13 @@
       "when": 1777410000010,
       "tag": "0010_pattern_merge",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1777410000011,
+      "tag": "0011_learning_events",
+      "breakpoints": true
     }
   ]
 }

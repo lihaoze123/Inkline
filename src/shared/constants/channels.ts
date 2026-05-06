@@ -36,6 +36,7 @@ export const IPC_CHANNELS = {
   LEARNING_ASSETS: {
     LIST_ERROR_PATTERNS: 'learningAssets:listErrorPatterns',
     LIST_NOTEBOOK_ENTRIES: 'learningAssets:listNotebookEntries',
+    LIST_LEARNING_EVENTS: 'learningAssets:listLearningEvents',
     MERGE_ERROR_PATTERNS: 'learningAssets:mergeErrorPatterns',
   },
 } as const;

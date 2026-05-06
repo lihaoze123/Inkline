@@ -34,6 +34,7 @@ import type {
 } from '../shared/types/review';
 import type {
   ListErrorPatternsOutput,
+  ListLearningEventsOutput,
   ListNotebookEntriesOutput,
   MergeErrorPatternsInput,
   MergeErrorPatternsResult,
@@ -111,6 +112,8 @@ const api = {
       ipcRenderer.invoke(IPC_CHANNELS.LEARNING_ASSETS.LIST_ERROR_PATTERNS),
     listNotebookEntries: (): Promise<ListNotebookEntriesOutput> =>
       ipcRenderer.invoke(IPC_CHANNELS.LEARNING_ASSETS.LIST_NOTEBOOK_ENTRIES),
+    listLearningEvents: (): Promise<ListLearningEventsOutput> =>
+      ipcRenderer.invoke(IPC_CHANNELS.LEARNING_ASSETS.LIST_LEARNING_EVENTS),
     mergeErrorPatterns: (input: MergeErrorPatternsInput): Promise<MergeErrorPatternsResult> =>
       ipcRenderer.invoke(IPC_CHANNELS.LEARNING_ASSETS.MERGE_ERROR_PATTERNS, input),
   },
