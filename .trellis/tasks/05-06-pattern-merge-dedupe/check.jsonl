@@ -1,0 +1,24 @@
+{"file": ".trellis/tasks/05-06-pattern-merge-dedupe/prd.md", "reason": "Acceptance criteria and task scope for verification."}
+{"file": ".trellis/spec/product/index.md", "reason": "Product quality gates for learning-assets behavior."}
+{"file": ".trellis/spec/product/roadmap.md", "reason": "Verify implementation stays within Horizon 2 maintainability scope."}
+{"file": ".trellis/spec/product/mvp-scope.md", "reason": "Verify v0.2 boundaries and exclusions."}
+{"file": ".trellis/spec/product/data-model-contract.md", "reason": "Verify merge traceability and evidence display contract."}
+{"file": ".trellis/spec/product/validation-and-testing.md", "reason": "Verify required tests and quality checks."}
+{"file": ".trellis/spec/backend/index.md", "reason": "Backend quality checklist."}
+{"file": ".trellis/spec/backend/api-module.md", "reason": "Verify service/IPC organization."}
+{"file": ".trellis/spec/backend/database.md", "reason": "Verify migration and timestamp schema rules."}
+{"file": ".trellis/spec/backend/error-handling.md", "reason": "Verify transaction and validation error behavior."}
+{"file": ".trellis/spec/backend/type-safety.md", "reason": "Verify no unsafe narrowing or non-null assertions."}
+{"file": ".trellis/spec/frontend/index.md", "reason": "Frontend quality checklist."}
+{"file": ".trellis/spec/frontend/ipc-electron.md", "reason": "Verify renderer uses typed preload API only."}
+{"file": ".trellis/spec/frontend/hooks.md", "reason": "Verify query invalidation after merge."}
+{"file": ".trellis/spec/frontend/components.md", "reason": "Verify accessible UI controls and loading/error states."}
+{"file": ".trellis/spec/frontend/react-pitfalls.md", "reason": "Verify state/dependency handling in Progress merge UI."}
+{"file": ".trellis/spec/frontend/quality.md", "reason": "Renderer code quality and import constraints."}
+{"file": ".trellis/spec/shared/index.md", "reason": "Shared quality checklist."}
+{"file": ".trellis/spec/shared/code-quality.md", "reason": "Mandatory shared code quality rules."}
+{"file": ".trellis/spec/shared/typescript.md", "reason": "Explicit return types and type import conventions."}
+{"file": ".trellis/spec/shared/timestamp.md", "reason": "Verify merged_at uses Unix milliseconds over IPC."}
+{"file": ".trellis/spec/guides/cross-layer-thinking-guide.md", "reason": "Verify DB-to-UI data flow completeness."}
+{"file": ".trellis/spec/guides/db-schema-change-guide.md", "reason": "Verify schema migration completeness."}
+{"file": ".trellis/spec/guides/transaction-consistency-guide.md", "reason": "Verify transactional consistency of merge mutation."}

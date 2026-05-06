@@ -1,0 +1,25 @@
+{"file": ".trellis/tasks/05-06-pattern-merge-dedupe/prd.md", "reason": "Task requirements and acceptance criteria for the manual pattern merge/de-dup flow."}
+{"file": ".trellis/spec/product/index.md", "reason": "Product quality gates for learning assets, save semantics, and local-first behavior."}
+{"file": ".trellis/spec/product/roadmap.md", "reason": "Horizon 2 sequencing for maintainable learning assets."}
+{"file": ".trellis/spec/product/mvp-scope.md", "reason": "v0.2 learning-assets boundaries and remaining scope."}
+{"file": ".trellis/spec/product/data-model-contract.md", "reason": "Authoritative contract for error_patterns, merge traceability, evidence derivation, and Progress IPC."}
+{"file": ".trellis/spec/product/validation-and-testing.md", "reason": "Required validation and testing expectations for cross-layer learning changes."}
+{"file": ".trellis/spec/backend/index.md", "reason": "Backend pre-development checklist and service-module standards."}
+{"file": ".trellis/spec/backend/api-module.md", "reason": "IPC/service procedure organization and Zod validation pattern."}
+{"file": ".trellis/spec/backend/database.md", "reason": "Drizzle schema and migration requirements for SQLite changes."}
+{"file": ".trellis/spec/backend/error-handling.md", "reason": "Transaction rollback and user-safe error handling rules."}
+{"file": ".trellis/spec/backend/type-safety.md", "reason": "Zod-first types and discriminated union narrowing rules."}
+{"file": ".trellis/spec/frontend/index.md", "reason": "Frontend pre-development checklist for IPC-backed UI work."}
+{"file": ".trellis/spec/frontend/ipc-electron.md", "reason": "Typed preload/window.api boundary requirements."}
+{"file": ".trellis/spec/frontend/hooks.md", "reason": "TanStack Query mutation and invalidation conventions."}
+{"file": ".trellis/spec/frontend/components.md", "reason": "Accessible component and empty/loading state patterns."}
+{"file": ".trellis/spec/frontend/react-pitfalls.md", "reason": "React state/dependency pitfalls relevant to merge UI state."}
+{"file": ".trellis/spec/frontend/quality.md", "reason": "Renderer code quality and import constraints."}
+{"file": ".trellis/spec/shared/index.md", "reason": "Shared type and quality checklist."}
+{"file": ".trellis/spec/shared/code-quality.md", "reason": "Mandatory no-non-null and error handling quality rules."}
+{"file": ".trellis/spec/shared/typescript.md", "reason": "Explicit return types and type import conventions."}
+{"file": ".trellis/spec/shared/timestamp.md", "reason": "Unix millisecond timestamp contract for merged_at."}
+{"file": ".trellis/spec/guides/index.md", "reason": "Thinking-guide routing for cross-layer and schema work."}
+{"file": ".trellis/spec/guides/cross-layer-thinking-guide.md", "reason": "DB-to-UI data flow checklist for the merge feature."}
+{"file": ".trellis/spec/guides/db-schema-change-guide.md", "reason": "Schema change checklist for migration plus code updates."}
+{"file": ".trellis/spec/guides/transaction-consistency-guide.md", "reason": "Multi-table/write consistency checklist for merge mutation."}
