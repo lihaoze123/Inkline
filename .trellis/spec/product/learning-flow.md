@@ -68,6 +68,30 @@ Tests required:
 - Retryable or weak checks are context rather than success.
 - Stable patterns avoid `mastery` and `mastered` wording.
 
+## CET Practice Refinement Foundation
+
+CET-4 and CET-6 are first-class practice tracks over the shared writing/review/rewrite/check engine, not a separate exam simulator.
+
+Contracts:
+
+- CET-specific guidance may render in the Practice editor column when the selected template id is `cet4` or `cet6`.
+- The guidance must be derived from `WritingTemplateId`, not by string matching template titles.
+- CET-4 guidance should frame concise everyday response drafting, clear position, simple organization, and one accurate reusable pattern.
+- CET-6 guidance should frame argument clarity, coherent progression, useful evidence/reasoning, and precise expression pattern practice.
+- Journal and Free Writing must not show CET-specific guidance.
+- The selected template label still appears only in the existing weak editor chrome beside `Draft`; do not duplicate it in the guidance.
+- CET guidance is non-blocking context. It must not add required checklists, modals, live suggestions, in-editor correction, or AI co-writing.
+- CET guidance must not introduce timers, word-count targets or pressure, scores, official scoring claims, rubric-score copy, or mock-exam flow/language.
+- CET refinements must not add database tables, IPC channels, provider calls, provider configuration, review schemas, rewrite task kinds, or a separate review engine.
+
+Tests required:
+
+- CET-4 renders distinct concise-response guidance.
+- CET-6 renders distinct argument/coherence guidance.
+- Journal and Free Writing render no CET guidance.
+- CET guidance avoids forbidden exam-mode wording such as timer, word count, score, official scoring, rubric score, and mock exam.
+- The editor template switcher still exposes Journal, CET-4 Writing, CET-6 Writing, and Free Writing as same-level options.
+
 ## Scenario: Practice Entry and Template Flow
 
 ### 1. Scope / Trigger

@@ -1,4 +1,5 @@
 import { AutosaveStatus } from './AutosaveStatus';
+import { CetPracticeGuidance } from './CetPracticeGuidance';
 import type { WritingEditorCardProps } from './types';
 
 export function WritingEditorCard({
@@ -73,7 +74,7 @@ export function WritingEditorCard({
                   className="input input-bordered mt-2 w-full bg-base-100/55"
                   value={userGoal}
                   onChange={(event) => onUserGoalChange(event.target.value)}
-                  placeholder="e.g. clarify an argument, describe a memory, or answer a CET topic"
+                  placeholder={getPracticeGoalPlaceholder(selectedTemplateId)}
                   data-e2e="writing-goal-input"
                 />
               </label>
@@ -128,6 +129,8 @@ export function WritingEditorCard({
         </div>
       </div>
 
+      <CetPracticeGuidance templateId={selectedTemplateId} />
+
       <textarea
         className="writing-practice-surface paper-sheet mt-4 min-h-[38rem] flex-1 resize-none p-10 text-base-content outline-none transition placeholder:text-base-content/35 focus:border-primary/35 lg:min-h-0"
         value={content}
@@ -142,4 +145,17 @@ export function WritingEditorCard({
       </p>
     </section>
   );
+}
+
+function getPracticeGoalPlaceholder(templateId: WritingEditorCardProps['selectedTemplateId']): string {
+  switch (templateId) {
+    case 'journal':
+      return 'e.g. describe a memory, a decision, or a moment from today';
+    case 'cet4':
+      return 'e.g. choose an everyday topic, state a clear position, or practice one useful sentence pattern';
+    case 'cet6':
+      return 'e.g. set an argument topic, clarify your reasoning, or practice one precise expression';
+    case 'free':
+      return 'e.g. shape your own topic, clarify an idea, or practice a phrase';
+  }
 }

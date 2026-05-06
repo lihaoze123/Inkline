@@ -225,6 +225,8 @@ Goal: make scenario/exam practice a first-class product experience after the pat
   - Foundation implemented: a Drills page lists active patterns, evidence, and the current matching pending rewrite practice from existing learning assets.
   - Later expansion needs a separate PRD before adding on-demand drill generation, scenario packs, or evidence-affecting drill creation.
 - CET-specific practice refinements without making Inkline a mock-exam simulator by default.
+  - Foundation implemented: CET-4 and CET-6 render lightweight Practice guidance over the shared writing engine.
+  - Later expansion needs a separate PRD before adding timed mode, word-count pressure, official scoring/rubrics, or mock-exam flow.
 - Scenario packs for school essays, work updates, applications, travel, and free expression.
 - Track-level guidance that changes prompts, review focus, and rewrite tasks while reusing the same learning-history engine.
 - Optional new-context generation using the user's active patterns.
