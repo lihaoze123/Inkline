@@ -1,0 +1,19 @@
+{"file":".trellis/tasks/05-06-weak-outcome-rewrite-recovery/prd.md","reason":"Acceptance criteria and explicit out-of-scope boundaries for weak-outcome recovery."}
+{"file":".trellis/spec/product/index.md","reason":"Verify product checklist compliance for learning-flow changes."}
+{"file":".trellis/spec/product/roadmap.md","reason":"Verify implementation completes Horizon 1 recovery without pulling later horizons forward."}
+{"file":".trellis/spec/product/learning-flow.md","reason":"Verify lifecycle, retry, weak-outcome recovery, and transfer semantics."}
+{"file":".trellis/spec/product/data-model-contract.md","reason":"Verify persistence, check history, and evidence contracts."}
+{"file":".trellis/spec/product/review-agent-contract.md","reason":"Verify outcome vocabulary and evaluator boundaries remain consistent."}
+{"file":".trellis/spec/product/validation-and-testing.md","reason":"Verify appropriate test coverage and harness compatibility."}
+{"file":".trellis/spec/backend/index.md","reason":"Check backend guideline coverage for service changes."}
+{"file":".trellis/spec/backend/error-handling.md","reason":"Check service error handling and transaction behavior."}
+{"file":".trellis/spec/backend/type-safety.md","reason":"Check Zod/type-safety conventions."}
+{"file":".trellis/spec/backend/quality.md","reason":"Check main-process import and quality conventions."}
+{"file":".trellis/spec/frontend/index.md","reason":"Check renderer product-context compliance for practice UI changes."}
+{"file":".trellis/spec/frontend/components.md","reason":"Check recovery UI and copy conventions."}
+{"file":".trellis/spec/frontend/hooks.md","reason":"Check React Query cache invalidation/update behavior."}
+{"file":".trellis/spec/frontend/react-pitfalls.md","reason":"Check React implementation avoids card-disappearing state bugs."}
+{"file":".trellis/spec/shared/index.md","reason":"Check shared schema/type contract compliance."}
+{"file":".trellis/spec/shared/code-quality.md","reason":"Check cross-layer code quality rules."}
+{"file":".trellis/spec/shared/typescript.md","reason":"Check TypeScript helper and schema changes."}
+{"file":".trellis/spec/shared/timestamp.md","reason":"Check timestamp handling for recovery completedAt/check ordering."}

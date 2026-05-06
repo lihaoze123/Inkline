@@ -1,0 +1,19 @@
+{"file":".trellis/tasks/05-06-weak-outcome-rewrite-recovery/prd.md","reason":"Task requirements for weak-outcome recovery after PR #25 D+3/D+7 transfer loop."}
+{"file":".trellis/spec/product/index.md","reason":"Product pre-development checklist and roadmap routing for learning-flow work."}
+{"file":".trellis/spec/product/roadmap.md","reason":"Source of Horizon 1 recovery/retry semantics and out-of-scope boundaries."}
+{"file":".trellis/spec/product/learning-flow.md","reason":"Rewrite practice lifecycle, retry, and transfer evidence contracts."}
+{"file":".trellis/spec/product/data-model-contract.md","reason":"SQLite rewrite task/check and evidence derivation contracts."}
+{"file":".trellis/spec/product/review-agent-contract.md","reason":"Rewrite-check evaluator vocabulary and feedback boundaries."}
+{"file":".trellis/spec/product/validation-and-testing.md","reason":"Review contract harness and test expectations for learning-flow changes."}
+{"file":".trellis/spec/backend/index.md","reason":"Backend service and persistence guidelines for Electron main-process work."}
+{"file":".trellis/spec/backend/error-handling.md","reason":"Service error behavior for recovery submit and retry boundaries."}
+{"file":".trellis/spec/backend/type-safety.md","reason":"Zod-first typing and no non-null assertion guidance for shared/main changes."}
+{"file":".trellis/spec/backend/quality.md","reason":"Main-process import and quality conventions."}
+{"file":".trellis/spec/frontend/index.md","reason":"Renderer product context for rewrite practice UI changes."}
+{"file":".trellis/spec/frontend/components.md","reason":"UI component and copy conventions for recovery actions."}
+{"file":".trellis/spec/frontend/hooks.md","reason":"React Query cache update expectations for rewrite practice mutations."}
+{"file":".trellis/spec/frontend/react-pitfalls.md","reason":"React state and rendering pitfalls while keeping completed cards editable."}
+{"file":".trellis/spec/shared/index.md","reason":"Shared type/schema guidelines for writing snapshot contracts."}
+{"file":".trellis/spec/shared/code-quality.md","reason":"General quality rules applied across shared/backend/frontend changes."}
+{"file":".trellis/spec/shared/typescript.md","reason":"Strict TypeScript conventions for helper types and schema-derived types."}
+{"file":".trellis/spec/shared/timestamp.md","reason":"Unix millisecond timestamp expectations for completedAt/latest check ordering."}
