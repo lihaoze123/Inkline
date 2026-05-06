@@ -1,0 +1,19 @@
+{"file": ".trellis/spec/product/roadmap.md", "reason": "Verify the implementation matches the Horizon 2 apply-correction slice."}
+{"file": ".trellis/spec/product/data-model-contract.md", "reason": "Verify revision/history/event contracts and no historical mutation."}
+{"file": ".trellis/spec/product/learning-flow.md", "reason": "Verify review preview/save boundary and focused correction UX."}
+{"file": ".trellis/spec/product/validation-and-testing.md", "reason": "Verify review-flow test coverage and commands."}
+{"file": ".trellis/spec/backend/api-module.md", "reason": "Verify IPC/API contract additions."}
+{"file": ".trellis/spec/backend/database.md", "reason": "Verify migration/schema/transaction correctness."}
+{"file": ".trellis/spec/backend/error-handling.md", "reason": "Verify safe stale/conflict errors."}
+{"file": ".trellis/spec/backend/type-safety.md", "reason": "Verify Zod schemas and TypeScript safety."}
+{"file": ".trellis/spec/frontend/components.md", "reason": "Verify Feedback UI control behavior and copy."}
+{"file": ".trellis/spec/frontend/hooks.md", "reason": "Verify React Query cache update consistency."}
+{"file": ".trellis/spec/frontend/ipc-electron.md", "reason": "Verify renderer/preload boundary safety."}
+{"file": ".trellis/spec/frontend/quality.md", "reason": "Verify frontend tests and no layout regressions."}
+{"file": ".trellis/spec/shared/code-quality.md", "reason": "Verify cohesive implementation and no unnecessary duplication."}
+{"file": ".trellis/spec/shared/timestamp.md", "reason": "Verify timestamp formats across API."}
+{"file": ".trellis/spec/shared/typescript.md", "reason": "Verify TypeScript conventions."}
+{"file": ".trellis/spec/guides/db-schema-change-guide.md", "reason": "Verify DB migration checklist."}
+{"file": ".trellis/spec/guides/transaction-consistency-guide.md", "reason": "Verify multi-table writes stay atomic."}
+{"file": ".trellis/spec/guides/semantic-change-checklist.md", "reason": "Verify no unintended semantic drift."}
+

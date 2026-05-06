@@ -1,0 +1,23 @@
+{"file": ".trellis/spec/product/index.md", "reason": "Product-layer overview and pre-development checklist."}
+{"file": ".trellis/spec/product/roadmap.md", "reason": "Horizon 2 apply-correction scope and sequencing."}
+{"file": ".trellis/spec/product/data-model-contract.md", "reason": "Content revision contract, historical snapshot safety, and learning event contract."}
+{"file": ".trellis/spec/product/learning-flow.md", "reason": "Review preview/save boundary and focused correction UX constraints."}
+{"file": ".trellis/spec/product/validation-and-testing.md", "reason": "Review-flow validation and required quality gates."}
+{"file": ".trellis/spec/backend/index.md", "reason": "Backend service and IPC conventions overview."}
+{"file": ".trellis/spec/backend/api-module.md", "reason": "IPC/API module conventions for adding review.applyCorrection."}
+{"file": ".trellis/spec/backend/database.md", "reason": "Drizzle/SQLite schema, migrations, transactions, and timestamp rules."}
+{"file": ".trellis/spec/backend/error-handling.md", "reason": "Safe service error behavior for stale/conflict apply cases."}
+{"file": ".trellis/spec/backend/type-safety.md", "reason": "Zod-first public schemas and explicit return typing."}
+{"file": ".trellis/spec/frontend/index.md", "reason": "Frontend layer checklist for UI changes."}
+{"file": ".trellis/spec/frontend/components.md", "reason": "Component conventions for Feedback page controls."}
+{"file": ".trellis/spec/frontend/hooks.md", "reason": "React Query mutation/cache conventions."}
+{"file": ".trellis/spec/frontend/ipc-electron.md", "reason": "Renderer/preload IPC boundary safety."}
+{"file": ".trellis/spec/frontend/quality.md", "reason": "Frontend test and quality expectations."}
+{"file": ".trellis/spec/shared/code-quality.md", "reason": "Cross-cutting maintainability expectations."}
+{"file": ".trellis/spec/shared/timestamp.md", "reason": "Unix millisecond timestamp contract."}
+{"file": ".trellis/spec/shared/typescript.md", "reason": "TypeScript style and safety rules."}
+{"file": ".trellis/spec/guides/cross-layer-thinking-guide.md", "reason": "Feature spans renderer, IPC, main service, DB, and shared schemas."}
+{"file": ".trellis/spec/guides/db-schema-change-guide.md", "reason": "Learning event enum migration touches DB schema."}
+{"file": ".trellis/spec/guides/transaction-consistency-guide.md", "reason": "Apply must create revision, update attempt/review, and append event atomically."}
+{"file": ".trellis/spec/guides/semantic-change-checklist.md", "reason": "Avoid changing review-save, stale-review, or correction-anchor semantics unintentionally."}
+
