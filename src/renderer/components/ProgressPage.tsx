@@ -1,5 +1,8 @@
+import { useState } from 'react';
 import type {
   ErrorPatternSnapshot,
+  MergeErrorPatternsInput,
+  MergeErrorPatternsResult,
   PatternEvidenceCheckSummary,
   PatternEvidenceRepairSummary,
   PatternEvidenceStage,
@@ -26,6 +29,8 @@ type ProgressPageProps = {
   isError: boolean;
   hasWritten: boolean;
   hasPendingRewrite: boolean;
+  isMergePending: boolean;
+  onMergePatterns: (input: MergeErrorPatternsInput) => Promise<MergeErrorPatternsResult>;
   onOpenPractice: () => void;
 };
 
@@ -35,8 +40,34 @@ export function ProgressPage({
   isError,
   hasWritten,
   hasPendingRewrite,
+  isMergePending,
+  onMergePatterns,
   onOpenPractice,
 }: ProgressPageProps): React.JSX.Element {
+  const [mergeSelections, setMergeSelections] = useState<Record<string, string>>({});
+  const [mergeError, setMergeError] = useState<string | null>(null);
+
+  const handleMerge = async (targetPattern: ErrorPatternSnapshot): Promise<void> => {
+    const sourcePatternId = mergeSelections[targetPattern.id];
+    if (!sourcePatternId || sourcePatternId === targetPattern.id) {
+      return;
+    }
+
+    setMergeError(null);
+    const result = await onMergePatterns({ sourcePatternId, targetPatternId: targetPattern.id });
+    if (result.success === false) {
+      setMergeError(result.error);
+      return;
+    }
+
+    setMergeSelections((current) => {
+      const nextSelections = { ...current };
+      delete nextSelections[targetPattern.id];
+      delete nextSelections[sourcePatternId];
+      return nextSelections;
+    });
+  };
+
   return (
     <section className="flex min-h-0 flex-1 flex-col gap-9" aria-labelledby="progress-page-title">
       <header className="ui-chrome pb-2">
@@ -71,6 +102,8 @@ export function ProgressPage({
         </section>
       </div>
 
+      {mergeError ? <p className="ui-chrome max-w-4xl text-sm text-error">{mergeError}</p> : null}
+
       <LearningPageState
         isLoading={isLoading}
         isError={isError}
@@ -83,6 +116,8 @@ export function ProgressPage({
           {patterns.map((pattern) => {
             const evidence = evidenceForPattern(pattern);
             const evidenceContext = evidenceContextFor(evidence);
+            const mergeCandidates = mergeCandidatesForPattern(pattern, patterns);
+            const selectedSourceId = mergeSelections[pattern.id] ?? '';
 
             return (
               <article
@@ -130,6 +165,53 @@ export function ProgressPage({
                     </div>
                   ) : null}
                 </div>
+
+                {mergeCandidates.length > 0 ? (
+                  <div className="ui-chrome mt-5 border-t border-base-300/45 pt-4">
+                    <label
+                      className="text-xs font-semibold uppercase tracking-[0.14em] text-base-content/45"
+                      htmlFor={`merge-source-${pattern.id}`}
+                    >
+                      Merge duplicate
+                    </label>
+                    <div className="mt-3 flex flex-col gap-3 sm:flex-row">
+                      <select
+                        id={`merge-source-${pattern.id}`}
+                        className="select select-bordered min-h-11 flex-1 rounded-lg bg-base-100/70 text-sm"
+                        value={selectedSourceId}
+                        disabled={isMergePending}
+                        onChange={(event) => {
+                          setMergeSelections((current) => ({
+                            ...current,
+                            [pattern.id]: event.target.value,
+                          }));
+                        }}
+                      >
+                        <option value="">Choose pattern</option>
+                        {mergeCandidates.map((candidate) => (
+                          <option key={candidate.id} value={candidate.id}>
+                            {candidate.rule}
+                          </option>
+                        ))}
+                      </select>
+                      <button
+                        type="button"
+                        className="btn btn-secondary min-h-11 rounded-lg px-5"
+                        disabled={!selectedSourceId || isMergePending}
+                        onClick={() => {
+                          void handleMerge(pattern);
+                        }}
+                      >
+                        Merge
+                      </button>
+                    </div>
+                    {selectedSourceId ? (
+                      <p className="mt-3 text-xs leading-5 text-base-content/55">
+                        Keeps this pattern and removes the selected duplicate from active review.
+                      </p>
+                    ) : null}
+                  </div>
+                ) : null}
               </article>
             );
           })}
@@ -181,6 +263,19 @@ function LearningPageState({
 
 function evidenceForPattern(pattern: ErrorPatternSnapshot): PatternEvidenceSummary {
   return pattern.evidence ?? { stage: 'needs_repair', latestRepair: null };
+}
+
+function mergeCandidatesForPattern(
+  targetPattern: ErrorPatternSnapshot,
+  patterns: ErrorPatternSnapshot[],
+): ErrorPatternSnapshot[] {
+  return patterns.filter(
+    (pattern) =>
+      pattern.id !== targetPattern.id &&
+      pattern.active &&
+      !pattern.mergedIntoPatternId &&
+      pattern.category === targetPattern.category,
+  );
 }
 
 function evidenceContextFor(evidence: PatternEvidenceSummary): string | null {

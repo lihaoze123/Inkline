@@ -2,6 +2,7 @@ import type { RewriteCheckSnapshot, WritingAttemptSnapshot } from '@shared/types
 import { describe, expect, it } from 'vitest';
 import { createRendererQueryClient } from '../src/renderer/query/client';
 import { queryKeys } from '../src/renderer/query/keys';
+import { invalidateErrorPatterns } from '../src/renderer/query/learning-assets';
 import { setReviewPreviewCache } from '../src/renderer/query/review';
 import { updateSettingsCache } from '../src/renderer/query/settings';
 import { updateRewritePracticeCache, updateWritingAttemptCache } from '../src/renderer/query/writing';
@@ -247,6 +248,15 @@ describe('renderer query configuration', () => {
         userRewriteText: 'it can make people more confident',
       },
     });
+
+    expect(queryClient.getQueryState(queryKeys.learningAssets.errorPatterns)?.isInvalidated).toBe(true);
+  });
+
+  it('invalidates pattern evidence after learning-assets merge mutations', async () => {
+    const queryClient = createRendererQueryClient();
+    queryClient.setQueryData(queryKeys.learningAssets.errorPatterns, []);
+
+    await invalidateErrorPatterns(queryClient);
 
     expect(queryClient.getQueryState(queryKeys.learningAssets.errorPatterns)?.isInvalidated).toBe(true);
   });

@@ -81,6 +81,7 @@ v0.2 validates whether users learn from recurring patterns and reuse them in new
 - Upgrade opportunities are allowed by cap, validated against source writing, and persisted as Notebook entries.
 - Notebook and Progress pages read real local learning history.
 - Durable rewrite-check attempts evaluate submitted D+1 rewrites and persist `correct`, `partly_correct`, or `incorrect` outcomes with retryable failure states.
+- Manual pattern merge/de-dup flow keeps source traceability and rolls source evidence into the target.
 
 ### Remaining v0.2 Adds
 
@@ -89,7 +90,6 @@ v0.2 validates whether users learn from recurring patterns and reuse them in new
 - D+3 and D+7 delayed new-context reuse tasks.
 - Pattern fingerprints and transfer boundaries for reliable reuse generation/evaluation.
 - Hidden new-context prompt contracts and transfer evaluator diagnostic checks.
-- Pattern merge/de-dup flow.
 - Apply correction through a revision mechanism.
 
 ## Backlog After v0.2

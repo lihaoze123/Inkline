@@ -230,6 +230,8 @@ class FakeWritingDatabase {
       lastSeenDateKey: '2026-04-30',
       recentExamplesJson: JSON.stringify(['I go home -> I went home']),
       fingerprintJson,
+      mergedIntoPatternId: null,
+      mergedAt: null,
       active: true,
       createdAt: now,
       updatedAt: now,

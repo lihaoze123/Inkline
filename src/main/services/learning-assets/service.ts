@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { and, desc, eq, inArray, or } from 'drizzle-orm';
+import { and, desc, eq, inArray, isNull, or } from 'drizzle-orm';
 import { db } from '../../db/client';
 import { corrections, errorPatterns, notebookEntries, rewriteChecks, rewriteTasks } from '../../db/schema';
 import { arePatternRulesSimilar, normalizePatternKey } from '../../../shared/review-contract/patterns';
@@ -11,9 +11,12 @@ import type {
 import {
   listErrorPatternsOutputSchema,
   listNotebookEntriesOutputSchema,
+  mergeErrorPatternsInputSchema,
+  mergeErrorPatternsResultSchema,
   type ErrorPatternSnapshot,
   type ListErrorPatternsOutput,
   type ListNotebookEntriesOutput,
+  type MergeErrorPatternsResult,
   type NotebookEntrySnapshot,
   type PatternEvidenceCheckSummary,
   type PatternEvidenceRepairSummary,
@@ -31,7 +34,9 @@ const RECENT_EXAMPLES_LIMIT = 5;
 const LIST_LIMIT = 50;
 
 type LearningAssetTx = Pick<typeof db, 'select' | 'insert' | 'update'>;
+type LearningAssetDatabase = typeof db;
 type ErrorPatternRow = typeof errorPatterns.$inferSelect;
+type PatternMergeTargetMap = Map<string, string>;
 type EvidenceRepairTask = {
   patternId: string;
   repair: PatternEvidenceRepairSummary;
@@ -69,6 +74,13 @@ export type PersistedPatternLink = {
   rule: string;
 };
 
+class PatternMergeValidationError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'PatternMergeValidationError';
+  }
+}
+
 function createId(prefix: string): string {
   return `${prefix}_${randomUUID()}`;
 }
@@ -93,6 +105,8 @@ function patternToSnapshot(pattern: ErrorPatternRow, evidence: PatternEvidenceSu
     firstSeenDateKey: pattern.firstSeenDateKey,
     lastSeenDateKey: pattern.lastSeenDateKey,
     recentExamples: parseStringArray(pattern.recentExamplesJson),
+    mergedIntoPatternId: pattern.mergedIntoPatternId,
+    mergedAt: dateToMillis(pattern.mergedAt),
     active: pattern.active,
     createdAt: pattern.createdAt.getTime(),
     updatedAt: pattern.updatedAt.getTime(),
@@ -113,16 +127,23 @@ function notebookEntryToSnapshot(entry: typeof notebookEntries.$inferSelect): No
   };
 }
 
-export function listErrorPatterns(database: typeof db = db): ListErrorPatternsOutput {
+export function listErrorPatterns(database: LearningAssetDatabase = db): ListErrorPatternsOutput {
   const patternRows = database
     .select()
     .from(errorPatterns)
+    .where(and(eq(errorPatterns.active, true), isNull(errorPatterns.mergedIntoPatternId)))
     .orderBy(desc(errorPatterns.count), desc(errorPatterns.updatedAt))
     .limit(LIST_LIMIT)
     .all();
 
   const patternIds = patternRows.map((pattern) => pattern.id);
-  const evidenceByPatternId = derivePatternEvidenceSummaries(selectPatternEvidenceRows(database, patternIds));
+  const mergeTargetBySourceId = selectPatternMergeTargetMap(database, patternIds);
+  const evidencePatternIds = [...patternIds, ...mergeTargetBySourceId.keys()];
+  const evidenceRows = selectPatternEvidenceRows(database, evidencePatternIds).map((row) => ({
+    ...row,
+    patternId: row.patternId ? (mergeTargetBySourceId.get(row.patternId) ?? row.patternId) : null,
+  }));
+  const evidenceByPatternId = derivePatternEvidenceSummaries(evidenceRows);
   const patterns = patternRows.map((pattern) =>
     patternToSnapshot(pattern, evidenceByPatternId.get(pattern.id) ?? defaultEvidenceSummary()),
   );
@@ -130,7 +151,31 @@ export function listErrorPatterns(database: typeof db = db): ListErrorPatternsOu
   return listErrorPatternsOutputSchema.parse(patterns);
 }
 
-function selectPatternEvidenceRows(database: typeof db, patternIds: string[]): PatternEvidenceQueryRow[] {
+function selectPatternMergeTargetMap(
+  database: LearningAssetDatabase,
+  targetPatternIds: string[],
+): PatternMergeTargetMap {
+  if (targetPatternIds.length === 0) {
+    return new Map<string, string>();
+  }
+
+  const mergedRows = database
+    .select({
+      id: errorPatterns.id,
+      mergedIntoPatternId: errorPatterns.mergedIntoPatternId,
+    })
+    .from(errorPatterns)
+    .where(inArray(errorPatterns.mergedIntoPatternId, targetPatternIds))
+    .all();
+
+  return new Map(
+    mergedRows.flatMap((pattern) =>
+      pattern.mergedIntoPatternId ? [[pattern.id, pattern.mergedIntoPatternId] as const] : [],
+    ),
+  );
+}
+
+function selectPatternEvidenceRows(database: LearningAssetDatabase, patternIds: string[]): PatternEvidenceQueryRow[] {
   if (patternIds.length === 0) {
     return [];
   }
@@ -392,13 +437,141 @@ export function listNotebookEntries(): ListNotebookEntriesOutput {
   return listNotebookEntriesOutputSchema.parse(entries);
 }
 
-export function selectActiveReviewPatterns(database: typeof db = db, limit = 30): ErrorPattern[] {
+export function mergeErrorPatterns(input: unknown, database: LearningAssetDatabase = db): MergeErrorPatternsResult {
+  const parseResult = mergeErrorPatternsInputSchema.safeParse(input);
+  if (!parseResult.success) {
+    return { success: false, error: parseResult.error.issues[0]?.message ?? 'Invalid pattern merge request.' };
+  }
+
+  try {
+    const updatedTarget = database.transaction((tx) => {
+      const sourcePattern = tx
+        .select()
+        .from(errorPatterns)
+        .where(eq(errorPatterns.id, parseResult.data.sourcePatternId))
+        .get();
+      const targetPattern = tx
+        .select()
+        .from(errorPatterns)
+        .where(eq(errorPatterns.id, parseResult.data.targetPatternId))
+        .get();
+
+      const validMerge = validatePatternMerge(sourcePattern, targetPattern);
+
+      const now = new Date();
+      const [mergedTarget] = tx
+        .update(errorPatterns)
+        .set({
+          count: validMerge.targetPattern.count + validMerge.sourcePattern.count,
+          firstSeenDateKey: minDateKey(
+            validMerge.targetPattern.firstSeenDateKey,
+            validMerge.sourcePattern.firstSeenDateKey,
+          ),
+          lastSeenDateKey: maxDateKey(
+            validMerge.targetPattern.lastSeenDateKey,
+            validMerge.sourcePattern.lastSeenDateKey,
+          ),
+          recentExamplesJson: JSON.stringify(mergeRecentExamples(validMerge.targetPattern, validMerge.sourcePattern)),
+          fingerprintJson: validMerge.targetPattern.fingerprintJson ?? validMerge.sourcePattern.fingerprintJson,
+          updatedAt: now,
+        })
+        .where(eq(errorPatterns.id, validMerge.targetPattern.id))
+        .returning()
+        .all();
+
+      if (!mergedTarget) {
+        throw new Error('Merged target pattern was not returned.');
+      }
+
+      tx.update(errorPatterns)
+        .set({
+          active: false,
+          mergedIntoPatternId: validMerge.targetPattern.id,
+          mergedAt: now,
+          updatedAt: now,
+        })
+        .where(eq(errorPatterns.id, validMerge.sourcePattern.id))
+        .run();
+
+      return mergedTarget;
+    });
+
+    const targetPattern = getErrorPatternSnapshot(database, updatedTarget.id);
+    return mergeErrorPatternsResultSchema.parse({ success: true, targetPattern });
+  } catch (error) {
+    if (error instanceof PatternMergeValidationError) {
+      return { success: false, error: error.message };
+    }
+
+    return { success: false, error: 'Failed to merge error patterns.' };
+  }
+}
+
+function validatePatternMerge(
+  sourcePattern: ErrorPatternRow | undefined,
+  targetPattern: ErrorPatternRow | undefined,
+): { sourcePattern: ErrorPatternRow; targetPattern: ErrorPatternRow } {
+  if (!sourcePattern) {
+    throw new PatternMergeValidationError('Source pattern was not found.');
+  }
+
+  if (!targetPattern) {
+    throw new PatternMergeValidationError('Target pattern was not found.');
+  }
+
+  if (!sourcePattern.active || sourcePattern.mergedIntoPatternId) {
+    throw new PatternMergeValidationError('Source pattern is already merged or inactive.');
+  }
+
+  if (!targetPattern.active || targetPattern.mergedIntoPatternId) {
+    throw new PatternMergeValidationError('Target pattern is already merged or inactive.');
+  }
+
+  if (sourcePattern.category !== targetPattern.category) {
+    throw new PatternMergeValidationError('Only patterns in the same category can be merged.');
+  }
+
+  return { sourcePattern, targetPattern };
+}
+
+function mergeRecentExamples(targetPattern: ErrorPatternRow, sourcePattern: ErrorPatternRow): string[] {
+  return [...parseStringArray(targetPattern.recentExamplesJson), ...parseStringArray(sourcePattern.recentExamplesJson)]
+    .filter((example, index, examples) => examples.indexOf(example) === index)
+    .slice(0, RECENT_EXAMPLES_LIMIT);
+}
+
+function minDateKey(left: string, right: string): string {
+  return left <= right ? left : right;
+}
+
+function maxDateKey(left: string, right: string): string {
+  return left >= right ? left : right;
+}
+
+function getErrorPatternSnapshot(database: LearningAssetDatabase, patternId: string): ErrorPatternSnapshot {
+  const pattern = database.select().from(errorPatterns).where(eq(errorPatterns.id, patternId)).get();
+  if (!pattern) {
+    throw new Error(`Error pattern was not found: ${patternId}`);
+  }
+
+  const mergeTargetBySourceId = selectPatternMergeTargetMap(database, [pattern.id]);
+  const evidencePatternIds = [pattern.id, ...mergeTargetBySourceId.keys()];
+  const evidenceRows = selectPatternEvidenceRows(database, evidencePatternIds).map((row) => ({
+    ...row,
+    patternId: row.patternId ? (mergeTargetBySourceId.get(row.patternId) ?? row.patternId) : null,
+  }));
+  const evidenceByPatternId = derivePatternEvidenceSummaries(evidenceRows);
+
+  return patternToSnapshot(pattern, evidenceByPatternId.get(pattern.id) ?? defaultEvidenceSummary());
+}
+
+export function selectActiveReviewPatterns(database: LearningAssetDatabase = db, limit = 30): ErrorPattern[] {
   return database
     .select()
     .from(errorPatterns)
     .orderBy(desc(errorPatterns.count), desc(errorPatterns.updatedAt))
     .all()
-    .filter((pattern) => pattern.active && pattern.category !== 'spelling')
+    .filter((pattern) => pattern.active && !pattern.mergedIntoPatternId && pattern.category !== 'spelling')
     .slice(0, limit)
     .map((pattern) => ({
       id: pattern.id,
@@ -482,7 +655,7 @@ function persistOnePatternOperation(
   const existingPatternId = operation.duplicateOfPatternId;
   const existingPattern =
     (existingPatternId
-      ? tx.select().from(errorPatterns).where(eq(errorPatterns.id, existingPatternId)).get()
+      ? resolveWritablePattern(tx, tx.select().from(errorPatterns).where(eq(errorPatterns.id, existingPatternId)).get())
       : undefined) ?? findPatternForSuggestion(tx, operation);
 
   if (existingPattern) {
@@ -502,6 +675,8 @@ function persistOnePatternOperation(
       lastSeenDateKey: dateKey,
       recentExamplesJson: JSON.stringify([example]),
       fingerprintJson: fingerprint ? JSON.stringify(fingerprint) : null,
+      mergedIntoPatternId: null,
+      mergedAt: null,
       active: true,
     })
     .returning()
@@ -514,14 +689,36 @@ function findPatternForSuggestion(
 ): ErrorPatternRow | undefined {
   const exactPattern = tx.select().from(errorPatterns).where(eq(errorPatterns.patternKey, operation.patternKey)).get();
   if (exactPattern) {
-    return exactPattern;
+    return resolveWritablePattern(tx, exactPattern);
   }
 
   return tx
     .select()
     .from(errorPatterns)
     .all()
-    .find((pattern) => pattern.category === operation.category && arePatternRulesSimilar(pattern.rule, operation.rule));
+    .find(
+      (pattern) =>
+        pattern.active &&
+        !pattern.mergedIntoPatternId &&
+        pattern.category === operation.category &&
+        arePatternRulesSimilar(pattern.rule, operation.rule),
+    );
+}
+
+function resolveWritablePattern(
+  tx: LearningAssetTx,
+  pattern: ErrorPatternRow | undefined,
+): ErrorPatternRow | undefined {
+  if (!pattern?.mergedIntoPatternId) {
+    return pattern;
+  }
+
+  const targetPattern = tx.select().from(errorPatterns).where(eq(errorPatterns.id, pattern.mergedIntoPatternId)).get();
+  if (!targetPattern || !targetPattern.active || targetPattern.mergedIntoPatternId) {
+    return undefined;
+  }
+
+  return targetPattern;
 }
 
 function incrementPattern(

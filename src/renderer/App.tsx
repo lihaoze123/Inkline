@@ -24,7 +24,7 @@ import feedbackInkLandscapeUrl from './assets/feedback-ink-landscape.png';
 import type { ReviewProgressModel, ReviewState, SaveState } from './components/types';
 import { useFoundationState } from './query/foundation';
 import { queryKeys } from './query/keys';
-import { useErrorPatterns, useNotebookEntries } from './query/learning-assets';
+import { useErrorPatterns, useMergeErrorPatterns, useNotebookEntries } from './query/learning-assets';
 import { setReviewPreviewCache, useSaveReview, useStartReview } from './query/review';
 import {
   useDeleteProviderApiKey,
@@ -207,6 +207,7 @@ function PracticePage({ initialWriting, settings, startup }: PracticePageProps):
   const { mutateAsync: deleteProviderApiKeyMutation } = useDeleteProviderApiKey();
   const { mutateAsync: setRawResponseStorageMutation } = useSetRawResponseStorage();
   const { mutateAsync: setReviewThinkingMutation } = useSetReviewThinking();
+  const { mutateAsync: mergeErrorPatternsMutation, isPending: isMergeErrorPatternsPending } = useMergeErrorPatterns();
   const writing = writingQuery.data ?? initialWriting;
   const [content, setContent] = useState(initialWriting.activeRevision?.content ?? '');
   const [userGoal, setUserGoal] = useState(initialWriting.userGoal ?? '');
@@ -980,6 +981,8 @@ function PracticePage({ initialWriting, settings, startup }: PracticePageProps):
                 isError={errorPatternsQuery.isError}
                 hasWritten={hasWritten}
                 hasPendingRewrite={Boolean(writing.pendingRewritePractice)}
+                isMergePending={isMergeErrorPatternsPending}
+                onMergePatterns={mergeErrorPatternsMutation}
                 onOpenPractice={() => setActiveArea('write')}
               />
             ) : null}

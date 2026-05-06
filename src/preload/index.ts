@@ -32,7 +32,12 @@ import type {
   StartReviewInput,
   StartReviewOutput,
 } from '../shared/types/review';
-import type { ListErrorPatternsOutput, ListNotebookEntriesOutput } from '../shared/types/learning-assets';
+import type {
+  ListErrorPatternsOutput,
+  ListNotebookEntriesOutput,
+  MergeErrorPatternsInput,
+  MergeErrorPatternsResult,
+} from '../shared/types/learning-assets';
 import type {
   SettingsSnapshot,
   SetDefaultProviderInput,
@@ -106,6 +111,8 @@ const api = {
       ipcRenderer.invoke(IPC_CHANNELS.LEARNING_ASSETS.LIST_ERROR_PATTERNS),
     listNotebookEntries: (): Promise<ListNotebookEntriesOutput> =>
       ipcRenderer.invoke(IPC_CHANNELS.LEARNING_ASSETS.LIST_NOTEBOOK_ENTRIES),
+    mergeErrorPatterns: (input: MergeErrorPatternsInput): Promise<MergeErrorPatternsResult> =>
+      ipcRenderer.invoke(IPC_CHANNELS.LEARNING_ASSETS.MERGE_ERROR_PATTERNS, input),
   },
 };
 

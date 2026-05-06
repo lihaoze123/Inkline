@@ -71,6 +71,13 @@
       "when": 1777410000009,
       "tag": "0009_rewrite_task_prompt_contract",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1777410000010,
+      "tag": "0010_pattern_merge",
+      "breakpoints": true
     }
   ]
 }

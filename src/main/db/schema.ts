@@ -82,6 +82,8 @@ export const errorPatterns = sqliteTable(
     lastSeenDateKey: text('last_seen_date_key').notNull(),
     recentExamplesJson: text('recent_examples_json').notNull().default('[]'),
     fingerprintJson: text('fingerprint_json'),
+    mergedIntoPatternId: text('merged_into_pattern_id'),
+    mergedAt: integer('merged_at', { mode: 'timestamp_ms' }),
     active: integer('active', { mode: 'boolean' }).notNull().default(true),
     createdAt: integer('created_at', { mode: 'timestamp_ms' })
       .notNull()

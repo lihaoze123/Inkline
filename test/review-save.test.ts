@@ -251,6 +251,8 @@ class FakeReviewDatabase {
       lastSeenDateKey: '2026-04-28',
       recentExamplesJson: JSON.stringify(['I eat dinner -> I ate dinner']),
       fingerprintJson: null,
+      mergedIntoPatternId: null,
+      mergedAt: null,
       active: true,
       createdAt: now,
       updatedAt: now,
@@ -678,6 +680,75 @@ describe('saveReviewRun transaction', () => {
     });
     expect(database.savedCorrections()[0]).toMatchObject({
       patternId: 'pattern_tense',
+      pattern: 'Use past tense for completed actions.',
+    });
+  });
+
+  it('resolves exact-key duplicate suggestions from merged source patterns to the active target', async () => {
+    const database = new FakeReviewDatabase();
+    database.seedWriting();
+    database.seedErrorPattern({
+      id: 'pattern_target',
+      patternKey: 'tense:completed_actions',
+      rule: 'Use past tense for completed actions.',
+      count: 2,
+    });
+    database.seedErrorPattern({
+      id: 'pattern_source',
+      patternKey: 'tense:past_events',
+      rule: 'Choose past tense for finished events.',
+      count: 1,
+      active: false,
+      mergedIntoPatternId: 'pattern_target',
+      mergedAt: now,
+    });
+    database.seedReadyReview(
+      baseOperations({
+        corrections: [
+          {
+            ...baseOperations().corrections[0],
+            matchedPatternId: null,
+            newPatternSuggestion: {
+              category: 'tense',
+              rule: 'Choose past tense for finished events.',
+              canonicalExample: 'I go home -> I went home',
+            },
+          },
+        ],
+        patternOperations: [
+          {
+            kind: 'suggest_new_pattern',
+            correctionIndex: 0,
+            category: 'tense',
+            rule: 'Choose past tense for finished events.',
+            canonicalExample: 'I go home -> I went home',
+            patternKey: 'tense:past_events',
+            fingerprint: focusFingerprint,
+            updatesLongTermStats: false,
+          },
+        ],
+      }),
+    );
+    const saveReviewRun = await loadSaveReviewRun();
+
+    const result = saveReviewRun(
+      { reviewRunId: 'review_1', selfRepairAttemptText: 'I went home', revealedWithoutAttempt: false },
+      { database: database.asAppDatabase(), getWritingAttemptSnapshot: currentWriting },
+    );
+
+    expect(result.success).toBe(true);
+    expect(database.savedErrorPatterns().find((pattern) => pattern.id === 'pattern_target')).toMatchObject({
+      count: 3,
+      active: true,
+      fingerprintJson: JSON.stringify(focusFingerprint),
+    });
+    expect(database.savedErrorPatterns().find((pattern) => pattern.id === 'pattern_source')).toMatchObject({
+      count: 1,
+      active: false,
+      mergedIntoPatternId: 'pattern_target',
+    });
+    expect(database.savedCorrections()[0]).toMatchObject({
+      patternId: 'pattern_target',
       pattern: 'Use past tense for completed actions.',
     });
   });

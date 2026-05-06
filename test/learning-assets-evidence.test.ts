@@ -70,6 +70,8 @@ describe('learning-assets evidence summaries', () => {
       firstSeenDateKey: '2026-05-01',
       lastSeenDateKey: '2026-05-06',
       recentExamples: ['I go home -> I went home'],
+      mergedIntoPatternId: null,
+      mergedAt: null,
       active: true,
       createdAt: baseTime,
       updatedAt: baseTime,

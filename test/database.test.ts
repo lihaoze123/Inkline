@@ -75,4 +75,11 @@ describe('database foundation migration', () => {
 
     expect(migrationSql).toContain('ALTER TABLE `rewrite_tasks` ADD `prompt_contract_json` text');
   });
+
+  it('adds merge traceability storage to durable error patterns', () => {
+    const migrationSql = readFileSync(path.resolve(process.cwd(), 'drizzle/0010_pattern_merge.sql'), 'utf8');
+
+    expect(migrationSql).toContain('ALTER TABLE `error_patterns` ADD `merged_into_pattern_id` text');
+    expect(migrationSql).toContain('ALTER TABLE `error_patterns` ADD `merged_at` integer');
+  });
 });

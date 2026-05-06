@@ -61,11 +61,39 @@ export const errorPatternSnapshotSchema = z.object({
   firstSeenDateKey: z.string().min(1),
   lastSeenDateKey: z.string().min(1),
   recentExamples: z.array(z.string().min(1)),
+  mergedIntoPatternId: z.string().min(1).nullable(),
+  mergedAt: z.number().nullable(),
   active: z.boolean(),
   createdAt: z.number(),
   updatedAt: z.number(),
   evidence: patternEvidenceSummarySchema.optional(),
 });
+
+export const mergeErrorPatternsInputSchema = z
+  .object({
+    sourcePatternId: z.string().min(1),
+    targetPatternId: z.string().min(1),
+  })
+  .superRefine((input, context) => {
+    if (input.sourcePatternId === input.targetPatternId) {
+      context.addIssue({
+        code: 'custom',
+        path: ['targetPatternId'],
+        message: 'Choose two different patterns to merge.',
+      });
+    }
+  });
+
+export const mergeErrorPatternsResultSchema = z.discriminatedUnion('success', [
+  z.object({
+    success: z.literal(true),
+    targetPattern: errorPatternSnapshotSchema,
+  }),
+  z.object({
+    success: z.literal(false),
+    error: z.string().min(1),
+  }),
+]);
 
 export const notebookEntrySnapshotSchema = z.object({
   id: z.string().min(1),
@@ -82,6 +110,8 @@ export const listErrorPatternsOutputSchema = z.array(errorPatternSnapshotSchema)
 export const listNotebookEntriesOutputSchema = z.array(notebookEntrySnapshotSchema);
 
 export type ErrorPatternSnapshot = z.infer<typeof errorPatternSnapshotSchema>;
+export type MergeErrorPatternsInput = z.infer<typeof mergeErrorPatternsInputSchema>;
+export type MergeErrorPatternsResult = z.infer<typeof mergeErrorPatternsResultSchema>;
 export type NotebookEntrySnapshot = z.infer<typeof notebookEntrySnapshotSchema>;
 export type PatternEvidenceStage = z.infer<typeof patternEvidenceStageSchema>;
 export type PatternEvidenceCheckSummary = z.infer<typeof patternEvidenceCheckSummarySchema>;

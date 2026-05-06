@@ -16,6 +16,8 @@ function pattern(overrides: Partial<ErrorPatternSnapshot> = {}): ErrorPatternSna
     firstSeenDateKey: '2026-05-01',
     lastSeenDateKey: '2026-05-06',
     recentExamples: ['I go home -> I went home'],
+    mergedIntoPatternId: null,
+    mergedAt: null,
     active: true,
     createdAt: now,
     updatedAt: now,
@@ -32,6 +34,8 @@ describe('ProgressPage evidence rendering', () => {
         isError={false}
         hasWritten={false}
         hasPendingRewrite={false}
+        isMergePending={false}
+        onMergePatterns={async () => ({ success: false, error: 'Not available in render test.' })}
         onOpenPractice={() => undefined}
       />,
     );
@@ -73,6 +77,8 @@ describe('ProgressPage evidence rendering', () => {
         isError={false}
         hasWritten={false}
         hasPendingRewrite={false}
+        isMergePending={false}
+        onMergePatterns={async () => ({ success: false, error: 'Not available in render test.' })}
         onOpenPractice={() => undefined}
       />,
     );
@@ -111,6 +117,8 @@ describe('ProgressPage evidence rendering', () => {
         isError={false}
         hasWritten={false}
         hasPendingRewrite={false}
+        isMergePending={false}
+        onMergePatterns={async () => ({ success: false, error: 'Not available in render test.' })}
         onOpenPractice={() => undefined}
       />,
     );
@@ -150,6 +158,8 @@ describe('ProgressPage evidence rendering', () => {
         isError={false}
         hasWritten={false}
         hasPendingRewrite={false}
+        isMergePending={false}
+        onMergePatterns={async () => ({ success: false, error: 'Not available in render test.' })}
         onOpenPractice={() => undefined}
       />,
     );
@@ -189,6 +199,8 @@ describe('ProgressPage evidence rendering', () => {
         isError={false}
         hasWritten={false}
         hasPendingRewrite={false}
+        isMergePending={false}
+        onMergePatterns={async () => ({ success: false, error: 'Not available in render test.' })}
         onOpenPractice={() => undefined}
       />,
     );

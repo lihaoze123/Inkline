@@ -24,7 +24,11 @@ import {
   startReviewInputSchema,
   startReviewOutputSchema,
 } from '../../shared/types/review';
-import { listErrorPatternsOutputSchema, listNotebookEntriesOutputSchema } from '../../shared/types/learning-assets';
+import {
+  listErrorPatternsOutputSchema,
+  listNotebookEntriesOutputSchema,
+  mergeErrorPatternsResultSchema,
+} from '../../shared/types/learning-assets';
 import { startupStatusSchema, type StartupStatus } from '../../shared/types/app';
 import {
   acknowledgeStarterPromptDisclosureInputSchema,
@@ -61,7 +65,7 @@ import {
 } from '../services/writing/service';
 import { getRuntimeTimeZone, getRuntimeTimeZoneOffsetMinutes } from '../env-setup';
 import { acknowledgeReviewDisclosure } from '../services/review/lib/disclosure';
-import { listErrorPatterns, listNotebookEntries } from '../services/learning-assets/service';
+import { listErrorPatterns, listNotebookEntries, mergeErrorPatterns } from '../services/learning-assets/service';
 import { getReviewPreview } from '../services/review/procedures/preview';
 import { saveReviewRun } from '../services/review/procedures/save';
 import { startReview } from '../services/review/procedures/start';
@@ -236,5 +240,9 @@ export function registerIpcHandlers(migrationResult: MigrationResult): void {
 
   ipcMain.handle(IPC_CHANNELS.LEARNING_ASSETS.LIST_NOTEBOOK_ENTRIES, (): unknown => {
     return listNotebookEntriesOutputSchema.parse(listNotebookEntries());
+  });
+
+  ipcMain.handle(IPC_CHANNELS.LEARNING_ASSETS.MERGE_ERROR_PATTERNS, (_event, input: unknown): unknown => {
+    return mergeErrorPatternsResultSchema.parse(mergeErrorPatterns(input));
   });
 }

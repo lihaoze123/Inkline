@@ -676,7 +676,117 @@ Idempotency:
 - Do not send all patterns to the review agent. v0.1 limit is 30.
 - Default pattern selection excludes spelling.
 
-Pattern merge is v0.2+. Historical corrections keep original pattern IDs, and display follows `merged_into_pattern_id` only when merge exists.
+Pattern merge is v0.2. Historical corrections keep original pattern IDs, and display follows `merged_into_pattern_id` when merge exists.
+
+## Scenario: Pattern Merge and De-Dup Flow
+
+### 1. Scope / Trigger
+
+- Trigger: Any task that changes pattern merge/de-dup UI, `error_patterns` merge metadata, `learningAssets.mergeErrorPatterns`, Progress pattern listing, future review pattern selection, or evidence derivation across merged patterns.
+- This is a cross-layer local-first contract: Progress UI -> preload IPC -> main learning-assets service -> SQLite merge metadata -> pattern/evidence read flows.
+
+### 2. Signatures
+
+DB columns:
+
+```text
+error_patterns.merged_into_pattern_id text null
+error_patterns.merged_at integer timestamp_ms null
+```
+
+Preload API:
+
+```ts
+type MergeErrorPatternsInput = {
+  sourcePatternId: string;
+  targetPatternId: string;
+};
+
+type MergeErrorPatternsResult =
+  | { success: true; targetPattern: ErrorPatternSnapshot }
+  | { success: false; error: string };
+
+window.api.learningAssets.mergeErrorPatterns(input: MergeErrorPatternsInput): Promise<MergeErrorPatternsResult>;
+```
+
+`ErrorPatternSnapshot` includes:
+
+```ts
+mergedIntoPatternId: string | null;
+mergedAt: number | null;
+```
+
+### 3. Contracts
+
+- Merge is explicit and user initiated; save-time de-dup may still reuse exact-key or same-category rule-similar patterns before inserting.
+- `sourcePatternId` and `targetPatternId` must be distinct, active, unmerged patterns in the same category.
+- Merge preserves the source row for traceability: set `source.active = false`, `source.merged_into_pattern_id = target.id`, and `source.merged_at = now`.
+- Merge does not rewrite `corrections.pattern_id`; historical corrections keep the original source ID.
+- Target aggregate fields are updated at merge time:
+  - `count = target.count + source.count`
+  - `first_seen_date_key = min(target.first_seen_date_key, source.first_seen_date_key)`
+  - `last_seen_date_key = max(target.last_seen_date_key, source.last_seen_date_key)`
+  - `recent_examples_json` is target examples followed by source examples, de-duped and capped
+  - `fingerprint_json` keeps target value; if target is `null`, fill from source
+- `listErrorPatterns` hides merged-away inactive sources by default and rolls source evidence rows up to the target pattern.
+- `selectActiveReviewPatterns` excludes inactive or merged-away source rows.
+- Save-time exact-key de-dup must resolve a merged source pattern to its active target instead of reactivating the source.
+- Renderer merge mutations invalidate `learningAssets.errorPatterns` after success.
+
+### 4. Validation & Error Matrix
+
+| Condition | Behavior |
+| --- | --- |
+| Source or target ID is blank | Reject via Zod; do not mutate. |
+| Source and target IDs are identical | Reject via Zod; do not mutate. |
+| Source row is missing | Return `{ success: false, error }`; do not mutate. |
+| Target row is missing | Return `{ success: false, error }`; do not mutate. |
+| Source is inactive or already merged | Return `{ success: false, error }`; do not mutate. |
+| Target is inactive or already merged | Return `{ success: false, error }`; do not mutate. |
+| Categories differ | Return `{ success: false, error }`; do not mutate. |
+| Merge write fails after target/source update starts | Roll back the transaction. |
+
+### 5. Good/Base/Bad Cases
+
+- Good: Two active tense patterns are merged, source becomes inactive, target count/dates/examples update, historical source correction evidence appears under the target in Progress.
+- Good: Target already has a fingerprint, so source fingerprint is not allowed to overwrite it.
+- Good: A future new-pattern suggestion with the source's old `pattern_key` increments the active target and links the saved correction to the target.
+- Base: Source has no rewrite evidence; merge still hides the source and updates target aggregate fields.
+- Base: Source has a fingerprint and target does not; target receives the source fingerprint.
+- Bad: Merge reassigns old `corrections.pattern_id` rows and destroys the historical trail.
+- Bad: Future review input includes a merged-away inactive source pattern.
+- Bad: Progress displays both source and target after a successful merge.
+
+### 6. Tests Required
+
+- Migration test: `0010_pattern_merge.sql` is registered and adds both merge columns.
+- Service test: successful merge marks source inactive, stores merge metadata, updates target aggregates, and preserves correction links.
+- Service test: evidence from source corrections rolls up to target after merge.
+- Save-review test: exact-key duplicate suggestions for a merged source increment/link the active target and do not reactivate the source.
+- Service test: invalid, missing, inactive, already-merged, same-ID, and cross-category requests return errors without partial writes.
+- Query test: merge mutation invalidates `learningAssets.errorPatterns`.
+- Render test: Progress can render merge controls for same-category active patterns without breaking existing evidence display.
+
+### 7. Wrong vs Correct
+
+#### Wrong
+
+```ts
+tx.update(corrections).set({ patternId: targetPattern.id }).where(eq(corrections.patternId, sourcePattern.id));
+tx.delete(errorPatterns).where(eq(errorPatterns.id, sourcePattern.id));
+```
+
+#### Correct
+
+```ts
+tx.update(errorPatterns)
+  .set({
+    active: false,
+    mergedIntoPatternId: targetPattern.id,
+    mergedAt: now,
+  })
+  .where(eq(errorPatterns.id, sourcePattern.id));
+```
 
 ## Scenario: Learning Assets Persistence
 
@@ -700,6 +810,8 @@ error_patterns(
   first_seen_date_key text not null,
   last_seen_date_key text not null,
   recent_examples_json text not null default '[]',
+  merged_into_pattern_id text null,
+  merged_at integer timestamp_ms null,
   active integer boolean not null default true,
   created_at integer timestamp_ms not null,
   updated_at integer timestamp_ms not null
@@ -758,6 +870,7 @@ type ErrorPatternSnapshot = {
 
 window.api.learningAssets.listErrorPatterns(): Promise<ErrorPatternSnapshot[]>;
 window.api.learningAssets.listNotebookEntries(): Promise<NotebookEntrySnapshot[]>;
+window.api.learningAssets.mergeErrorPatterns(input: MergeErrorPatternsInput): Promise<MergeErrorPatternsResult>;
 ```
 
 ### 3. Contracts
@@ -767,6 +880,7 @@ window.api.learningAssets.listNotebookEntries(): Promise<NotebookEntrySnapshot[]
 - Saving a matched pattern increments `error_patterns.count`, updates `last_seen_date_key`, prepends the recent example, and links the saved correction through `corrections.pattern_id`.
 - Saving a new pattern suggestion normalizes `pattern_key`, checks exact-key and same-category rule similarity, and reuses an existing similar pattern before inserting.
 - `selectActiveReviewPatterns` reads active non-spelling `error_patterns`, sorts by count and recency, and respects `existingPatternsLimit`.
+- Merged-away source patterns are inactive and excluded from review input; list/evidence display follows `merged_into_pattern_id` without rewriting historical corrections.
 - Upgrade opportunities must store the reviewed source phrase, 1-3 suggested alternatives, optional reason, date key, template, and review run ID.
 - Invalid review output and unsaved review previews must not update `error_patterns`, `notebook_entries`, or correction links.
 - `listErrorPatterns` derives `evidence` at query time; do not add a stored evidence-state column in the first version.
@@ -784,6 +898,7 @@ window.api.learningAssets.listNotebookEntries(): Promise<NotebookEntrySnapshot[]
 | `matchedPatternId` not found during save | Roll back save transaction and return an error. |
 | New suggestion has a duplicate `pattern_key` | Reuse the existing pattern and increment it. |
 | New suggestion is same-category and rule-similar to an existing pattern | Reuse the existing pattern and increment it. |
+| Pattern is merged into another pattern | Hide the source by default; roll source evidence into the target. |
 | Upgrade `sourceText` is not in reviewed writing | Validation is invalid; save never receives notebook operation. |
 | Save transaction fails after pattern/notebook writes begin | Roll back all review save side effects. |
 | Pattern has no linked D+1 rewrite task | Return `evidence.stage = 'needs_repair'` and `latestRepair = null`. |
