@@ -1,0 +1,28 @@
+{"file": ".trellis/spec/product/roadmap.md", "reason": "Verify implementation matches the private beta reset/export path without displacing roadmap sequencing."}
+{"file": ".trellis/spec/product/mvp-scope.md", "reason": "Check no restore/import, ecosystem, dashboard, or unrelated learning-loop scope slipped in."}
+{"file": ".trellis/spec/product/privacy-security.md", "reason": "Verify backup/reset privacy boundaries and no settings/keychain/provider leakage."}
+{"file": ".trellis/spec/product/data-model-contract.md", "reason": "Verify resettable table set, cascades, and local data integrity."}
+{"file": ".trellis/spec/product/validation-and-testing.md", "reason": "Verify required tests and validation commands."}
+{"file": ".trellis/spec/backend/index.md", "reason": "Backend guideline entrypoint for review."}
+{"file": ".trellis/spec/backend/api-module.md", "reason": "Review service and IPC boundary consistency."}
+{"file": ".trellis/spec/backend/database.md", "reason": "Review SQLite transaction/delete behavior."}
+{"file": ".trellis/spec/backend/error-handling.md", "reason": "Review safe failure behavior and no partial destructive writes."}
+{"file": ".trellis/spec/backend/type-safety.md", "reason": "Review Zod-first reset schemas and typed outputs."}
+{"file": ".trellis/spec/backend/quality.md", "reason": "Review main-process imports and backend quality rules."}
+{"file": ".trellis/spec/frontend/index.md", "reason": "Frontend guideline entrypoint for Settings UI review."}
+{"file": ".trellis/spec/frontend/ipc-electron.md", "reason": "Review preload IPC and Settings channel contracts."}
+{"file": ".trellis/spec/frontend/electron-browser-api-restrictions.md", "reason": "Verify no prompt/alert/confirm usage."}
+{"file": ".trellis/spec/frontend/react-pitfalls.md", "reason": "Review local confirmation state and callback dependencies."}
+{"file": ".trellis/spec/frontend/components.md", "reason": "Review semantic destructive Settings UI."}
+{"file": ".trellis/spec/frontend/hooks.md", "reason": "Review React Query invalidation after reset."}
+{"file": ".trellis/spec/frontend/type-safety.md", "reason": "Review shared type imports and props."}
+{"file": ".trellis/spec/frontend/css-design.md", "reason": "Review visual fit with Inkline Settings style."}
+{"file": ".trellis/spec/frontend/quality.md", "reason": "Review frontend test and quality expectations."}
+{"file": ".trellis/spec/shared/index.md", "reason": "Shared guideline entrypoint for reset schemas."}
+{"file": ".trellis/spec/shared/code-quality.md", "reason": "Review shared helper clarity and no unsafe assertions."}
+{"file": ".trellis/spec/shared/typescript.md", "reason": "Review TypeScript conventions."}
+{"file": ".trellis/spec/guides/pre-implementation-checklist.md", "reason": "Verify scoped destructive API/UI decisions."}
+{"file": ".trellis/spec/guides/cross-layer-thinking-guide.md", "reason": "Verify cross-layer reset data flow."}
+{"file": ".trellis/spec/guides/transaction-consistency-guide.md", "reason": "Verify backup-first and transaction consistency."}
+{"file": ".trellis/tasks/05-07-next-roadmap-slice/prd.md", "reason": "Verify acceptance criteria, requirements, and out-of-scope list."}
+{"file": ".trellis/tasks/05-07-next-roadmap-slice/info.md", "reason": "Verify task-specific implementation notes and risk constraints."}

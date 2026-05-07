@@ -1,0 +1,27 @@
+{"file": ".trellis/spec/product/roadmap.md", "reason": "Roadmap source for private beta test data reset/export path and sequencing constraints."}
+{"file": ".trellis/spec/product/mvp-scope.md", "reason": "Preserve MVP boundaries and avoid import/restore, ecosystem, dashboard, or unrelated learning-loop expansion."}
+{"file": ".trellis/spec/product/privacy-security.md", "reason": "Learning-history export/backup/import preview privacy boundary and Settings provider/keychain constraints."}
+{"file": ".trellis/spec/product/data-model-contract.md", "reason": "SQLite table ownership, cascades, resettable user-owned learning rows, and local data integrity."}
+{"file": ".trellis/spec/product/validation-and-testing.md", "reason": "Project validation commands and test expectations for Settings/file/IPC flows."}
+{"file": ".trellis/spec/backend/index.md", "reason": "Backend guideline entrypoint for service and IPC implementation."}
+{"file": ".trellis/spec/backend/api-module.md", "reason": "Service module and IPC procedure boundary guidance."}
+{"file": ".trellis/spec/backend/database.md", "reason": "Drizzle/SQLite transaction and deletion guidance."}
+{"file": ".trellis/spec/backend/error-handling.md", "reason": "Safe failure behavior for backup failure, confirmation failure, and transaction errors."}
+{"file": ".trellis/spec/backend/type-safety.md", "reason": "Zod-first reset input/result schemas and typed service outputs."}
+{"file": ".trellis/spec/backend/quality.md", "reason": "Main-process imports and backend quality rules."}
+{"file": ".trellis/spec/frontend/index.md", "reason": "Frontend guideline entrypoint for Settings UI work."}
+{"file": ".trellis/spec/frontend/ipc-electron.md", "reason": "Preload IPC and Settings channel contracts."}
+{"file": ".trellis/spec/frontend/electron-browser-api-restrictions.md", "reason": "No prompt/alert/confirm; destructive confirmation must be in-app UI state."}
+{"file": ".trellis/spec/frontend/react-pitfalls.md", "reason": "React state/callback dependency guidance for confirmation input and reset mutation."}
+{"file": ".trellis/spec/frontend/components.md", "reason": "Semantic Settings controls and destructive-action UI guidance."}
+{"file": ".trellis/spec/frontend/hooks.md", "reason": "React Query mutation and invalidation patterns after reset."}
+{"file": ".trellis/spec/frontend/type-safety.md", "reason": "Shared type imports and component prop typing for reset controls."}
+{"file": ".trellis/spec/frontend/css-design.md", "reason": "Inkline visual contract and restrained Settings danger-zone styling."}
+{"file": ".trellis/spec/frontend/quality.md", "reason": "Frontend tests and quality expectations."}
+{"file": ".trellis/spec/shared/index.md", "reason": "Shared guideline entrypoint for reset schemas and types."}
+{"file": ".trellis/spec/shared/code-quality.md", "reason": "Shared helper clarity, no unsafe assertions, and testability."}
+{"file": ".trellis/spec/shared/typescript.md", "reason": "Explicit TypeScript types and schema conventions."}
+{"file": ".trellis/spec/guides/pre-implementation-checklist.md", "reason": "Checklist for scoped destructive UI/API changes."}
+{"file": ".trellis/spec/guides/cross-layer-thinking-guide.md", "reason": "Renderer -> preload -> main -> SQLite data flow for reset."}
+{"file": ".trellis/spec/guides/transaction-consistency-guide.md", "reason": "Backup-first plus transactional delete consistency."}
+{"file": ".trellis/tasks/05-07-next-roadmap-slice/info.md", "reason": "Task-specific implementation shape, constraints, test notes, and risks."}
