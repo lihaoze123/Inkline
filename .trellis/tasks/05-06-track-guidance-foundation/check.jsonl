@@ -1,0 +1,16 @@
+{"file": ".trellis/spec/product/roadmap.md", "reason": "Verify implementation stays within Horizon 3 thin track-guidance sequencing."}
+{"file": ".trellis/spec/product/mvp-scope.md", "reason": "Check no mock-exam, score, user-template, dashboard, or parallel-engine scope slipped in."}
+{"file": ".trellis/spec/product/learning-flow.md", "reason": "Verify Practice, starter prompt, review, and rewrite practice contracts remain intact."}
+{"file": ".trellis/spec/product/review-agent-contract.md", "reason": "Verify review input/output, prompt safety, focus-pattern, and rewrite task contracts."}
+{"file": ".trellis/spec/product/validation-and-testing.md", "reason": "Verify required tests and review harness expectations for review-flow changes."}
+{"file": ".trellis/spec/backend/index.md", "reason": "Backend review entrypoint for service and prompt-construction changes."}
+{"file": ".trellis/spec/backend/api-module.md", "reason": "Review service module structure and procedure/lib boundaries."}
+{"file": ".trellis/spec/backend/type-safety.md", "reason": "Review Zod-first type safety and validation usage."}
+{"file": ".trellis/spec/backend/quality.md", "reason": "Review main-process import and quality rules."}
+{"file": ".trellis/spec/shared/index.md", "reason": "Shared model guideline entrypoint."}
+{"file": ".trellis/spec/shared/code-quality.md", "reason": "Review no-any/no-non-null assertion and testing requirements."}
+{"file": ".trellis/spec/shared/typescript.md", "reason": "Review TypeScript conventions and exported type/schema shape."}
+{"file": ".trellis/spec/guides/pre-implementation-checklist.md", "reason": "Review shared metadata and reuse decisions."}
+{"file": ".trellis/spec/guides/cross-layer-thinking-guide.md", "reason": "Review template metadata data flow across shared and main-process review boundaries."}
+{"file": ".trellis/tasks/05-06-track-guidance-foundation/prd.md", "reason": "Verify acceptance criteria, requirements, and out-of-scope list."}
+{"file": ".trellis/tasks/05-06-track-guidance-foundation/info.md", "reason": "Verify task-specific implementation notes and risk constraints."}

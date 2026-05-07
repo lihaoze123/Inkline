@@ -1,0 +1,15 @@
+{"file": ".trellis/spec/product/roadmap.md", "reason": "Roadmap source for Horizon 3 track-guidance sequencing and shared-engine constraints."}
+{"file": ".trellis/spec/product/mvp-scope.md", "reason": "Defines out-of-scope mock-exam, scoring, user-template, and parallel-engine behavior."}
+{"file": ".trellis/spec/product/learning-flow.md", "reason": "Practice template flow, starter prompt, review, rewrite practice, and learning-loop contracts."}
+{"file": ".trellis/spec/product/review-agent-contract.md", "reason": "Template-aware review input/output, prompt safety, focus-pattern, and rewrite task contracts."}
+{"file": ".trellis/spec/product/validation-and-testing.md", "reason": "Review-flow validation commands and test expectations for prompt/review changes."}
+{"file": ".trellis/spec/backend/index.md", "reason": "Backend service guideline entrypoint for prompt generation and review service changes."}
+{"file": ".trellis/spec/backend/api-module.md", "reason": "Service module structure and shared procedure/lib organization guidance."}
+{"file": ".trellis/spec/backend/type-safety.md", "reason": "Zod-first backend type safety and validation patterns."}
+{"file": ".trellis/spec/backend/quality.md", "reason": "Main-process import and quality rules."}
+{"file": ".trellis/spec/shared/index.md", "reason": "Shared type/model guideline entrypoint."}
+{"file": ".trellis/spec/shared/code-quality.md", "reason": "Shared no-any/no-non-null assertion and testing rules."}
+{"file": ".trellis/spec/shared/typescript.md", "reason": "TypeScript explicit return type, type import, and Zod schema guidance."}
+{"file": ".trellis/spec/guides/pre-implementation-checklist.md", "reason": "Checklist for shared metadata, reuse, and boundary decisions before coding."}
+{"file": ".trellis/spec/guides/cross-layer-thinking-guide.md", "reason": "Cross-layer data flow checklist for template metadata moving through shared/main/review boundaries."}
+{"file": ".trellis/tasks/05-06-track-guidance-foundation/info.md", "reason": "Task-specific implementation shape, constraints, test notes, and risks."}
