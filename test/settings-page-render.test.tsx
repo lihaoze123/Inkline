@@ -10,6 +10,7 @@ import type {
 import type { AiProviderSettingsMap, SettingsSnapshot } from '../src/shared/types/settings';
 
 vi.mock('@shared/types/credentials', async () => import('../src/shared/types/credentials'));
+vi.mock('@shared/types/learning-assets', async () => import('../src/shared/types/learning-assets'));
 vi.mock('@shared/diagnostics/beta-readiness', async () => import('../src/shared/diagnostics/beta-readiness'));
 
 function providerStatus<T extends AiProviderId>(
@@ -197,6 +198,7 @@ async function renderSettingsPage(
       onExportLearningHistory={() => undefined}
       onCreateLearningHistoryBackup={() => undefined}
       onPreviewLearningHistoryImport={() => undefined}
+      onResetLearningHistory={() => undefined}
       onViewWelcomeIntro={() => undefined}
     />,
   );
@@ -336,5 +338,16 @@ describe('SettingsPage provider flow', () => {
     expect(html).toContain('data-e2e="learning-history-preview-import"');
     expect(html).toContain('data-e2e="learning-history-raw-output-toggle"');
     expect(html).not.toContain('data-e2e="learning-history-raw-output-toggle" checked');
+  });
+
+  it('renders a confirmation-gated reset control that preserves provider configuration', async () => {
+    const html = await renderSettingsPage('openai-compatible');
+
+    expect(html).toContain('Reset local learning data');
+    expect(html).toContain('Provider settings and saved API keys stay untouched.');
+    expect(html).toContain('data-e2e="learning-history-reset-confirmation"');
+    expect(html).toContain('data-e2e="learning-history-reset"');
+    expect(html).toContain('Create backup and reset');
+    expect(html).toContain('disabled=""');
   });
 });

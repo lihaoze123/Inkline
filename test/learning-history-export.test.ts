@@ -18,6 +18,8 @@ import {
   learningHistoryExportDocumentSchema,
   learningHistoryExportResultSchema,
   previewLearningHistoryImportResultSchema,
+  resetLearningHistoryInputSchema,
+  resetLearningHistoryResultSchema,
   type LearningHistoryExportDocument,
   type LearningHistoryExportTables,
 } from '../src/shared/types/learning-assets';
@@ -27,6 +29,7 @@ import {
   createLearningHistoryBackup,
   exportLearningHistory,
   previewLearningHistoryImport,
+  resetLearningHistory,
   serializeLearningHistoryExportDocument,
   snapshotLearningHistoryTables,
   validateLearningHistoryImportDocument,
@@ -145,7 +148,7 @@ function makeFileSystem(files: Record<string, string> = {}): FakeFileSystem {
   };
 }
 
-function makeFakeSnapshotDatabase(): SnapshotInput['database'] {
+function makeFakeSnapshotRowsByTable(): Map<unknown, unknown[]> {
   const rowsByTable = new Map<unknown, unknown[]>([
     [
       writingAttempts,
@@ -340,6 +343,12 @@ function makeFakeSnapshotDatabase(): SnapshotInput['database'] {
     ],
   ]);
 
+  return rowsByTable;
+}
+
+function makeFakeSnapshotDatabase(): NonNullable<SnapshotInput['database']> {
+  const rowsByTable = makeFakeSnapshotRowsByTable();
+
   return {
     select(): { from(table: unknown): { all(): unknown[] } } {
       return {
@@ -352,7 +361,123 @@ function makeFakeSnapshotDatabase(): SnapshotInput['database'] {
         },
       };
     },
-  } as unknown as SnapshotInput['database'];
+  } as unknown as NonNullable<SnapshotInput['database']>;
+}
+
+type ResetDependencies = NonNullable<Parameters<typeof resetLearningHistory>[1]>;
+type ResetDatabase = NonNullable<ResetDependencies['database']>;
+type LearningHistoryResetTableName =
+  | 'writingAttempts'
+  | 'writingRevisions'
+  | 'reviewRuns'
+  | 'errorPatterns'
+  | 'corrections'
+  | 'notebookEntries'
+  | 'selfRepairAttempts'
+  | 'referenceRewrites'
+  | 'rewriteTasks'
+  | 'rewriteChecks'
+  | 'learningEvents';
+
+const resetTableNames = new Map<unknown, LearningHistoryResetTableName>([
+  [writingAttempts, 'writingAttempts'],
+  [writingRevisions, 'writingRevisions'],
+  [reviewRuns, 'reviewRuns'],
+  [errorPatterns, 'errorPatterns'],
+  [corrections, 'corrections'],
+  [notebookEntries, 'notebookEntries'],
+  [selfRepairAttempts, 'selfRepairAttempts'],
+  [referenceRewrites, 'referenceRewrites'],
+  [rewriteTasks, 'rewriteTasks'],
+  [rewriteChecks, 'rewriteChecks'],
+  [learningEvents, 'learningEvents'],
+]);
+
+class FakeResetLearningHistoryDatabase {
+  public failOnDeleteTable: LearningHistoryResetTableName | null = null;
+  public operations: string[] = [];
+  private rowsByTable: Map<unknown, unknown[]>;
+
+  constructor() {
+    const snapshotRowsByTable = makeFakeSnapshotRowsByTable();
+    this.rowsByTable = new Map(
+      Array.from(resetTableNames.keys()).map((table) => [table, [...(snapshotRowsByTable.get(table) ?? [])]]),
+    );
+  }
+
+  select(): { from: (table: unknown) => { all: () => unknown[] } } {
+    return {
+      from: (table: unknown) => ({
+        all: () => [...this.rowsFor(table)],
+      }),
+    };
+  }
+
+  delete(table: unknown): { run: () => void } {
+    return {
+      run: () => {
+        const tableName = resetTableName(table);
+        if (this.failOnDeleteTable === tableName) {
+          throw new Error(`Delete failed for ${tableName}`);
+        }
+
+        this.operations.push(`delete:${tableName}`);
+        this.rowsByTable.set(table, []);
+
+        if (tableName === 'writingAttempts') {
+          this.clearCascadeFromWritingAttempts();
+        }
+      },
+    };
+  }
+
+  transaction<T>(callback: (tx: FakeResetLearningHistoryDatabase) => T): T {
+    const snapshot = this.cloneRowsByTable();
+    try {
+      return callback(this);
+    } catch (error) {
+      this.rowsByTable = snapshot;
+      throw error;
+    }
+  }
+
+  count(table: unknown): number {
+    return this.rowsFor(table).length;
+  }
+
+  asResetDatabase(): ResetDatabase {
+    return this as unknown as ResetDatabase;
+  }
+
+  private rowsFor(table: unknown): unknown[] {
+    return this.rowsByTable.get(table) ?? [];
+  }
+
+  private cloneRowsByTable(): Map<unknown, unknown[]> {
+    return new Map(Array.from(this.rowsByTable.entries()).map(([table, rows]) => [table, [...rows]]));
+  }
+
+  private clearCascadeFromWritingAttempts(): void {
+    [
+      writingRevisions,
+      reviewRuns,
+      corrections,
+      notebookEntries,
+      selfRepairAttempts,
+      referenceRewrites,
+      rewriteTasks,
+      rewriteChecks,
+    ].forEach((table) => this.rowsByTable.set(table, []));
+  }
+}
+
+function resetTableName(table: unknown): LearningHistoryResetTableName {
+  const tableName = resetTableNames.get(table);
+  if (!tableName) {
+    throw new Error('Unknown reset table.');
+  }
+
+  return tableName;
 }
 
 function expectSuccessfulExportResult(
@@ -454,6 +579,136 @@ describe('learning history export foundation', () => {
     );
     expect(result.byteSize).toBeGreaterThan(0);
     expect(learningHistoryExportResultSchema.parse(result)).toEqual(result);
+  });
+
+  it('parses reset input while leaving incorrect confirmation as a safe service failure', async () => {
+    const database = new FakeResetLearningHistoryDatabase();
+    const fileSystem = makeFileSystem();
+
+    expect(resetLearningHistoryInputSchema.parse({ confirmationText: 'RESET' })).toEqual({
+      confirmationText: 'RESET',
+    });
+
+    const result = await resetLearningHistory(
+      { confirmationText: 'reset', includeRawProviderOutput: true },
+      {
+        database: database.asResetDatabase(),
+        fileSystem,
+        getUserDataPath: () => '/user/data/Inkline',
+        now: () => exportedAt,
+      },
+    );
+
+    expect(result).toEqual({ success: false, error: 'Type RESET to reset local learning data.' });
+    expect(fileSystem.writes).toEqual([]);
+    expect(database.operations).toEqual([]);
+    expect(database.count(writingAttempts)).toBe(1);
+  });
+
+  it('returns a safe reset failure for malformed input without backup or deletes', async () => {
+    const database = new FakeResetLearningHistoryDatabase();
+    const fileSystem = makeFileSystem();
+
+    const result = await resetLearningHistory('RESET', {
+      database: database.asResetDatabase(),
+      fileSystem,
+      getUserDataPath: () => '/user/data/Inkline',
+      now: () => exportedAt,
+    });
+
+    expect(result).toEqual({ success: false, error: 'Type RESET to reset local learning data.' });
+    expect(fileSystem.writes).toEqual([]);
+    expect(database.operations).toEqual([]);
+    expect(database.count(writingAttempts)).toBe(1);
+  });
+
+  it('creates a backup before resetting local learning-history rows', async () => {
+    const database = new FakeResetLearningHistoryDatabase();
+    const fileSystem = makeFileSystem();
+    const originalWriteFile = fileSystem.writeFile.bind(fileSystem);
+    fileSystem.writeFile = async (filePath: string, data: string, encoding: 'utf8'): Promise<void> => {
+      database.operations.push('backup:write');
+      await originalWriteFile(filePath, data, encoding);
+    };
+
+    const result = await resetLearningHistory(
+      { confirmationText: 'RESET', includeRawProviderOutput: false },
+      {
+        database: database.asResetDatabase(),
+        fileSystem,
+        getUserDataPath: () => '/user/data/Inkline',
+        now: () => exportedAt,
+        appVersion: '0.1.6-test',
+      },
+    );
+
+    if (result.success !== true) {
+      throw new Error(`Expected reset success, received ${JSON.stringify(result)}`);
+    }
+
+    expect(resetLearningHistoryResultSchema.parse(result)).toEqual(result);
+    expect(database.operations[0]).toBe('backup:write');
+    expect(database.operations.slice(1)).toEqual([
+      'delete:learningEvents',
+      'delete:writingAttempts',
+      'delete:errorPatterns',
+    ]);
+    expect(result.backupFilePath).toBe(
+      path.join('/user/data/Inkline', 'backups', 'inkline-learning-history-2026-05-06T09-10-11-123Z.json'),
+    );
+    expect(Object.values(result.resetCounts)).toEqual(Array.from({ length: 11 }, () => 1));
+    expect(database.count(writingAttempts)).toBe(0);
+    expect(database.count(writingRevisions)).toBe(0);
+    expect(database.count(reviewRuns)).toBe(0);
+    expect(database.count(errorPatterns)).toBe(0);
+    expect(database.count(learningEvents)).toBe(0);
+    expect(JSON.stringify(result)).not.toContain('User writing');
+    expect(JSON.stringify(result)).not.toContain(rawProviderOutputMarker);
+  });
+
+  it('does not delete rows when backup creation fails', async () => {
+    const database = new FakeResetLearningHistoryDatabase();
+    const fileSystem = makeFileSystem();
+    fileSystem.writeFile = async (): Promise<void> => {
+      throw new Error('Disk is full.');
+    };
+
+    const result = await resetLearningHistory(
+      { confirmationText: 'RESET' },
+      {
+        database: database.asResetDatabase(),
+        fileSystem,
+        getUserDataPath: () => '/user/data/Inkline',
+        now: () => exportedAt,
+      },
+    );
+
+    expect(result).toEqual({ success: false, error: 'Disk is full.' });
+    expect(database.operations).toEqual([]);
+    expect(database.count(writingAttempts)).toBe(1);
+    expect(database.count(errorPatterns)).toBe(1);
+  });
+
+  it('rolls back reset deletes if the destructive transaction fails after backup', async () => {
+    const database = new FakeResetLearningHistoryDatabase();
+    const fileSystem = makeFileSystem();
+    database.failOnDeleteTable = 'writingAttempts';
+
+    const result = await resetLearningHistory(
+      { confirmationText: 'RESET' },
+      {
+        database: database.asResetDatabase(),
+        fileSystem,
+        getUserDataPath: () => '/user/data/Inkline',
+        now: () => exportedAt,
+      },
+    );
+
+    expect(result).toEqual({ success: false, error: 'Learning history backup was created, but reset failed.' });
+    expect(fileSystem.writes).toHaveLength(1);
+    expect(database.count(learningEvents)).toBe(1);
+    expect(database.count(writingAttempts)).toBe(1);
+    expect(database.count(errorPatterns)).toBe(1);
   });
 
   it('previews a selected export file without database access or mutation', async () => {
@@ -558,12 +813,17 @@ describe('learning history export foundation', () => {
     expect(IPC_CHANNELS.LEARNING_ASSETS.PREVIEW_LEARNING_HISTORY_IMPORT).toBe(
       'learningAssets:previewLearningHistoryImport',
     );
+    expect(IPC_CHANNELS.LEARNING_ASSETS.RESET_LEARNING_HISTORY).toBe('learningAssets:resetLearningHistory');
     expect(preloadSource).toContain('exportLearningHistory:');
     expect(preloadSource).toContain('createLearningHistoryBackup:');
     expect(preloadSource).toContain('previewLearningHistoryImport:');
+    expect(preloadSource).toContain('resetLearningHistory:');
     expect(rendererSource).not.toContain('showOpenDialog');
     expect(rendererSource).not.toContain('showSaveDialog');
     expect(rendererSource).not.toContain('node:fs');
+    expect(rendererSource).not.toContain('confirm(');
+    expect(rendererSource).not.toContain('prompt(');
+    expect(rendererSource).not.toContain('alert(');
     expect(exportServiceSource).not.toContain('../settings');
     expect(exportServiceSource).not.toContain('../credentials');
     expect(exportServiceSource).not.toContain('keytar');

@@ -43,6 +43,8 @@ import type {
   MergeErrorPatternsInput,
   MergeErrorPatternsResult,
   PreviewLearningHistoryImportResult,
+  ResetLearningHistoryInput,
+  ResetLearningHistoryResult,
 } from '../shared/types/learning-assets';
 import type {
   SettingsSnapshot,
@@ -129,6 +131,8 @@ const api = {
       ipcRenderer.invoke(IPC_CHANNELS.LEARNING_ASSETS.CREATE_LEARNING_HISTORY_BACKUP, input),
     previewLearningHistoryImport: (): Promise<PreviewLearningHistoryImportResult> =>
       ipcRenderer.invoke(IPC_CHANNELS.LEARNING_ASSETS.PREVIEW_LEARNING_HISTORY_IMPORT),
+    resetLearningHistory: (input: ResetLearningHistoryInput): Promise<ResetLearningHistoryResult> =>
+      ipcRenderer.invoke(IPC_CHANNELS.LEARNING_ASSETS.RESET_LEARNING_HISTORY, input),
   },
 };
 

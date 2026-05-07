@@ -255,6 +255,7 @@ Goal: make Inkline usable outside the development environment.
 - Local diagnostics for database, provider, keychain, and model-output validation.
   - Foundation implemented: Settings renders beta-readiness diagnostics from existing startup/settings snapshots, with database, migrations, selected provider/model/base URL, keychain/API-key status, and structured-validation boundary rows. It does not run a live provider request.
 - Test data reset/export paths for private beta users.
+  - Foundation implemented: Settings provides a backup-first learning-history reset path. It requires typed confirmation, writes a local backup before deletion, clears local learning rows, and preserves provider settings, API keys, onboarding/settings state, migrations, database file, and backup files.
 - Documentation that distinguishes implemented behavior from future plans.
 
 A thin beta-readiness baseline may run alongside the learning-evidence roadmap when it enables real user feedback, but it should not displace the repair-to-transfer proof path unless external testing becomes the explicit immediate goal.

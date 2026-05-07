@@ -260,6 +260,121 @@ The main process validates and owns settings/keychain access; preload exposes on
 
 ---
 
+## Scenario: Learning Assets Reset IPC Contract
+
+### 1. Scope / Trigger
+
+- Trigger: Any task that changes Settings learning-history reset/export controls, `window.api.learningAssets` file APIs, learning-assets IPC channels, or renderer cache invalidation after destructive learning-history mutations.
+- The renderer owns confirmation UI state only. The main process owns backup creation, filesystem access, SQLite deletion, and result validation.
+
+### 2. Signatures
+
+Preload API:
+
+```typescript
+type Api = {
+  learningAssets: {
+    exportLearningHistory: (input?: ExportLearningHistoryInput) => Promise<LearningHistoryExportResult>;
+    createLearningHistoryBackup: (input?: ExportLearningHistoryInput) => Promise<LearningHistoryExportResult>;
+    previewLearningHistoryImport: () => Promise<PreviewLearningHistoryImportResult>;
+    resetLearningHistory: (input: ResetLearningHistoryInput) => Promise<ResetLearningHistoryResult>;
+  };
+};
+```
+
+IPC channels:
+
+```typescript
+const IPC_CHANNELS = {
+  LEARNING_ASSETS: {
+    EXPORT_LEARNING_HISTORY: 'learningAssets:exportLearningHistory',
+    CREATE_LEARNING_HISTORY_BACKUP: 'learningAssets:createLearningHistoryBackup',
+    PREVIEW_LEARNING_HISTORY_IMPORT: 'learningAssets:previewLearningHistoryImport',
+    RESET_LEARNING_HISTORY: 'learningAssets:resetLearningHistory',
+  },
+} as const;
+```
+
+Reset input/result:
+
+```typescript
+type ResetLearningHistoryInput = {
+  confirmationText?: string;
+  includeRawProviderOutput?: boolean;
+};
+
+type ResetLearningHistoryResult =
+  | {
+      success: true;
+      backupFilePath: string;
+      backupManifest: LearningHistoryExportManifest;
+      includeRawProviderOutput: boolean;
+      resetCounts: LearningHistoryTableCounts;
+    }
+  | { success: false; error: string };
+```
+
+### 3. Contracts
+
+- Settings reset UI must require typed `RESET` confirmation before enabling the destructive action.
+- Renderer reset code must call `window.api.learningAssets.resetLearningHistory(input)` through the preload API only.
+- Renderer must not import `electron`, `node:fs`, database/schema/client modules, keychain modules, provider SDKs, or main-process services to implement reset/export/import.
+- Renderer must not use browser `confirm`, `prompt`, or `alert` for reset. Confirmation belongs in controlled React state so it is testable and accessible.
+- After a successful reset mutation, invalidate writing attempts, error patterns, notebook entries, learning events, and review query keys before reloading visible state.
+- If the current draft is dirty, save it before calling reset. Block reset while an active save is already pending.
+
+### 4. Validation & Error Matrix
+
+| Condition | Behavior |
+| --- | --- |
+| Confirmation input is not exactly `RESET` | Keep reset button disabled; do not call IPC. |
+| Reset IPC returns `{ success: false }` | Show the safe error and leave local learning views intact until normal refetch. |
+| Reset IPC returns `{ success: true }` | Clear review/progress/rewrite transient state, invalidate learning-history queries, load a fresh current attempt, and show backup path/counts. |
+| Autosave is pending | Do not start reset; tell the user to wait for save completion. |
+| Draft differs from last saved content/goal | Save through writing IPC first; abort reset if save fails. |
+| Renderer needs filesystem/dialog/database access | Contract violation; add or use a preload method instead. |
+
+### 5. Good/Base/Bad Cases
+
+- Good: Settings disables reset until the controlled confirmation value equals `RESET`, then calls the typed reset mutation.
+- Good: App saves a dirty draft before backup/reset so pending editor state is not lost outside the backup.
+- Base: Reset fails because backup was canceled; Settings shows the returned error and keeps data visible.
+- Bad: Settings calls `window.confirm` before invoking reset.
+- Bad: Renderer imports main database code to clear query data or count rows.
+- Bad: Successful reset leaves Progress/Notebook/review queries cached with deleted data.
+
+### 6. Tests Required
+
+- Settings render test: reset button is disabled until typed confirmation matches `RESET`.
+- Renderer query test: successful reset invalidates writing attempts, learning assets, and review query keys.
+- App flow test: dirty draft save failure prevents reset; successful reset clears transient review state and reloads a fresh attempt.
+- IPC/preload test: reset channel is exposed under `learningAssets.resetLearningHistory`.
+- Boundary test: renderer files import no forbidden Electron/Node/database/keychain/provider modules and contain no `confirm(`, `prompt(`, or `alert(` reset flow.
+
+### 7. Wrong vs Correct
+
+#### Wrong
+
+```tsx
+if (window.confirm('Reset learning data?')) {
+  await window.api.learningAssets.resetLearningHistory({ confirmationText: 'RESET' });
+}
+```
+
+Browser dialogs are not testable enough for this destructive desktop flow.
+
+#### Correct
+
+```tsx
+const isResetConfirmed = resetConfirmationText === RESET_LEARNING_HISTORY_CONFIRMATION_TEXT;
+
+<button disabled={!isResetConfirmed} onClick={() => onResetLearningHistory({ confirmationText: resetConfirmationText })} />;
+```
+
+The renderer keeps explicit confirmation state, and the main process still validates confirmation before backup/delete.
+
+---
+
 ## Scenario: Today Journal IPC + Autosave Contract
 
 ### 1. Scope / Trigger

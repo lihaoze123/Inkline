@@ -170,6 +170,7 @@ export const listLearningEventsOutputSchema = z.array(learningEventSnapshotSchem
 
 export const LEARNING_HISTORY_FORMAT = 'inkline-learning-history' as const;
 export const LEARNING_HISTORY_FORMAT_VERSION = 1 as const;
+export const RESET_LEARNING_HISTORY_CONFIRMATION_TEXT = 'RESET' as const;
 
 export const learningHistoryTableCountsSchema = z.object({
   writingAttempts: z.number().int().nonnegative(),
@@ -438,6 +439,29 @@ export const learningHistoryExportResultSchema = z.union([
   learningHistoryExportFailureResultSchema,
 ]);
 
+export const resetLearningHistoryInputSchema = z.object({
+  confirmationText: z.string().optional().default(''),
+  includeRawProviderOutput: z.boolean().optional(),
+});
+
+export const resetLearningHistorySuccessResultSchema = z.object({
+  success: z.literal(true),
+  backupFilePath: z.string().min(1),
+  backupManifest: learningHistoryExportManifestSchema,
+  includeRawProviderOutput: z.boolean(),
+  resetCounts: learningHistoryTableCountsSchema,
+});
+
+export const resetLearningHistoryFailureResultSchema = z.object({
+  success: z.literal(false),
+  error: z.string().min(1),
+});
+
+export const resetLearningHistoryResultSchema = z.discriminatedUnion('success', [
+  resetLearningHistorySuccessResultSchema,
+  resetLearningHistoryFailureResultSchema,
+]);
+
 export const previewLearningHistoryImportSuccessResultSchema = z.object({
   success: z.literal(true),
   canceled: z.literal(false),
@@ -501,4 +525,6 @@ export type LearningHistoryExportManifest = z.infer<typeof learningHistoryExport
 export type LearningHistoryExportDocument = z.infer<typeof learningHistoryExportDocumentSchema>;
 export type ExportLearningHistoryInput = z.infer<typeof exportLearningHistoryInputSchema>;
 export type LearningHistoryExportResult = z.infer<typeof learningHistoryExportResultSchema>;
+export type ResetLearningHistoryInput = z.infer<typeof resetLearningHistoryInputSchema>;
+export type ResetLearningHistoryResult = z.infer<typeof resetLearningHistoryResultSchema>;
 export type PreviewLearningHistoryImportResult = z.infer<typeof previewLearningHistoryImportResultSchema>;

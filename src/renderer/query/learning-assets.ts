@@ -14,6 +14,8 @@ import type {
   MergeErrorPatternsInput,
   MergeErrorPatternsResult,
   PreviewLearningHistoryImportResult,
+  ResetLearningHistoryInput,
+  ResetLearningHistoryResult,
 } from '@shared/types/learning-assets';
 import { queryKeys } from './keys';
 
@@ -73,5 +75,32 @@ export function useCreateLearningHistoryBackup(): UseMutationResult<
 export function usePreviewLearningHistoryImport(): UseMutationResult<PreviewLearningHistoryImportResult, Error, void> {
   return useMutation({
     mutationFn: () => window.api.learningAssets.previewLearningHistoryImport(),
+  });
+}
+
+export function invalidateLearningHistoryViews(queryClient: QueryClient): Promise<void> {
+  return Promise.all([
+    queryClient.invalidateQueries({ queryKey: queryKeys.writing.attempts }),
+    queryClient.invalidateQueries({ queryKey: queryKeys.learningAssets.errorPatterns }),
+    queryClient.invalidateQueries({ queryKey: queryKeys.learningAssets.notebookEntries }),
+    queryClient.invalidateQueries({ queryKey: queryKeys.learningAssets.learningEvents }),
+    queryClient.invalidateQueries({ queryKey: queryKeys.review.all }),
+  ]).then(() => undefined);
+}
+
+export function useResetLearningHistory(): UseMutationResult<
+  ResetLearningHistoryResult,
+  Error,
+  ResetLearningHistoryInput
+> {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (input: ResetLearningHistoryInput) => window.api.learningAssets.resetLearningHistory(input),
+    onSuccess: async (result) => {
+      if (result.success === true) {
+        await invalidateLearningHistoryViews(queryClient);
+      }
+    },
   });
 }

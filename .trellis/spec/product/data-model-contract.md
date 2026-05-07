@@ -165,6 +165,106 @@ learning_events
 
 The app may keep fields needed by later revisions, but it must not expose future workflows unless the task requires them.
 
+## Scenario: Private Beta Learning History Reset
+
+### 1. Scope / Trigger
+
+- Trigger: Any task that changes local learning-history reset, resettable tables, backup-first delete behavior, cascade relationships for learning assets, or Settings reset behavior.
+- Reset is a destructive private-beta maintenance path. It clears locally accumulated writing-learning data while preserving app configuration and storage foundations.
+
+### 2. Signatures
+
+Resettable root tables:
+
+```text
+learning_events
+writing_attempts
+error_patterns
+```
+
+Cascade-dependent tables cleared through `writing_attempts` / `review_runs` / `rewrite_tasks` relationships:
+
+```text
+writing_revisions
+review_runs
+corrections
+self_repair_attempts
+reference_rewrites
+rewrite_tasks
+rewrite_checks
+notebook_entries
+```
+
+Preload API:
+
+```ts
+window.api.learningAssets.resetLearningHistory(input: {
+  confirmationText: string;
+  includeRawProviderOutput?: boolean;
+}): Promise<ResetLearningHistoryResult>;
+```
+
+### 3. Contracts
+
+- Reset must create a learning-history backup before any delete statement runs.
+- Delete root rows in one database transaction. If the transaction fails, the active database must keep its pre-reset learning rows.
+- Delete `learning_events`, `writing_attempts`, and `error_patterns` as reset roots. Existing foreign-key cascades must clear revisions, review runs, corrections, notebook entries, rewrite tasks/checks, self-repair attempts, and reference rewrites.
+- Preserve the SQLite database file, migrations table, settings store, provider config, keychain/API keys, onboarding state, raw-response/review-thinking settings, and backup files.
+- Do not call model providers, keychain services, or settings persistence while deleting learning rows.
+- Reset counts come from the backup manifest and describe pre-reset rows, not post-reset remaining rows.
+
+### 4. Validation & Error Matrix
+
+| Condition | Behavior |
+| --- | --- |
+| Input is malformed or confirmation text is not `RESET` | Return typed failure; no backup and no delete. |
+| Backup creation fails or is canceled | Return typed failure; no delete. |
+| Backup succeeds and delete transaction succeeds | Return success with backup path, manifest, raw-output inclusion flag, and pre-reset counts. |
+| Delete transaction throws after backup succeeds | Return typed failure that states backup was created but reset failed. |
+| A future table stores user-owned learning rows outside the cascade graph | Add it to the reset contract before shipping reset. |
+| A table stores app configuration, credentials, provider settings, migrations, or backup metadata | Never include it in reset roots. |
+
+### 5. Good/Base/Bad Cases
+
+- Good: Reset backs up, then deletes `learning_events`, `writing_attempts`, and `error_patterns` in a transaction.
+- Base: A fresh database with no learning rows still creates a backup and returns zero counts.
+- Bad: Reset deletes the SQLite file, migrations metadata, settings rows, keychain entries, provider config, or backup directory.
+- Bad: Reset deletes `writing_revisions` directly while leaving parent `writing_attempts` or saved review pointers behind.
+- Bad: Reset adds a restore/import side effect to the same operation.
+
+### 6. Tests Required
+
+- Service test: successful reset creates backup before delete and returns manifest counts as `resetCounts`.
+- Service test: wrong confirmation and malformed input do not call backup or delete.
+- Service test: backup failure/cancellation prevents delete.
+- Transaction test: delete failure rolls back resettable rows and returns backup-created/reset-failed.
+- Schema/cascade test: deleting `writing_attempts` clears dependent revisions/review/rewrite/notebook rows without orphaned references.
+- Boundary test: reset does not call settings/keychain/provider modules.
+
+### 7. Wrong vs Correct
+
+#### Wrong
+
+```ts
+database.delete(writingRevisions).run();
+database.delete(reviewRuns).run();
+database.delete(writingAttempts).run();
+```
+
+Manual dependent-table deletion is brittle and can leave parent pointers or future learning tables behind.
+
+#### Correct
+
+```ts
+database.transaction((tx) => {
+  tx.delete(learningEvents).run();
+  tx.delete(writingAttempts).run();
+  tx.delete(errorPatterns).run();
+});
+```
+
+The root deletes rely on declared cascades for child learning artifacts and keep the destructive phase atomic.
+
 ## Scenario: Learning Event Log
 
 ### 1. Scope / Trigger

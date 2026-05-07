@@ -34,6 +34,7 @@ import {
   listNotebookEntriesOutputSchema,
   mergeErrorPatternsResultSchema,
   previewLearningHistoryImportResultSchema,
+  resetLearningHistoryResultSchema,
 } from '../../shared/types/learning-assets';
 import { startupStatusSchema, type StartupStatus } from '../../shared/types/app';
 import {
@@ -81,6 +82,7 @@ import {
   createLearningHistoryBackup,
   exportLearningHistory,
   previewLearningHistoryImport,
+  resetLearningHistory,
 } from '../services/learning-assets/export-history';
 import { getReviewPreview } from '../services/review/procedures/preview';
 import { applyReviewCorrection } from '../services/review/procedures/apply-correction';
@@ -291,4 +293,11 @@ export function registerIpcHandlers(migrationResult: MigrationResult): void {
   ipcMain.handle(IPC_CHANNELS.LEARNING_ASSETS.PREVIEW_LEARNING_HISTORY_IMPORT, async (): Promise<unknown> => {
     return previewLearningHistoryImportResultSchema.parse(await previewLearningHistoryImport());
   });
+
+  ipcMain.handle(
+    IPC_CHANNELS.LEARNING_ASSETS.RESET_LEARNING_HISTORY,
+    async (_event, input: unknown): Promise<unknown> => {
+      return resetLearningHistoryResultSchema.parse(await resetLearningHistory(input));
+    },
+  );
 }

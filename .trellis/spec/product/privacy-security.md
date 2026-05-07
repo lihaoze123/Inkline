@@ -181,12 +181,12 @@ Rules:
 - Debug export excludes `raw_output_json` by default.
 - Debug export includes raw output only after explicit user opt-in.
 
-## Scenario: Learning History Export, Backup, and Import Preview
+## Scenario: Learning History Export, Backup, Reset, and Import Preview
 
 ### 1. Scope / Trigger
 
-- Trigger: Any task that changes learning-history export, local backup, import preview, export file format, Settings learning-history controls, or `window.api.learningAssets` file APIs.
-- These flows move private user-owned learning data across a filesystem boundary, so the main process owns dialogs, filesystem access, SQLite reads, and export validation.
+- Trigger: Any task that changes learning-history export, local backup, backup-first reset, import preview, export file format, Settings learning-history controls, or `window.api.learningAssets` file APIs.
+- These flows move private user-owned learning data across a filesystem boundary and may delete local learning rows, so the main process owns dialogs, filesystem access, SQLite reads/deletes, and export validation.
 
 ### 2. Signatures
 
@@ -200,6 +200,11 @@ window.api.learningAssets.exportLearningHistory(input?: {
 window.api.learningAssets.createLearningHistoryBackup(input?: {
   includeRawProviderOutput?: boolean;
 }): Promise<LearningHistoryExportResult>;
+
+window.api.learningAssets.resetLearningHistory(input: {
+  confirmationText: string;
+  includeRawProviderOutput?: boolean;
+}): Promise<ResetLearningHistoryResult>;
 
 window.api.learningAssets.previewLearningHistoryImport(): Promise<PreviewLearningHistoryImportResult>;
 ```
@@ -230,6 +235,9 @@ type LearningHistoryExportDocument = {
 - Export and backup must not query or serialize settings snapshots, keychain data, provider API keys, request headers, credential status objects, or Electron-store settings.
 - `review_runs.raw_output_json` is excluded by default. Including it requires the separate explicit `includeRawProviderOutput: true` export input and must not be inferred from the raw-response-storage setting alone.
 - Backup files are written under the Electron `userData` backup directory.
+- Reset is backup-first: it must create a learning-history backup before deleting local learning rows.
+- Reset deletes only user-owned learning-history rows. It must preserve provider settings, keychain/API keys, onboarding/settings state, database file/migrations, backups, provider config, and raw-response/review-thinking settings.
+- Reset result payloads may return backup path, manifest, raw-output inclusion flag, and table counts. They must not return writing bodies, raw provider output bodies, settings snapshots, API keys, provider request headers, or credential status objects.
 - Renderer code must call the narrow preload APIs only. It must not import Electron dialog APIs, Node filesystem APIs, database modules, keychain modules, or provider SDKs.
 - Import preview validates a selected JSON export, verifies manifest counts and checksum, and returns metadata only. It must not insert, update, delete, merge, or otherwise mutate SQLite rows.
 
@@ -241,18 +249,27 @@ type LearningHistoryExportDocument = {
 | User creates backup | Create `userData/backups` if needed and write a timestamped JSON export file. |
 | Export input omits `includeRawProviderOutput` | Export `review_runs.raw_output_json` as `null`. |
 | Export input sets `includeRawProviderOutput: true` | Include locally stored raw provider output in `reviewRuns` rows. |
+| Reset input has malformed shape or `confirmationText !== 'RESET'` | Return a typed failure; do not create a backup and do not delete rows. |
+| Reset backup fails or is canceled | Return a typed failure; do not delete rows. |
+| Reset backup succeeds and delete transaction succeeds | Delete resettable learning-history rows and return backup metadata plus pre-reset counts. |
+| Reset backup succeeds but delete transaction fails | Return a typed failure that says the backup was created but reset failed. |
 | Selected import file is not JSON | Return a validation failure; do not mutate SQLite. |
 | Selected import file has unsupported format/version or invalid table shape | Return a validation failure; do not mutate SQLite. |
 | Manifest counts or checksum do not match table payload | Return a validation failure; do not mutate SQLite. |
+| Settings reset UI needs confirmation | Use an in-app typed confirmation field and disabled button state; do not call browser `confirm`, `prompt`, or `alert`. |
 | Renderer tries to use `fs`, `dialog`, database, keychain, or provider SDKs | Contract violation; use preload IPC only. |
 
 ### 5. Good/Base/Bad Cases
 
 - Good: Settings calls `window.api.learningAssets.exportLearningHistory({ includeRawProviderOutput: false })`; main opens a save dialog, snapshots SQLite tables, redacts raw output, writes JSON, and returns manifest metadata.
 - Good: Settings calls `createLearningHistoryBackup`; main writes the same redacted export format under `userData/backups`.
+- Good: Settings calls `resetLearningHistory({ confirmationText: 'RESET', includeRawProviderOutput })`; main writes a backup first, then deletes local learning-history rows in one transaction.
 - Base: A user explicitly enables raw-output inclusion for troubleshooting; the export records `manifest.includeRawProviderOutput = true`.
+- Base: A reset succeeds and the renderer invalidates learning-history views before loading a fresh writing attempt.
 - Base: A user selects a valid export in import preview; the app returns counts/version/path and performs no restore.
 - Bad: Export serializes API keys, settings snapshots, credential statuses, provider request headers, or keychain values.
+- Bad: Reset deletes the SQLite database file, settings store, provider credentials, backup files, or migration metadata.
+- Bad: Reset deletes rows before backup creation succeeds.
 - Bad: Import preview restores, merges, deduplicates, or deletes rows in the active database.
 - Bad: Renderer imports `electron`, `node:fs`, `better-sqlite3`, `keytar`, or provider SDKs for export/import.
 
@@ -262,8 +279,13 @@ type LearningHistoryExportDocument = {
 - Service test: every learning-history table is included with millisecond timestamps and manifest counts.
 - Privacy test: raw output is redacted by default and appears only with explicit `includeRawProviderOutput: true`.
 - Backup test: backup writes under `userData/backups` with a timestamped JSON filename.
+- Reset tests:
+  - Assert malformed input and incorrect confirmation return typed failure without backup/delete.
+  - Assert backup failure or cancellation prevents deletion.
+  - Assert successful reset deletes only resettable learning-history rows after backup creation.
+  - Assert delete transaction failure reports backup-created/reset-failed.
 - Import preview tests: reject invalid JSON, unsupported version, invalid table shape, and checksum tampering without database mutation.
-- Boundary test: renderer imports no Electron dialog, filesystem, database, keychain, or provider modules.
+- Boundary test: renderer imports no Electron dialog, filesystem, database, keychain, or provider modules and uses no browser `confirm`, `prompt`, or `alert` for reset.
 - IPC/preload test: learning-history file APIs are exposed only through the narrow `learningAssets` preload methods.
 
 ### 7. Wrong vs Correct
@@ -287,6 +309,26 @@ await window.api.learningAssets.exportLearningHistory({
 ```
 
 The renderer sends an explicit export choice, and the main process owns file dialogs, filesystem writes, SQLite reads, and redaction.
+
+#### Wrong
+
+```ts
+await window.api.learningAssets.resetLearningHistory({ confirmationText: 'RESET' });
+await window.api.learningAssets.createLearningHistoryBackup();
+```
+
+Reset must not delete before proving a backup exists.
+
+#### Correct
+
+```ts
+await window.api.learningAssets.resetLearningHistory({
+  confirmationText: 'RESET',
+  includeRawProviderOutput: includeRawProviderOutputInHistoryExport,
+});
+```
+
+The main process owns the backup-first sequence and returns only backup metadata/counts after the delete transaction succeeds.
 
 ## Provider Diagnostics
 

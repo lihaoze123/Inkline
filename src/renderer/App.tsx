@@ -10,7 +10,11 @@ import {
   type SettingsSnapshot,
   type SetProviderConfigInput,
 } from '@shared/types/settings';
-import type { ErrorPatternSnapshot, NotebookEntrySnapshot } from '@shared/types/learning-assets';
+import type {
+  ErrorPatternSnapshot,
+  NotebookEntrySnapshot,
+  ResetLearningHistoryInput,
+} from '@shared/types/learning-assets';
 import { WritingEditorCard } from './components/WritingEditorCard';
 import { LearningPanel } from './components/LearningPanel';
 import { RevealAnswerDialog } from './components/RevealAnswerDialog';
@@ -32,6 +36,7 @@ import {
   useMergeErrorPatterns,
   useNotebookEntries,
   usePreviewLearningHistoryImport,
+  useResetLearningHistory,
 } from './query/learning-assets';
 import { setReviewPreviewCache, useApplyReviewCorrection, useSaveReview, useStartReview } from './query/review';
 import {
@@ -207,7 +212,7 @@ function PracticePage({ initialWriting, settings, startup }: PracticePageProps):
   });
   const settingsQuery = useSettingsSnapshot(settings);
   const appSettings = settingsQuery.data ?? settings;
-  const { mutateAsync: saveWritingAttempt } = useSaveWritingAttempt();
+  const { mutateAsync: saveWritingAttempt, isPending: isSaveWritingAttemptPending } = useSaveWritingAttempt();
   const { mutateAsync: startReview } = useStartReview();
   const { mutateAsync: saveReviewMutation } = useSaveReview();
   const { mutateAsync: applyReviewCorrectionMutation, isPending: isApplyReviewCorrectionPending } =
@@ -230,6 +235,7 @@ function PracticePage({ initialWriting, settings, startup }: PracticePageProps):
   const { mutateAsync: exportLearningHistoryMutation } = useExportLearningHistory();
   const { mutateAsync: createLearningHistoryBackupMutation } = useCreateLearningHistoryBackup();
   const { mutateAsync: previewLearningHistoryImportMutation } = usePreviewLearningHistoryImport();
+  const { mutateAsync: resetLearningHistoryMutation } = useResetLearningHistory();
   const writing = writingQuery.data ?? initialWriting;
   const [content, setContent] = useState(initialWriting.activeRevision?.content ?? '');
   const [userGoal, setUserGoal] = useState(initialWriting.userGoal ?? '');
@@ -278,6 +284,7 @@ function PracticePage({ initialWriting, settings, startup }: PracticePageProps):
   const lastSavedContentRef = useRef(initialWriting.activeRevision?.content ?? '');
   const lastSavedUserGoalRef = useRef(initialWriting.userGoal ?? '');
   const activeReviewRef = useRef(false);
+  const isLearningHistoryResetInProgressRef = useRef(false);
 
   const updateWritingCache = useCallback(
     (nextWriting: WritingAttemptSnapshot): void => {
@@ -358,6 +365,10 @@ function PracticePage({ initialWriting, settings, startup }: PracticePageProps):
 
   const saveContent = useCallback(
     async (nextContent: string): Promise<void> => {
+      if (isLearningHistoryResetInProgressRef.current) {
+        return;
+      }
+
       setSaveState('saving');
       setSaveError(null);
 
@@ -944,6 +955,95 @@ function PracticePage({ initialWriting, settings, startup }: PracticePageProps):
     }
   }, [previewLearningHistoryImportMutation]);
 
+  const resetLearningHistoryFromSettings = useCallback(
+    async (input: ResetLearningHistoryInput): Promise<void> => {
+      setSettingsError(null);
+      setSettingsMessage(null);
+
+      if (isSaveWritingAttemptPending) {
+        setSettingsError('Wait for the current draft to finish saving before resetting local learning data.');
+        return;
+      }
+
+      isLearningHistoryResetInProgressRef.current = true;
+
+      try {
+        if (content !== lastSavedContentRef.current || userGoal !== lastSavedUserGoalRef.current) {
+          setSaveState('saving');
+          setSaveError(null);
+
+          try {
+            const savedWriting = await saveWritingAttempt({ templateId: selectedTemplateId, content, userGoal });
+            updateWritingCache(savedWriting);
+            lastSavedContentRef.current = savedWriting.activeRevision?.content ?? content;
+            lastSavedUserGoalRef.current = savedWriting.userGoal ?? userGoal;
+            setSaveState('saved');
+          } catch (error) {
+            const message = getErrorMessage(error, 'Unable to save current draft before reset.');
+            setSaveError(message);
+            setSaveState('error');
+            setSettingsError(message);
+            return;
+          }
+        }
+
+        const result = await resetLearningHistoryMutation(input);
+
+        if (result.success === false) {
+          setSettingsError(result.error);
+          return;
+        }
+
+        const freshWriting = await queryClient.fetchQuery({
+          queryKey: queryKeys.writing.attempt(selectedTemplateId),
+          queryFn: () => window.api.writing.getWritingAttempt({ templateId: selectedTemplateId }),
+        });
+
+        updateWritingCache(freshWriting);
+        setContent(freshWriting.activeRevision?.content ?? '');
+        setUserGoal(freshWriting.userGoal ?? '');
+        lastSavedContentRef.current = freshWriting.activeRevision?.content ?? '';
+        lastSavedUserGoalRef.current = freshWriting.userGoal ?? '';
+        setReviewPreview(null);
+        setLatestReviewRun(null);
+        setReviewState('idle');
+        setReviewError(null);
+        setApplyCorrectionError(null);
+        setReviewProgress(emptyReviewProgress());
+        setSelfRepairAttempt('');
+        setModelAnswerRevealed(false);
+        setCompletedRewritePractice(null);
+        setRewritePracticeInput('');
+        setRewritePracticeError(null);
+        setStarterPromptError(null);
+        setStarterPromptState('idle');
+        setIsStarterPromptVisible(true);
+        setUseActivePatternsForStarterPrompt(false);
+        setSaveState('saved');
+        setSaveError(null);
+        setSettingsMessage(
+          `Backup created before reset at ${result.backupFilePath}. Reset ${learningHistoryCountTotal(
+            result.resetCounts,
+          )} local learning records.`,
+        );
+      } catch (error) {
+        setSettingsError(getErrorMessage(error, 'Unable to reset local learning data.'));
+      } finally {
+        isLearningHistoryResetInProgressRef.current = false;
+      }
+    },
+    [
+      content,
+      isSaveWritingAttemptPending,
+      queryClient,
+      resetLearningHistoryMutation,
+      saveWritingAttempt,
+      selectedTemplateId,
+      updateWritingCache,
+      userGoal,
+    ],
+  );
+
   const dismissWelcomeIntro = useCallback(async (): Promise<void> => {
     setWelcomeIntroError(null);
 
@@ -1217,6 +1317,9 @@ function PracticePage({ initialWriting, settings, startup }: PracticePageProps):
                 }}
                 onPreviewLearningHistoryImport={() => {
                   void previewLearningHistoryImportFromSettings();
+                }}
+                onResetLearningHistory={(input) => {
+                  void resetLearningHistoryFromSettings(input);
                 }}
                 onViewWelcomeIntro={viewWelcomeIntro}
               />

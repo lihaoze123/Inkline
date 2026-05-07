@@ -12,6 +12,7 @@ export const queryKeys = {
     attempt: (templateId: WritingTemplateId) => ['writing', 'attempt', templateId] as const,
   },
   review: {
+    all: ['review'] as const,
     run: (reviewRunId: string) => ['review', 'run', reviewRunId] as const,
     preview: (reviewRunId: string) => ['review', 'preview', reviewRunId] as const,
   },

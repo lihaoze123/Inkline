@@ -8,6 +8,7 @@ import type {
 } from '@shared/types/review';
 import type { AiProviderId } from '@shared/types/credentials';
 import type { SettingsSnapshot } from '@shared/types/settings';
+import type { ResetLearningHistoryInput } from '@shared/types/learning-assets';
 
 export type SaveState = 'idle' | 'saving' | 'saved' | 'error';
 export type ReviewState = 'idle' | 'reviewing' | 'ready' | 'saving' | 'saved' | 'failed';
@@ -50,6 +51,7 @@ export type SettingsPageProps = {
   onExportLearningHistory: () => void;
   onCreateLearningHistoryBackup: () => void;
   onPreviewLearningHistoryImport: () => void;
+  onResetLearningHistory: (input: ResetLearningHistoryInput) => void;
   onViewWelcomeIntro: () => void;
 };
 

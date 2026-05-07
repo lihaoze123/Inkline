@@ -3,7 +3,7 @@ import type { ReviewRunSnapshot } from '@shared/types/review';
 import { describe, expect, it } from 'vitest';
 import { createRendererQueryClient } from '../src/renderer/query/client';
 import { queryKeys } from '../src/renderer/query/keys';
-import { invalidateErrorPatterns } from '../src/renderer/query/learning-assets';
+import { invalidateErrorPatterns, invalidateLearningHistoryViews } from '../src/renderer/query/learning-assets';
 import { setReviewPreviewCache, updateApplyCorrectionCache } from '../src/renderer/query/review';
 import { updateSettingsCache } from '../src/renderer/query/settings';
 import { updateRewritePracticeCache, updateWritingAttemptCache } from '../src/renderer/query/writing';
@@ -15,6 +15,7 @@ describe('renderer query configuration', () => {
     expect(queryKeys.writing.attempt('journal')).toEqual(['writing', 'attempt', 'journal']);
     expect(queryKeys.settings.snapshot).toEqual(['settings']);
     expect(queryKeys.app.startupStatus).toEqual(['app', 'startup-status']);
+    expect(queryKeys.review.all).toEqual(['review']);
     expect(queryKeys.review.run('review-run-1')).toEqual(['review', 'run', 'review-run-1']);
     expect(queryKeys.review.preview('review-run-1')).toEqual(['review', 'preview', 'review-run-1']);
     expect(queryKeys.learningAssets.learningEvents).toEqual(['learning-assets', 'learning-events']);
@@ -261,6 +262,25 @@ describe('renderer query configuration', () => {
     await invalidateErrorPatterns(queryClient);
 
     expect(queryClient.getQueryState(queryKeys.learningAssets.errorPatterns)?.isInvalidated).toBe(true);
+  });
+
+  it('invalidates writing, review, and learning-assets views after learning-history reset', async () => {
+    const queryClient = createRendererQueryClient();
+    queryClient.setQueryData(queryKeys.writing.attempt('journal'), makeWritingAttempt());
+    queryClient.setQueryData(queryKeys.review.run('review-run-1'), { id: 'review-run-1' });
+    queryClient.setQueryData(queryKeys.review.preview('review-run-1'), { reviewRun: { id: 'review-run-1' } });
+    queryClient.setQueryData(queryKeys.learningAssets.errorPatterns, []);
+    queryClient.setQueryData(queryKeys.learningAssets.notebookEntries, []);
+    queryClient.setQueryData(queryKeys.learningAssets.learningEvents, []);
+
+    await invalidateLearningHistoryViews(queryClient);
+
+    expect(queryClient.getQueryState(queryKeys.writing.attempt('journal'))?.isInvalidated).toBe(true);
+    expect(queryClient.getQueryState(queryKeys.review.run('review-run-1'))?.isInvalidated).toBe(true);
+    expect(queryClient.getQueryState(queryKeys.review.preview('review-run-1'))?.isInvalidated).toBe(true);
+    expect(queryClient.getQueryState(queryKeys.learningAssets.errorPatterns)?.isInvalidated).toBe(true);
+    expect(queryClient.getQueryState(queryKeys.learningAssets.notebookEntries)?.isInvalidated).toBe(true);
+    expect(queryClient.getQueryState(queryKeys.learningAssets.learningEvents)?.isInvalidated).toBe(true);
   });
 
   it('updates rewrite practice cache from a retry check result', () => {

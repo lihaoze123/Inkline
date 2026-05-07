@@ -23,19 +23,30 @@ import {
   exportLearningHistoryInputSchema,
   LEARNING_HISTORY_FORMAT,
   LEARNING_HISTORY_FORMAT_VERSION,
+  RESET_LEARNING_HISTORY_CONFIRMATION_TEXT,
   learningHistoryExportDocumentSchema,
   learningHistoryExportResultSchema,
   learningHistoryExportTablesSchema,
   previewLearningHistoryImportResultSchema,
+  resetLearningHistoryInputSchema,
+  resetLearningHistoryResultSchema,
   type ExportLearningHistoryInput,
   type LearningHistoryExportDocument,
   type LearningHistoryExportManifest,
   type LearningHistoryExportResult,
   type LearningHistoryExportTables,
   type PreviewLearningHistoryImportResult,
+  type ResetLearningHistoryResult,
 } from '../../../shared/types/learning-assets';
 
 type LearningHistoryDatabase = Pick<typeof db, 'select'>;
+type LearningHistoryDeleteTarget = typeof learningEvents | typeof writingAttempts | typeof errorPatterns;
+type LearningHistoryDeleteExecutor = {
+  delete(table: LearningHistoryDeleteTarget): { run(): void };
+};
+type LearningHistoryResetDatabase = LearningHistoryDatabase & {
+  transaction<T>(callback: (tx: LearningHistoryDeleteExecutor) => T): T;
+};
 
 type LearningHistoryFileSystem = {
   writeFile(filePath: string, data: string, encoding: 'utf8'): Promise<void>;
@@ -66,6 +77,10 @@ type LearningHistoryExportDependencies = {
   getUserDataPath?: () => string;
   now?: () => Date;
   appVersion?: string;
+};
+
+type LearningHistoryResetDependencies = Omit<LearningHistoryExportDependencies, 'database'> & {
+  database?: LearningHistoryResetDatabase;
 };
 
 type ImportPreviewValidationResult =
@@ -514,6 +529,77 @@ export async function createLearningHistoryBackup(
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unable to create learning history backup.';
     return learningHistoryExportResultSchema.parse({ success: false, error: message });
+  }
+}
+
+function deleteResettableLearningHistoryRows(database: LearningHistoryResetDatabase): void {
+  database.transaction((tx) => {
+    tx.delete(learningEvents).run();
+    tx.delete(writingAttempts).run();
+    tx.delete(errorPatterns).run();
+  });
+}
+
+export async function resetLearningHistory(
+  input?: unknown,
+  dependencies: LearningHistoryResetDependencies = {},
+): Promise<ResetLearningHistoryResult> {
+  const parseResult = resetLearningHistoryInputSchema.safeParse(input ?? {});
+  if (!parseResult.success) {
+    return resetLearningHistoryResultSchema.parse({
+      success: false,
+      error: `Type ${RESET_LEARNING_HISTORY_CONFIRMATION_TEXT} to reset local learning data.`,
+    });
+  }
+
+  const parsedInput = parseResult.data;
+
+  if (parsedInput.confirmationText !== RESET_LEARNING_HISTORY_CONFIRMATION_TEXT) {
+    return resetLearningHistoryResultSchema.parse({
+      success: false,
+      error: `Type ${RESET_LEARNING_HISTORY_CONFIRMATION_TEXT} to reset local learning data.`,
+    });
+  }
+
+  const includeRawProviderOutput = parsedInput.includeRawProviderOutput === true;
+  const database = dependencies.database ?? db;
+  const backupResult = await createLearningHistoryBackup(
+    { includeRawProviderOutput },
+    {
+      ...dependencies,
+      database,
+    },
+  );
+
+  if (backupResult.success === false) {
+    return resetLearningHistoryResultSchema.parse({
+      success: false,
+      error: backupResult.error,
+    });
+  }
+
+  if (backupResult.canceled === true) {
+    return resetLearningHistoryResultSchema.parse({
+      success: false,
+      error: 'Learning history backup was canceled before reset.',
+    });
+  }
+
+  try {
+    deleteResettableLearningHistoryRows(database);
+
+    return resetLearningHistoryResultSchema.parse({
+      success: true,
+      backupFilePath: backupResult.filePath,
+      backupManifest: backupResult.manifest,
+      includeRawProviderOutput,
+      resetCounts: backupResult.manifest.counts,
+    });
+  } catch {
+    return resetLearningHistoryResultSchema.parse({
+      success: false,
+      error: 'Learning history backup was created, but reset failed.',
+    });
   }
 }
 

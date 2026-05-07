@@ -42,5 +42,6 @@ export const IPC_CHANNELS = {
     EXPORT_LEARNING_HISTORY: 'learningAssets:exportLearningHistory',
     CREATE_LEARNING_HISTORY_BACKUP: 'learningAssets:createLearningHistoryBackup',
     PREVIEW_LEARNING_HISTORY_IMPORT: 'learningAssets:previewLearningHistoryImport',
+    RESET_LEARNING_HISTORY: 'learningAssets:resetLearningHistory',
   },
 } as const;

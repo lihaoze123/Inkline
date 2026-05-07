@@ -1,4 +1,6 @@
+import { useState } from 'react';
 import { aiProviderIdSchema, type AiProviderId, type ProviderKeyStatus } from '@shared/types/credentials';
+import { RESET_LEARNING_HISTORY_CONFIRMATION_TEXT } from '@shared/types/learning-assets';
 import {
   deriveBetaReadinessDiagnostics,
   resolveProviderCredentialStatus,
@@ -55,14 +57,17 @@ export function SettingsPage({
   onExportLearningHistory,
   onCreateLearningHistoryBackup,
   onPreviewLearningHistoryImport,
+  onResetLearningHistory,
   onViewWelcomeIntro,
 }: SettingsPageProps): React.JSX.Element {
+  const [resetConfirmationText, setResetConfirmationText] = useState('');
   const aiModelSettings = settings.aiModelSettings;
   const defaultProviderId = resolveSettingsProviderId(settings);
   const selectedProviderSettings = aiModelSettings?.providers[defaultProviderId];
   const selectedProviderTitle = PROVIDER_LABELS[defaultProviderId];
   const selectedCredentialStatus = resolveProviderCredentialStatus(settings, defaultProviderId);
   const readinessDiagnostics = deriveBetaReadinessDiagnostics({ startup, settings });
+  const isResetConfirmed = resetConfirmationText === RESET_LEARNING_HISTORY_CONFIRMATION_TEXT;
 
   return (
     <section className="flex min-h-0 flex-col" aria-labelledby="settings-page-title">
@@ -235,6 +240,49 @@ export function SettingsPage({
                     Preview import
                   </button>
                 </div>
+              </div>
+              <div className="mt-4 border-t border-error/20 pt-5">
+                <FormRow
+                  label="Reset"
+                  htmlFor="learning-history-reset-confirmation"
+                  helperText="Clears local drafts, reviews, patterns, notebook entries, rewrite practice, and learning events. Provider settings and saved API keys stay untouched."
+                >
+                  <div className="grid max-w-xl gap-3 rounded-lg border border-error/25 bg-error/5 p-4">
+                    <div>
+                      <p className="text-sm font-semibold text-error">Reset local learning data</p>
+                      <p className="mt-1 text-xs leading-5 text-base-content/55">
+                        Inkline creates a learning-history backup before reset. Type{' '}
+                        <span className="font-semibold text-base-content">
+                          {RESET_LEARNING_HISTORY_CONFIRMATION_TEXT}
+                        </span>{' '}
+                        to enable the reset button.
+                      </p>
+                    </div>
+                    <input
+                      id="learning-history-reset-confirmation"
+                      className="input input-bordered w-full"
+                      value={resetConfirmationText}
+                      data-e2e="learning-history-reset-confirmation"
+                      aria-label="Reset local learning data confirmation"
+                      onChange={(event) => setResetConfirmationText(event.target.value)}
+                    />
+                    <button
+                      type="button"
+                      className="btn btn-outline border-error/45 text-error hover:border-error hover:bg-error hover:text-error-content"
+                      disabled={!isResetConfirmed}
+                      data-e2e="learning-history-reset"
+                      onClick={() => {
+                        onResetLearningHistory({
+                          confirmationText: resetConfirmationText,
+                          includeRawProviderOutput: includeRawProviderOutputInHistoryExport,
+                        });
+                        setResetConfirmationText('');
+                      }}
+                    >
+                      Create backup and reset
+                    </button>
+                  </div>
+                </FormRow>
               </div>
             </div>
           </section>
