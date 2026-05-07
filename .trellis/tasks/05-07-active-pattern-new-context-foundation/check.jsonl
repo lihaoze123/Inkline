@@ -1,0 +1,23 @@
+{"file": ".trellis/spec/product/roadmap.md", "reason": "Verify implementation matches the optional active-pattern new-context roadmap slice."}
+{"file": ".trellis/spec/product/mvp-scope.md", "reason": "Check no scoring, mock exam, dashboard, template editing, or parallel-engine scope slipped in."}
+{"file": ".trellis/spec/product/learning-flow.md", "reason": "Verify Practice starter prompt, track guidance, scenario pack, rewrite practice, and evidence contracts."}
+{"file": ".trellis/spec/product/review-agent-contract.md", "reason": "Verify no hidden fingerprint/contract leakage and no review output contract changes."}
+{"file": ".trellis/spec/product/data-model-contract.md", "reason": "Verify no persistence/schema/event/rewrite-task semantics changed."}
+{"file": ".trellis/spec/product/validation-and-testing.md", "reason": "Verify required tests and validation commands for product-flow changes."}
+{"file": ".trellis/spec/backend/index.md", "reason": "Backend service guideline entrypoint."}
+{"file": ".trellis/spec/backend/api-module.md", "reason": "Review service/procedure boundary consistency."}
+{"file": ".trellis/spec/backend/type-safety.md", "reason": "Review Zod-first validation and shared schema usage."}
+{"file": ".trellis/spec/backend/quality.md", "reason": "Review main-process imports and quality rules."}
+{"file": ".trellis/spec/frontend/index.md", "reason": "Frontend quality checklist entrypoint."}
+{"file": ".trellis/spec/frontend/react-pitfalls.md", "reason": "Review React state and callback dependencies."}
+{"file": ".trellis/spec/frontend/components.md", "reason": "Review semantic compact control behavior."}
+{"file": ".trellis/spec/frontend/type-safety.md", "reason": "Review shared type imports and component prop typing."}
+{"file": ".trellis/spec/frontend/css-design.md", "reason": "Review Inkline visual contract and avoid dashboard/exam-mode styling."}
+{"file": ".trellis/spec/frontend/quality.md", "reason": "Review frontend lint/typecheck/test quality expectations."}
+{"file": ".trellis/spec/shared/index.md", "reason": "Shared model guideline entrypoint."}
+{"file": ".trellis/spec/shared/code-quality.md", "reason": "Review no-any/no-non-null assertion and testing requirements."}
+{"file": ".trellis/spec/shared/typescript.md", "reason": "Review TypeScript conventions and exported type/schema shape."}
+{"file": ".trellis/spec/guides/pre-implementation-checklist.md", "reason": "Review shared API and UI state decisions."}
+{"file": ".trellis/spec/guides/cross-layer-thinking-guide.md", "reason": "Review renderer -> IPC -> main data flow."}
+{"file": ".trellis/tasks/05-07-active-pattern-new-context-foundation/prd.md", "reason": "Verify requirements, acceptance criteria, and out-of-scope list."}
+{"file": ".trellis/tasks/05-07-active-pattern-new-context-foundation/info.md", "reason": "Verify task-specific implementation notes and risk constraints."}
