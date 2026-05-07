@@ -176,8 +176,11 @@ window.api.writing.generateStarterPrompt({ templateId, userGoal }): Promise<Gene
 - Every template supports starter prompt/topic generation, regenerate, retry after failure, and skip.
 - Starter prompt/topic and optional goal/topic controls may be collapsed by default to protect independent writing, but generation, regenerate, retry, skip, and goal editing must remain reachable in the Practice workbench.
 - Users may provide an optional goal/topic whether or not they generate a starter prompt.
+- Practice may expose an optional active-pattern starter control only when active saved non-spelling patterns exist. It must be off by default, local UI state only, and must not persist to the writing attempt or settings.
+- Toggling the active-pattern starter option must not call the provider or create any learning evidence. Only the existing Create/Refresh starter prompt action may pass `useActivePatterns` to `generateStarterPrompt`.
 - Autosave freshness includes both writing content and optional goal/topic; changing only the goal/topic must still persist the writing attempt.
 - Before generating a starter prompt/topic, persist any unsaved content or goal/topic so the attempt state and provider context are fresh.
+- Starter prompt generation with active patterns is context shaping only. It must use a small capped active-pattern summary, omit the section when disabled or empty, and avoid answer drafting, outlines, copyable answer sentences, timers, word-count targets, scores, official rubrics, mock-exam instructions, fingerprints, hidden prompt contracts, and essay/draft content.
 - CET editor surfaces must not show timers, word-count targets, precise scores, or mock-exam UI in v0.1.
 - Review input is template-aware and includes generated prompt/topic and user goal/topic when present.
 - The writing editor stays independent: no in-editor co-writing or live suggestions.
@@ -195,6 +198,8 @@ window.api.writing.generateStarterPrompt({ templateId, userGoal }): Promise<Gene
 | User selects a new template | Load `getWritingAttempt({ templateId })`; clear stale review preview/progress and starter generation error. |
 | User edits only optional goal/topic | Autosave `saveWritingAttempt({ templateId, content, userGoal })`; do not wait for draft text changes. |
 | User starts starter generation with unsaved edits | Save the current content and user goal/topic first, then call `generateStarterPrompt({ templateId, userGoal })`. |
+| User enables active-pattern starter context | Keep the setting local until Create/Refresh; call `generateStarterPrompt({ templateId, userGoal, useActivePatterns: true })` only from that action. |
+| Active-pattern starter context is disabled or no active patterns exist | Omit the option/context and keep previous starter generation behavior. |
 | Starter prompt generation is skipped | Keep editor usable; review may still include optional `userGoal`. |
 | Starter prompt generation fails | Show error with Retry; do not use local fallback topics. |
 | Starter prompt disclosure not accepted | Show disclosure; do not call provider. |
@@ -226,6 +231,7 @@ window.api.writing.generateStarterPrompt({ templateId, userGoal }): Promise<Gene
 - Optional goal/topic autosave test: changing only `userGoal` persists through `saveWritingAttempt({ templateId, content, userGoal })`.
 - Starter prompt freshness test: unsaved content/goal is saved before `generateStarterPrompt({ templateId, userGoal })` runs.
 - Starter prompt state test: disclosure, generate, regenerate, retry, and skip states behave correctly.
+- Active-pattern starter UI test: control renders only when active patterns exist, defaults off, toggle does not call generation/provider, and Create/Refresh passes the current option.
 - Review context test: non-Journal template review includes template context and stays on selected template after preview/save.
 - Review progress UI test: when review starts, progress is visible without expanding disclosures; only the active step row shows a duration; after one second the active duration changes.
 - Regression/manual test: Journal write -> review -> save -> D+1 rewrite remains available through the Journal template.

@@ -10,7 +10,7 @@ import {
   type SettingsSnapshot,
   type SetProviderConfigInput,
 } from '@shared/types/settings';
-import type { NotebookEntrySnapshot } from '@shared/types/learning-assets';
+import type { ErrorPatternSnapshot, NotebookEntrySnapshot } from '@shared/types/learning-assets';
 import { WritingEditorCard } from './components/WritingEditorCard';
 import { LearningPanel } from './components/LearningPanel';
 import { RevealAnswerDialog } from './components/RevealAnswerDialog';
@@ -83,6 +83,10 @@ function emptyReviewProgress(): ReviewProgressModel {
 
 function getErrorMessage(error: unknown, fallback: string): string {
   return error instanceof Error ? error.message : fallback;
+}
+
+function isStarterPromptActivePattern(pattern: ErrorPatternSnapshot): boolean {
+  return pattern.active && !pattern.mergedIntoPatternId && pattern.category !== 'spelling';
 }
 
 function emptyProviderTextInputMap(): Record<AiProviderId, string> {
@@ -232,6 +236,7 @@ function PracticePage({ initialWriting, settings, startup }: PracticePageProps):
   const [starterPromptState, setStarterPromptState] = useState<'idle' | 'generating' | 'error'>('idle');
   const [starterPromptError, setStarterPromptError] = useState<string | null>(null);
   const [isStarterPromptVisible, setIsStarterPromptVisible] = useState(true);
+  const [useActivePatternsForStarterPrompt, setUseActivePatternsForStarterPrompt] = useState(false);
   const [showStarterDisclosure, setShowStarterDisclosure] = useState(false);
   const [saveState, setSaveState] = useState<SaveState>('idle');
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -249,7 +254,9 @@ function PracticePage({ initialWriting, settings, startup }: PracticePageProps):
   const [rewritePracticeError, setRewritePracticeError] = useState<string | null>(null);
   const [showDisclosure, setShowDisclosure] = useState(false);
   const [activeArea, setActiveArea] = useState<AppArea>('today');
-  const errorPatternsQuery = useErrorPatterns({ enabled: activeArea === 'progress' || activeArea === 'drills' });
+  const errorPatternsQuery = useErrorPatterns({
+    enabled: activeArea === 'write' || activeArea === 'progress' || activeArea === 'drills',
+  });
   const notebookEntriesQuery = useNotebookEntries({ enabled: activeArea === 'notebook' });
   const [currentTimeMs, setCurrentTimeMs] = useState(() => Date.now());
   const [showRevealConfirmation, setShowRevealConfirmation] = useState(false);
@@ -285,6 +292,10 @@ function PracticePage({ initialWriting, settings, startup }: PracticePageProps):
   const shouldShowFirstLaunchIntro =
     appSettings.onboardingIntroVersionSeen < CURRENT_ONBOARDING_INTRO_VERSION && !isWelcomeIntroLocallyDismissed;
   const isWelcomeIntroOpen = shouldShowFirstLaunchIntro || isWelcomeIntroReplayOpen;
+  const hasActivePatternsForStarterPrompt =
+    errorPatternsQuery.data?.some((pattern) => isStarterPromptActivePattern(pattern)) ?? false;
+  const effectiveUseActivePatternsForStarterPrompt =
+    hasActivePatternsForStarterPrompt && useActivePatternsForStarterPrompt;
 
   useEffect(() => {
     const intervalId = window.setInterval(() => {
@@ -340,6 +351,7 @@ function PracticePage({ initialWriting, settings, startup }: PracticePageProps):
       setStarterPromptError(null);
       setStarterPromptState('idle');
       setIsStarterPromptVisible(true);
+      setUseActivePatternsForStarterPrompt(false);
     },
     [content, queryClient, saveWritingAttempt, selectedTemplateId, updateWritingCache, userGoal],
   );
@@ -469,54 +481,69 @@ function PracticePage({ initialWriting, settings, startup }: PracticePageProps):
     }
   }, [content, saveWritingAttempt, selectedTemplateId, startReviewForWriting, userGoal]);
 
-  const generateStarterPrompt = useCallback(async (): Promise<void> => {
-    setStarterPromptState('generating');
-    setStarterPromptError(null);
+  const generateStarterPrompt = useCallback(
+    async (options: { useActivePatterns: boolean }): Promise<void> => {
+      setStarterPromptState('generating');
+      setStarterPromptError(null);
 
-    try {
-      if (content !== lastSavedContentRef.current || userGoal !== lastSavedUserGoalRef.current) {
-        const savedWriting = await saveWritingAttempt({ templateId: selectedTemplateId, content, userGoal });
-        lastSavedContentRef.current = savedWriting.activeRevision?.content ?? content;
-        lastSavedUserGoalRef.current = savedWriting.userGoal ?? userGoal;
-        setSaveState('saved');
+      try {
+        if (content !== lastSavedContentRef.current || userGoal !== lastSavedUserGoalRef.current) {
+          const savedWriting = await saveWritingAttempt({ templateId: selectedTemplateId, content, userGoal });
+          lastSavedContentRef.current = savedWriting.activeRevision?.content ?? content;
+          lastSavedUserGoalRef.current = savedWriting.userGoal ?? userGoal;
+          setSaveState('saved');
+        }
+
+        const result = await generateStarterPromptMutation({
+          templateId: selectedTemplateId,
+          userGoal,
+          useActivePatterns: options.useActivePatterns && hasActivePatternsForStarterPrompt,
+        });
+
+        if (result.disclosureRequired) {
+          setStarterPromptState('idle');
+          setShowStarterDisclosure(true);
+          return;
+        }
+
+        if (result.success && result.writing) {
+          updateWritingCache(result.writing);
+          setUserGoal(result.writing.userGoal ?? userGoal);
+          setStarterPromptState('idle');
+          setIsStarterPromptVisible(true);
+          return;
+        }
+
+        setStarterPromptState('error');
+        setStarterPromptError(result.error ?? 'Starter prompt generation failed.');
+      } catch (error) {
+        setStarterPromptState('error');
+        setStarterPromptError(getErrorMessage(error, 'Starter prompt generation failed.'));
       }
-
-      const result = await generateStarterPromptMutation({ templateId: selectedTemplateId, userGoal });
-
-      if (result.disclosureRequired) {
-        setStarterPromptState('idle');
-        setShowStarterDisclosure(true);
-        return;
-      }
-
-      if (result.success && result.writing) {
-        updateWritingCache(result.writing);
-        setUserGoal(result.writing.userGoal ?? userGoal);
-        setStarterPromptState('idle');
-        setIsStarterPromptVisible(true);
-        return;
-      }
-
-      setStarterPromptState('error');
-      setStarterPromptError(result.error ?? 'Starter prompt generation failed.');
-    } catch (error) {
-      setStarterPromptState('error');
-      setStarterPromptError(getErrorMessage(error, 'Starter prompt generation failed.'));
-    }
-  }, [content, generateStarterPromptMutation, saveWritingAttempt, selectedTemplateId, updateWritingCache, userGoal]);
+    },
+    [
+      content,
+      generateStarterPromptMutation,
+      hasActivePatternsForStarterPrompt,
+      saveWritingAttempt,
+      selectedTemplateId,
+      updateWritingCache,
+      userGoal,
+    ],
+  );
 
   const acknowledgeStarterDisclosureAndGenerate = useCallback(async (): Promise<void> => {
     setStarterPromptError(null);
     try {
       await window.api.writing.acknowledgeStarterPromptDisclosure({ acknowledged: true });
       setShowStarterDisclosure(false);
-      await generateStarterPrompt();
+      await generateStarterPrompt({ useActivePatterns: effectiveUseActivePatternsForStarterPrompt });
     } catch (error) {
       setShowStarterDisclosure(false);
       setStarterPromptState('error');
       setStarterPromptError(getErrorMessage(error, 'Starter prompt generation failed.'));
     }
-  }, [generateStarterPrompt]);
+  }, [effectiveUseActivePatternsForStarterPrompt, generateStarterPrompt]);
 
   const skipStarterPrompt = useCallback((): void => {
     setStarterPromptError(null);
@@ -1033,6 +1060,8 @@ function PracticePage({ initialWriting, settings, startup }: PracticePageProps):
                     generatedPrompt={writing.generatedPrompt}
                     userGoal={userGoal}
                     isStarterPromptVisible={isStarterPromptVisible}
+                    hasActivePatternsForStarterPrompt={hasActivePatternsForStarterPrompt}
+                    useActivePatternsForStarterPrompt={effectiveUseActivePatternsForStarterPrompt}
                     starterPromptState={starterPromptState}
                     starterPromptError={starterPromptError}
                     content={content}
@@ -1044,8 +1073,9 @@ function PracticePage({ initialWriting, settings, startup }: PracticePageProps):
                     }}
                     onContentChange={setContent}
                     onUserGoalChange={setUserGoal}
-                    onGenerateStarterPrompt={() => {
-                      void generateStarterPrompt();
+                    onUseActivePatternsForStarterPromptChange={setUseActivePatternsForStarterPrompt}
+                    onGenerateStarterPrompt={(options) => {
+                      void generateStarterPrompt(options);
                     }}
                     onSkipStarterPrompt={skipStarterPrompt}
                   />

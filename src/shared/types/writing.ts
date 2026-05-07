@@ -191,6 +191,7 @@ export const retryRewriteCheckResultSchema = z.object({
 export const generateStarterPromptInputSchema = z.object({
   templateId: writingTemplateIdSchema,
   userGoal: z.string().optional(),
+  useActivePatterns: z.boolean().optional(),
 });
 
 export const generateStarterPromptResultSchema = z.object({

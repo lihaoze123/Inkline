@@ -14,6 +14,12 @@ type ButtonElementProps = ElementWithChildren & {
   onClick?: () => void;
 };
 
+type InputElementProps = ElementWithChildren & {
+  checked?: boolean;
+  onChange?: (event: { target: { checked: boolean } }) => void;
+  'data-e2e'?: string;
+};
+
 function makeWritingEditorProps(
   templateId: WritingTemplateId,
   overrides: Partial<WritingEditorCardProps> = {},
@@ -25,6 +31,8 @@ function makeWritingEditorProps(
     generatedPrompt: null,
     userGoal: '',
     isStarterPromptVisible: true,
+    hasActivePatternsForStarterPrompt: false,
+    useActivePatternsForStarterPrompt: false,
     starterPromptState: 'idle',
     starterPromptError: null,
     content: '',
@@ -34,6 +42,7 @@ function makeWritingEditorProps(
     onSelectTemplate: () => undefined,
     onContentChange: () => undefined,
     onUserGoalChange: () => undefined,
+    onUseActivePatternsForStarterPromptChange: () => undefined,
     onGenerateStarterPrompt: () => undefined,
     onSkipStarterPrompt: () => undefined,
     ...overrides,
@@ -80,6 +89,25 @@ function findButtonByText(node: ReactNode, label: string): ReactElement<ButtonEl
     const nestedButton = findButtonByText(child.props.children, label);
     if (nestedButton) {
       return nestedButton;
+    }
+  }
+
+  return null;
+}
+
+function findInputByDataE2e(node: ReactNode, dataE2e: string): ReactElement<InputElementProps> | null {
+  for (const child of Children.toArray(node)) {
+    if (!isValidElement<InputElementProps>(child)) {
+      continue;
+    }
+
+    if (child.type === 'input' && child.props['data-e2e'] === dataE2e) {
+      return child;
+    }
+
+    const nestedInput = findInputByDataE2e(child.props.children, dataE2e);
+    if (nestedInput) {
+      return nestedInput;
     }
   }
 
@@ -150,5 +178,82 @@ describe('WritingEditorCard scenario packs', () => {
     expect(copy).not.toMatch(
       /\b(outline for you|write it for you|written for you|generated essay|generated outline)\b/i,
     );
+  });
+});
+
+describe('WritingEditorCard active pattern starter option', () => {
+  it('renders the active-pattern option only when active patterns exist', () => {
+    const withPatterns = renderToStaticMarkup(
+      makeWritingEditorElement('journal', { hasActivePatternsForStarterPrompt: true }),
+    );
+    const withoutPatterns = renderToStaticMarkup(
+      makeWritingEditorElement('journal', { hasActivePatternsForStarterPrompt: false }),
+    );
+
+    expect(withPatterns).toContain('data-e2e="starter-active-patterns-control"');
+    expect(withPatterns).toContain('Active patterns');
+    expect(withoutPatterns).not.toContain('data-e2e="starter-active-patterns-control"');
+    expect(withoutPatterns).not.toContain('Active patterns');
+  });
+
+  it('keeps toggling local and does not generate a prompt directly', () => {
+    const onUseActivePatternsForStarterPromptChange = vi.fn();
+    const onGenerateStarterPrompt = vi.fn();
+    const element = makeWritingEditorElement('journal', {
+      hasActivePatternsForStarterPrompt: true,
+      useActivePatternsForStarterPrompt: false,
+      onUseActivePatternsForStarterPromptChange,
+      onGenerateStarterPrompt,
+    });
+    const toggle = findInputByDataE2e(element, 'starter-active-patterns-toggle');
+
+    if (!toggle?.props.onChange) {
+      throw new Error('Active pattern toggle was not found.');
+    }
+
+    toggle.props.onChange({ target: { checked: true } });
+
+    expect(onUseActivePatternsForStarterPromptChange).toHaveBeenCalledTimes(1);
+    expect(onUseActivePatternsForStarterPromptChange).toHaveBeenCalledWith(true);
+    expect(onGenerateStarterPrompt).not.toHaveBeenCalled();
+  });
+
+  it('passes the current active-pattern option when creating a prompt', () => {
+    const onGenerateStarterPrompt = vi.fn();
+    const element = makeWritingEditorElement('journal', {
+      hasActivePatternsForStarterPrompt: true,
+      useActivePatternsForStarterPrompt: true,
+      onGenerateStarterPrompt,
+    });
+    const createButton = findButtonByText(element, 'Create prompt');
+
+    if (!createButton?.props.onClick) {
+      throw new Error('Create prompt button was not found.');
+    }
+
+    createButton.props.onClick();
+
+    expect(onGenerateStarterPrompt).toHaveBeenCalledTimes(1);
+    expect(onGenerateStarterPrompt).toHaveBeenCalledWith({ useActivePatterns: true });
+  });
+
+  it('passes the current active-pattern option when refreshing a prompt', () => {
+    const onGenerateStarterPrompt = vi.fn();
+    const element = makeWritingEditorElement('journal', {
+      generatedPrompt: { text: 'Write about a useful habit.', generatedAt: 1 },
+      hasActivePatternsForStarterPrompt: true,
+      useActivePatternsForStarterPrompt: false,
+      onGenerateStarterPrompt,
+    });
+    const refreshButton = findButtonByText(element, 'Refresh prompt');
+
+    if (!refreshButton?.props.onClick) {
+      throw new Error('Refresh prompt button was not found.');
+    }
+
+    refreshButton.props.onClick();
+
+    expect(onGenerateStarterPrompt).toHaveBeenCalledTimes(1);
+    expect(onGenerateStarterPrompt).toHaveBeenCalledWith({ useActivePatterns: false });
   });
 });

@@ -13,6 +13,8 @@ function renderWritingEditor(templateId: WritingTemplateId): string {
       generatedPrompt={null}
       userGoal=""
       isStarterPromptVisible={true}
+      hasActivePatternsForStarterPrompt={false}
+      useActivePatternsForStarterPrompt={false}
       starterPromptState="idle"
       starterPromptError={null}
       content=""
@@ -22,6 +24,7 @@ function renderWritingEditor(templateId: WritingTemplateId): string {
       onSelectTemplate={() => undefined}
       onContentChange={() => undefined}
       onUserGoalChange={() => undefined}
+      onUseActivePatternsForStarterPromptChange={() => undefined}
       onGenerateStarterPrompt={() => undefined}
       onSkipStarterPrompt={() => undefined}
     />,

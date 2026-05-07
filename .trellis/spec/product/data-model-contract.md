@@ -483,6 +483,7 @@ type SaveWritingAttemptResult = WritingAttemptSnapshot & { saved: boolean };
 type GenerateStarterPromptInput = {
   templateId: WritingTemplateId;
   userGoal?: string;
+  useActivePatterns?: boolean;
 };
 
 type GenerateStarterPromptResult = {
@@ -502,6 +503,9 @@ type GenerateStarterPromptResult = {
 - Updating only `userGoal` does not need a new revision, but it must update `writing_attempts.user_goal`.
 - `generated_prompt_json` stores `{ text, generatedAt }` only after successful starter generation.
 - Starter prompt generation sends selected template metadata and optional `userGoal`; it must not send `content` or any writing revision text.
+- `useActivePatterns` is optional and defaults to false. When true, starter prompt generation may include a capped active-pattern summary from `selectActiveReviewPatterns(undefined, 3)`.
+- Active-pattern starter context is prompt-shaping only: include safe public pattern summary fields such as category, rule, and canonical example; do not persist the option, send essay/draft content, expose pattern fingerprints or hidden prompt contracts, or create rewrite tasks/evidence.
+- If `useActivePatterns` is absent, false, or no active non-spelling patterns exist, starter prompt generation must omit the active-pattern section and preserve existing template/goal behavior.
 - CET-4 and CET-6 starter prompts/topics must be in English. Chinese helper copy is allowed around the topic.
 - Starter prompt generation requires one-time starter disclosure acknowledgement before the provider call.
 - Development-stage schema rebuild is allowed for this pre-production app; do not present these migrations as production-safe preservation of old journal data.
@@ -516,6 +520,8 @@ type GenerateStarterPromptResult = {
 | Saving changed normalized content | Insert a new revision, update active revision, mark saved review stale if content hash differs. |
 | `userGoal` is blank or whitespace | Persist `null`. |
 | Starter disclosure missing | Return `{ success: false, disclosureRequired: true, error }`; do not call provider. |
+| `useActivePatterns` absent or false | Do not query/send active-pattern context; preserve previous starter prompt behavior. |
+| `useActivePatterns` true but no active patterns exist | Omit active-pattern context and continue normal starter prompt generation. |
 | Provider base URL/model/key missing | Return `{ success: false, error }`; do not create a starter prompt. |
 | Provider timeout | Return `{ success: false, error: 'Starter prompt request timed out.' }`. |
 | Provider response is not JSON `{ "prompt": string }` | Return `{ success: false, error }`; do not persist `generated_prompt_json`. |
@@ -535,7 +541,9 @@ type GenerateStarterPromptResult = {
 - Service test: one attempt per `(dateKey, templateId)` and switching templates preserves separate active revisions.
 - Service test: unchanged save returns `saved: false`; changed save creates a new writing revision and updates content hash.
 - Starter prompt test: disclosure-required response prevents provider call; successful generation persists prompt and user goal; malformed provider JSON returns error without persistence.
+- Starter prompt input schema test: older inputs without `useActivePatterns` parse, and inputs with `useActivePatterns: true` parse.
 - Privacy test: starter prompt provider request contains template/userGoal only and excludes writing content.
+- Active-pattern starter prompt test: active-pattern context is omitted by default/when false/no patterns exist, included only when enabled, capped, and excludes recent writing examples, fingerprints, and hidden prompt contracts.
 - Cross-template review test: review completion and save return the same template's `WritingAttemptSnapshot`, not the default Journal snapshot.
 - IPC/schema test: all public writing responses pass shared Zod schemas and timestamps are numbers.
 

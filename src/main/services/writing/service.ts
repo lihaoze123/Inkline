@@ -54,7 +54,8 @@ import {
   type AiProviderDiagnostics,
   type AiProviderFailureKind,
 } from '../../../shared/types/ai';
-import { appendLearningEvent } from '../learning-assets/service';
+import { appendLearningEvent, selectActiveReviewPatterns } from '../learning-assets/service';
+import type { ErrorPattern } from '../../../shared/review-contract/schemas';
 
 const starterPromptGenerationSchema = z.object({
   prompt: z.string().trim().min(1),
@@ -97,6 +98,7 @@ const SEVEN_DAYS_MS = 7 * ONE_DAY_MS;
 const REWRITE_PRACTICE_MAX_AGE_MS = 7 * ONE_DAY_MS;
 const STARTER_PROMPT_DISCLOSURE_KEY = 'writing-practice-starter-prompt-disclosure-acknowledged';
 const STARTER_PROMPT_TIMEOUT_MS = 45_000;
+const STARTER_PROMPT_ACTIVE_PATTERNS_LIMIT = 3;
 const REWRITE_CHECK_TIMEOUT_MS = 120_000;
 const REWRITE_CHECK_MAX_OUTPUT_TOKENS = 1_000;
 
@@ -556,9 +558,33 @@ function buildStarterPromptSystemPrompt(): string {
   return 'You design English writing practice starter prompts for Chinese native speakers. Return only JSON matching the requested shape. Do not write the essay for the user.';
 }
 
-function buildStarterPromptUserPrompt(template: WritingAttemptSnapshot['template'], userGoal: string | null): string {
+function buildStarterPromptActivePatternSection(patterns: ErrorPattern[]): string {
+  if (patterns.length === 0) {
+    return '';
+  }
+
+  const patternLines = patterns
+    .map(
+      (pattern, index) =>
+        `${index + 1}. Category: ${pattern.category}; Rule: ${pattern.rule}; Canonical example: ${pattern.canonicalExample}`,
+    )
+    .join('\n');
+
+  return `\nActive saved patterns context:
+Use these only to choose a fresh situation where the learner could naturally reuse a current practice pattern.
+Do not reveal internal pattern metadata or tell the learner exactly which correction to write.
+${patternLines}
+`;
+}
+
+function buildStarterPromptUserPrompt(
+  template: WritingAttemptSnapshot['template'],
+  userGoal: string | null,
+  activePatterns: ErrorPattern[],
+): string {
   const trackStarterFocus = template.trackGuidance?.starterPromptFocus;
   const trackStarterFocusLine = trackStarterFocus ? `Track starter focus: ${trackStarterFocus}\n` : '';
+  const activePatternSection = buildStarterPromptActivePatternSection(activePatterns);
 
   return `Create one starter prompt/topic for an AI-assisted writing practice app.
 
@@ -568,13 +594,15 @@ Starter behavior: ${template.starterPromptBehavior}
 ${trackStarterFocusLine}Review focus later: ${template.reviewFocus}
 Scenario context: ${template.scenarioContext ?? 'none'}
 User-provided goal/topic: ${userGoal ?? 'none'}
+${activePatternSection}
 
 Rules:
 - Return JSON only: { "prompt": "..." }
 - The prompt/topic itself should be in English.
 - For CET-4 or CET-6, include a short Chinese helper note after the English topic if useful.
-- Do not include word-count targets, timers, scores, or mock-exam instructions.
+- Do not include word-count targets, timers, scores, official rubrics, or mock-exam instructions.
 - Do not draft the essay, provide an outline, or write sentences the learner can copy as their answer.
+- Do not turn this into a fill-in-the-blank drill or a pattern checklist.
 - Keep it concise enough to fit above a writing editor.`;
 }
 
@@ -594,13 +622,17 @@ export async function generateStarterPrompt(input: GenerateStarterPromptInput): 
 
   const template = getWritingTemplate(parseResult.data.templateId);
   const userGoal = parseResult.data.userGoal?.trim() || null;
+  const activePatterns =
+    parseResult.data.useActivePatterns === true
+      ? selectActiveReviewPatterns(undefined, STARTER_PROMPT_ACTIVE_PATTERNS_LIMIT)
+      : [];
 
   try {
     const runtimeConfig = await buildAiRuntimeConfigForFeature('starterPrompt');
     const generation = await generateStructuredObject<StarterPromptGeneration>({
       runtimeConfig,
       systemPrompt: buildStarterPromptSystemPrompt(),
-      userPrompt: buildStarterPromptUserPrompt(template, userGoal),
+      userPrompt: buildStarterPromptUserPrompt(template, userGoal, activePatterns),
       schema: starterPromptGenerationSchema,
       schemaName: 'starter_prompt',
       schemaDescription: 'A concise English writing practice starter prompt.',

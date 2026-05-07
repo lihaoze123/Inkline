@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { writingTemplateSchema } from '../src/shared/types/writing';
+import { generateStarterPromptInputSchema, writingTemplateSchema } from '../src/shared/types/writing';
 import { WRITING_TEMPLATES } from '../src/shared/writing/templates';
 import type { WritingTemplate } from '../src/shared/types/writing';
 
@@ -38,5 +38,26 @@ describe('writing template schema', () => {
         },
       }).success,
     ).toBe(false);
+  });
+});
+
+describe('generate starter prompt input schema', () => {
+  it('keeps older starter prompt inputs backward-compatible', () => {
+    const result = generateStarterPromptInputSchema.safeParse({
+      templateId: 'journal',
+      userGoal: 'practice clearer transitions',
+    });
+
+    expect(result.success).toBe(true);
+  });
+
+  it('accepts the optional active-pattern context flag', () => {
+    const result = generateStarterPromptInputSchema.safeParse({
+      templateId: 'cet6',
+      userGoal: 'argument practice',
+      useActivePatterns: true,
+    });
+
+    expect(result.success).toBe(true);
   });
 });

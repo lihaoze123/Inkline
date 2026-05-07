@@ -37,6 +37,8 @@ export function WritingEditorCard({
   generatedPrompt,
   userGoal,
   isStarterPromptVisible,
+  hasActivePatternsForStarterPrompt,
+  useActivePatternsForStarterPrompt,
   starterPromptState,
   starterPromptError,
   content,
@@ -46,9 +48,16 @@ export function WritingEditorCard({
   onSelectTemplate,
   onContentChange,
   onUserGoalChange,
+  onUseActivePatternsForStarterPromptChange,
   onGenerateStarterPrompt,
   onSkipStarterPrompt,
 }: WritingEditorCardProps): React.JSX.Element {
+  const generateStarterPrompt = (): void => {
+    onGenerateStarterPrompt({
+      useActivePatterns: hasActivePatternsForStarterPrompt && useActivePatternsForStarterPrompt,
+    });
+  };
+
   return (
     <section className="flex min-h-0 flex-col" aria-labelledby="writing-editor-title">
       {isStarterPromptVisible ? (
@@ -60,7 +69,7 @@ export function WritingEditorCard({
                 type="button"
                 className="btn btn-outline btn-sm rounded-xl"
                 disabled={starterPromptState === 'generating'}
-                onClick={onGenerateStarterPrompt}
+                onClick={generateStarterPrompt}
               >
                 {starterPromptState === 'generating' ? (
                   <>
@@ -114,6 +123,21 @@ export function WritingEditorCard({
                   ))}
                 </div>
               ) : null}
+              {hasActivePatternsForStarterPrompt ? (
+                <label
+                  className="flex max-w-max cursor-pointer items-center gap-2 text-xs text-base-content/55"
+                  data-e2e="starter-active-patterns-control"
+                >
+                  <input
+                    type="checkbox"
+                    className="toggle toggle-xs"
+                    checked={useActivePatternsForStarterPrompt}
+                    onChange={(event) => onUseActivePatternsForStarterPromptChange(event.target.checked)}
+                    data-e2e="starter-active-patterns-toggle"
+                  />
+                  <span>Active patterns</span>
+                </label>
+              ) : null}
               <label className="form-control">
                 <span className="label-text text-sm font-medium text-base-content/70">Practice goal</span>
                 <input
@@ -132,7 +156,7 @@ export function WritingEditorCard({
               <button
                 type="button"
                 className="btn btn-outline btn-error btn-xs rounded-lg"
-                onClick={onGenerateStarterPrompt}
+                onClick={generateStarterPrompt}
               >
                 Retry
               </button>

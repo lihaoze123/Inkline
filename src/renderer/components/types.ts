@@ -66,6 +66,8 @@ export type WritingEditorCardProps = {
   generatedPrompt: WritingAttemptSnapshot['generatedPrompt'];
   userGoal: string;
   isStarterPromptVisible: boolean;
+  hasActivePatternsForStarterPrompt: boolean;
+  useActivePatternsForStarterPrompt: boolean;
   starterPromptState: 'idle' | 'generating' | 'error';
   starterPromptError: string | null;
   content: string;
@@ -75,7 +77,8 @@ export type WritingEditorCardProps = {
   onSelectTemplate: (templateId: WritingTemplateId) => void;
   onContentChange: (value: string) => void;
   onUserGoalChange: (value: string) => void;
-  onGenerateStarterPrompt: () => void;
+  onUseActivePatternsForStarterPromptChange: (enabled: boolean) => void;
+  onGenerateStarterPrompt: (options: { useActivePatterns: boolean }) => void;
   onSkipStarterPrompt: () => void;
 };
 

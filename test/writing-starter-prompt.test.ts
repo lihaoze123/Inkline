@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { writingAttempts, writingRevisions, reviewRuns, rewriteTasks } from '../src/main/db/schema';
+import { errorPatterns, writingAttempts, writingRevisions, reviewRuns, rewriteTasks } from '../src/main/db/schema';
 import { getWritingTemplate } from '../src/shared/writing/templates';
 import type * as AiModule from 'ai';
 import type {
@@ -7,6 +7,7 @@ import type {
   writingRevisions as writingRevisionsTable,
   reviewRuns as reviewRunsTable,
   rewriteTasks as rewriteTasksTable,
+  errorPatterns as errorPatternsTable,
 } from '../src/main/db/schema';
 import type { db as appDatabase } from '../src/main/db/client';
 import type { generateStarterPrompt as generateStarterPromptFunction } from '../src/main/services/writing/service';
@@ -26,14 +27,16 @@ type WritingAttemptRow = typeof writingAttemptsTable.$inferSelect;
 type WritingRevisionRow = typeof writingRevisionsTable.$inferSelect;
 type ReviewRunRow = typeof reviewRunsTable.$inferSelect;
 type RewriteTaskRow = typeof rewriteTasksTable.$inferSelect;
-type StoredRow = WritingAttemptRow | WritingRevisionRow | ReviewRunRow | RewriteTaskRow;
-type TableName = 'writingAttempts' | 'writingRevisions' | 'reviewRuns' | 'rewriteTasks';
+type ErrorPatternRow = typeof errorPatternsTable.$inferSelect;
+type StoredRow = WritingAttemptRow | WritingRevisionRow | ReviewRunRow | RewriteTaskRow | ErrorPatternRow;
+type TableName = 'writingAttempts' | 'writingRevisions' | 'reviewRuns' | 'rewriteTasks' | 'errorPatterns';
 
 type RowStore = {
   writingAttempts: WritingAttemptRow[];
   writingRevisions: WritingRevisionRow[];
   reviewRuns: ReviewRunRow[];
   rewriteTasks: RewriteTaskRow[];
+  errorPatterns: ErrorPatternRow[];
 };
 
 vi.mock('../src/main/db/client', () => ({
@@ -98,6 +101,7 @@ const tableNames = new Map<object, TableName>([
   [writingRevisions, 'writingRevisions'],
   [reviewRuns, 'reviewRuns'],
   [rewriteTasks, 'rewriteTasks'],
+  [errorPatterns, 'errorPatterns'],
 ]);
 
 class FakeWritingDatabase {
@@ -163,6 +167,10 @@ class FakeWritingDatabase {
     return [...this.store.writingAttempts];
   }
 
+  setErrorPatterns(patterns: ErrorPatternRow[]): void {
+    this.store.errorPatterns = [...patterns];
+  }
+
   asAppDatabase(): AppDatabase {
     return this as unknown as AppDatabase;
   }
@@ -215,6 +223,28 @@ function emptyStore(): RowStore {
     writingRevisions: [],
     reviewRuns: [],
     rewriteTasks: [],
+    errorPatterns: [],
+  };
+}
+
+function makeErrorPattern(id: string, overrides: Partial<ErrorPatternRow> = {}): ErrorPatternRow {
+  return {
+    id,
+    patternKey: id,
+    category: 'article',
+    rule: `Use articles for ${id}.`,
+    canonicalExample: `This is the example for ${id}.`,
+    count: 3,
+    firstSeenDateKey: '2026-04-28',
+    lastSeenDateKey: '2026-04-30',
+    recentExamplesJson: '["learner phrase -> corrected phrase"]',
+    fingerprintJson: '{"hidden":"contract"}',
+    mergedIntoPatternId: null,
+    mergedAt: null,
+    active: true,
+    createdAt: now,
+    updatedAt: now,
+    ...overrides,
   };
 }
 
@@ -329,11 +359,85 @@ describe('starter prompt generation service boundary', () => {
     }
     expect(prompt).toContain('Template: CET-4 Writing');
     expect(prompt).toContain(starterPromptFocus);
-    expect(prompt).toContain('Do not include word-count targets, timers, scores, or mock-exam instructions.');
+    expect(prompt).toContain(
+      'Do not include word-count targets, timers, scores, official rubrics, or mock-exam instructions.',
+    );
     expect(prompt).toContain(
       'Do not draft the essay, provide an outline, or write sentences the learner can copy as their answer.',
     );
+    expect(prompt).not.toContain('Active saved patterns context');
     expect(prompt).not.toContain('writing_content');
+  });
+
+  it('omits active-pattern context when disabled even if active patterns exist', async () => {
+    fakeDatabase.setErrorPatterns([
+      makeErrorPattern('pattern_one', {
+        rule: 'Use the article before a specific noun.',
+        canonicalExample: 'I opened the window.',
+      }),
+    ]);
+    const generateStarterPrompt = await loadGenerateStarterPrompt();
+
+    await generateStarterPrompt({ templateId: 'journal', useActivePatterns: false });
+
+    const prompt = mocks.generateText.mock.calls[0]?.[0]?.prompt;
+    expect(prompt).not.toContain('Active saved patterns context');
+    expect(prompt).not.toContain('Use the article before a specific noun.');
+  });
+
+  it('includes capped active-pattern summaries only when enabled', async () => {
+    fakeDatabase.setErrorPatterns([
+      makeErrorPattern('pattern_one', {
+        category: 'article',
+        rule: 'Use the article before a specific noun.',
+        canonicalExample: 'I opened the window.',
+      }),
+      makeErrorPattern('pattern_two', {
+        category: 'tense',
+        rule: 'Keep past events in the past tense.',
+        canonicalExample: 'I visited my friend yesterday.',
+      }),
+      makeErrorPattern('pattern_three', {
+        category: 'collocation',
+        rule: 'Use make with a decision.',
+        canonicalExample: 'I made a decision.',
+      }),
+      makeErrorPattern('pattern_four', {
+        category: 'word_order',
+        rule: 'Place frequency adverbs before the main verb.',
+        canonicalExample: 'I often read before bed.',
+      }),
+    ]);
+    const generateStarterPrompt = await loadGenerateStarterPrompt();
+
+    await generateStarterPrompt({ templateId: 'free', userGoal: 'work update', useActivePatterns: true });
+
+    const prompt = mocks.generateText.mock.calls[0]?.[0]?.prompt;
+    expect(prompt).toContain('Active saved patterns context');
+    expect(prompt).toContain('Category: article; Rule: Use the article before a specific noun.');
+    expect(prompt).toContain('Canonical example: I opened the window.');
+    expect(prompt).toContain('Category: tense; Rule: Keep past events in the past tense.');
+    expect(prompt).toContain('Category: collocation; Rule: Use make with a decision.');
+    expect(prompt).not.toContain('Place frequency adverbs before the main verb.');
+    expect(prompt).not.toContain('learner phrase -> corrected phrase');
+    expect(prompt).not.toContain('"hidden":"contract"');
+    expect(prompt).not.toContain('writing_content');
+    expect(prompt).toContain(
+      'Do not include word-count targets, timers, scores, official rubrics, or mock-exam instructions.',
+    );
+    expect(prompt).toContain(
+      'Do not draft the essay, provide an outline, or write sentences the learner can copy as their answer.',
+    );
+    expect(prompt).toContain('Do not turn this into a fill-in-the-blank drill or a pattern checklist.');
+  });
+
+  it('omits active-pattern context when enabled but no active patterns exist', async () => {
+    const generateStarterPrompt = await loadGenerateStarterPrompt();
+
+    await generateStarterPrompt({ templateId: 'journal', useActivePatterns: true });
+
+    const prompt = mocks.generateText.mock.calls[0]?.[0]?.prompt;
+    expect(prompt).not.toContain('Active saved patterns context');
   });
 
   it('returns a safe missing-key error before calling the provider', async () => {
