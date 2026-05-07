@@ -1,0 +1,21 @@
+{"file": ".trellis/spec/product/roadmap.md", "reason": "Verify the implementation stays within thin beta-readiness diagnostics scope."}
+{"file": ".trellis/spec/product/mvp-scope.md", "reason": "Check no dashboard, mock exam, external sync, or parallel engine scope slipped in."}
+{"file": ".trellis/spec/product/privacy-security.md", "reason": "Verify no secrets, raw provider bodies, writing content, or unsafe diagnostics are exposed."}
+{"file": ".trellis/spec/product/validation-and-testing.md", "reason": "Verify required validation commands and Settings/provider test coverage."}
+{"file": ".trellis/spec/backend/index.md", "reason": "Backend guideline entrypoint if main/shared logic is touched."}
+{"file": ".trellis/spec/backend/api-module.md", "reason": "Review service and IPC boundary consistency if a backend path is added."}
+{"file": ".trellis/spec/backend/type-safety.md", "reason": "Review Zod-first and typed output consistency."}
+{"file": ".trellis/spec/backend/quality.md", "reason": "Review main-process imports and quality rules."}
+{"file": ".trellis/spec/frontend/index.md", "reason": "Frontend guideline entrypoint for Settings UI review."}
+{"file": ".trellis/spec/frontend/react-pitfalls.md", "reason": "Review derived state and render behavior."}
+{"file": ".trellis/spec/frontend/components.md", "reason": "Review semantic, stable Settings diagnostics UI."}
+{"file": ".trellis/spec/frontend/type-safety.md", "reason": "Review shared type imports and component prop typing."}
+{"file": ".trellis/spec/frontend/css-design.md", "reason": "Review visual fit with Inkline Settings style."}
+{"file": ".trellis/spec/frontend/quality.md", "reason": "Review frontend tests and quality expectations."}
+{"file": ".trellis/spec/shared/index.md", "reason": "Shared guideline entrypoint for reusable readiness logic."}
+{"file": ".trellis/spec/shared/code-quality.md", "reason": "Review shared helper clarity and testability."}
+{"file": ".trellis/spec/shared/typescript.md", "reason": "Review explicit return types and TypeScript conventions."}
+{"file": ".trellis/spec/guides/pre-implementation-checklist.md", "reason": "Verify scoped implementation decisions."}
+{"file": ".trellis/spec/guides/cross-layer-thinking-guide.md", "reason": "Verify renderer/shared data flow and boundary assumptions."}
+{"file": ".trellis/tasks/05-07-beta-readiness-diagnostics-foundation/prd.md", "reason": "Verify acceptance criteria, requirements, and out-of-scope list."}
+{"file": ".trellis/tasks/05-07-beta-readiness-diagnostics-foundation/info.md", "reason": "Verify task-specific implementation notes and risk constraints."}

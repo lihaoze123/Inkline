@@ -1,0 +1,20 @@
+{"file": ".trellis/spec/product/roadmap.md", "reason": "Roadmap source for beta-readiness sequencing and Horizon 5 diagnostics scope."}
+{"file": ".trellis/spec/product/mvp-scope.md", "reason": "Preserve MVP boundaries and avoid dashboards, mock exams, external sync, or parallel product engines."}
+{"file": ".trellis/spec/product/privacy-security.md", "reason": "Provider disclosure, local-first, keychain, raw output, and diagnostics privacy boundaries."}
+{"file": ".trellis/spec/product/validation-and-testing.md", "reason": "Validation commands and testing expectations for Settings/provider/readiness behavior."}
+{"file": ".trellis/spec/backend/index.md", "reason": "Backend guideline entrypoint if shared/main process readiness helpers or IPC boundaries are touched."}
+{"file": ".trellis/spec/backend/api-module.md", "reason": "Service and IPC procedure boundary guidance if implementation needs main-process logic."}
+{"file": ".trellis/spec/backend/type-safety.md", "reason": "Zod-first and explicit typed output guidance for any shared readiness model."}
+{"file": ".trellis/spec/backend/quality.md", "reason": "Main-process import and quality rules if backend files are touched."}
+{"file": ".trellis/spec/frontend/index.md", "reason": "Frontend guideline entrypoint for Settings UI work."}
+{"file": ".trellis/spec/frontend/react-pitfalls.md", "reason": "React state, memoization, and render behavior for derived diagnostics."}
+{"file": ".trellis/spec/frontend/components.md", "reason": "Semantic layout, details, empty/status rows, and stable scrollable UI guidance."}
+{"file": ".trellis/spec/frontend/type-safety.md", "reason": "Shared type imports and component prop typing for Settings diagnostics."}
+{"file": ".trellis/spec/frontend/css-design.md", "reason": "Inkline visual contract and restrained Settings styling."}
+{"file": ".trellis/spec/frontend/quality.md", "reason": "Frontend quality and test expectations."}
+{"file": ".trellis/spec/shared/index.md", "reason": "Shared guideline entrypoint for reusable readiness derivation types."}
+{"file": ".trellis/spec/shared/code-quality.md", "reason": "Shared code quality, testability, and no unsafe assertions."}
+{"file": ".trellis/spec/shared/typescript.md", "reason": "TypeScript explicit return types and schema/type conventions."}
+{"file": ".trellis/spec/guides/pre-implementation-checklist.md", "reason": "Pre-implementation checklist for scoped UI and shared-helper changes."}
+{"file": ".trellis/spec/guides/cross-layer-thinking-guide.md", "reason": "Renderer and shared data-flow checklist for Settings diagnostics."}
+{"file": ".trellis/tasks/05-07-beta-readiness-diagnostics-foundation/info.md", "reason": "Task-specific implementation shape, constraints, test notes, and risks."}
