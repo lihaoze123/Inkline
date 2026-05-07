@@ -16,4 +16,3 @@
 {"file": ".trellis/spec/guides/db-schema-change-guide.md", "reason": "Schema/migration update checklist."}
 {"file": ".trellis/spec/guides/transaction-consistency-guide.md", "reason": "Event rows must align with the mutations they describe."}
 {"file": ".trellis/spec/guides/semantic-change-checklist.md", "reason": "Ensure event logging does not alter learning evidence semantics."}
-

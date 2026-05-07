@@ -103,4 +103,3 @@ Add a durable local learning event log that records the important state-changing
   - `src/shared/types/learning-assets.ts`
 - Use existing fake database patterns in `test/review-save.test.ts`, `test/rewrite-practice-service.test.ts`, and `test/learning-assets-merge.test.ts`.
 - Event payloads should be minimal and structured, for example status/stage/kind/outcome/error state and source/target pattern IDs. They should not duplicate full source content already stored in durable tables.
-

@@ -16,4 +16,3 @@
 {"file": ".trellis/spec/guides/db-schema-change-guide.md", "reason": "Verify DB migration checklist."}
 {"file": ".trellis/spec/guides/transaction-consistency-guide.md", "reason": "Verify multi-table writes stay atomic."}
 {"file": ".trellis/spec/guides/semantic-change-checklist.md", "reason": "Verify no unintended semantic drift."}
-

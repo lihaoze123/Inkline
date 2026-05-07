@@ -20,4 +20,3 @@
 {"file": ".trellis/spec/guides/db-schema-change-guide.md", "reason": "Learning event enum migration touches DB schema."}
 {"file": ".trellis/spec/guides/transaction-consistency-guide.md", "reason": "Apply must create revision, update attempt/review, and append event atomically."}
 {"file": ".trellis/spec/guides/semantic-change-checklist.md", "reason": "Avoid changing review-save, stale-review, or correction-anchor semantics unintentionally."}
-

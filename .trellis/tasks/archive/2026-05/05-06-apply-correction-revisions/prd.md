@@ -102,4 +102,3 @@ Let the learner explicitly apply the saved focus correction to the current draft
   - `src/renderer/App.tsx` owns Feedback page state and writing cache updates.
   - `src/renderer/query/review.ts` owns review mutations.
   - `src/renderer/components/review-utils.tsx` exposes focus-correction helpers.
-

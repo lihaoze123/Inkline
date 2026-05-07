@@ -104,4 +104,3 @@ States:
 - Renderer tests should verify control visibility/disabled copy and cache/content updates.
 - Migration test must verify the event enum accepts `correction_applied`.
 - Review harness should remain unchanged and pass.
-

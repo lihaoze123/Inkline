@@ -90,4 +90,3 @@ Return recent events newest-first, with all timestamp fields as Unix millisecond
 - Review save creates events once across repeated saves.
 - Rewrite submit/retry/skip/snooze/expiry creates events only on actual mutations.
 - Pattern merge creates an event only on successful merge.
-

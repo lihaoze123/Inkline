@@ -12,4 +12,3 @@
 {"file": ".trellis/spec/guides/db-schema-change-guide.md", "reason": "Verify schema-change checklist."}
 {"file": ".trellis/spec/guides/transaction-consistency-guide.md", "reason": "Verify event rows are transactionally consistent."}
 {"file": ".trellis/spec/guides/semantic-change-checklist.md", "reason": "Verify no unintended product semantics changed."}
-
