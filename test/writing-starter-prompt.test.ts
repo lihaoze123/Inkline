@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { writingAttempts, writingRevisions, reviewRuns, rewriteTasks } from '../src/main/db/schema';
+import { getWritingTemplate } from '../src/shared/writing/templates';
 import type * as AiModule from 'ai';
 import type {
   writingAttempts as writingAttemptsTable,
@@ -322,7 +323,16 @@ describe('starter prompt generation service boundary', () => {
       }),
     );
     const prompt = mocks.generateText.mock.calls[0]?.[0]?.prompt;
+    const starterPromptFocus = getWritingTemplate('cet4').trackGuidance?.starterPromptFocus;
+    if (!starterPromptFocus) {
+      throw new Error('CET-4 starter prompt focus is required for this test.');
+    }
     expect(prompt).toContain('Template: CET-4 Writing');
+    expect(prompt).toContain(starterPromptFocus);
+    expect(prompt).toContain('Do not include word-count targets, timers, scores, or mock-exam instructions.');
+    expect(prompt).toContain(
+      'Do not draft the essay, provide an outline, or write sentences the learner can copy as their answer.',
+    );
     expect(prompt).not.toContain('writing_content');
   });
 

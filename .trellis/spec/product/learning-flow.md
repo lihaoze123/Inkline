@@ -115,6 +115,20 @@ Tests required:
 - Existing typed goal text remains the controlled Practice goal input value.
 - Scenario pack markup and seed copy avoid generated-writing and exam-mode wording.
 
+## Track Guidance Foundation
+
+Track-level guidance is optional shared `WritingTemplate` metadata over the existing writing/review/rewrite engine, not a new track engine.
+
+Contracts:
+
+- Built-in Journal, CET-4, CET-6, and Free Writing templates may provide `trackGuidance.starterPromptFocus`, `trackGuidance.reviewLens`, and `trackGuidance.rewritePracticeFocus`.
+- `trackGuidance` must stay optional so older template snapshots and fallback template objects remain valid.
+- Starter prompt generation may include `starterPromptFocus` as template context only. It must not send essay content and must not create outlines, draft user essays, timers, word-count targets, scores, official rubrics, or mock-exam instructions.
+- Review input snapshots may include the selected template's `trackGuidance`.
+- Review prompts may use `reviewLens` to prioritize feedback and `rewritePracticeFocus` to shape the one D+1 `rewrite_original` prompt.
+- Track guidance must preserve exactly one focus pattern, the current review caps, untrusted writing-content delimiters, and the review output schema.
+- Track guidance must not add database tables, migrations, IPC channels, provider/runtime settings, provider calls, template IDs, rewrite task kinds, UI surfaces, progress/evidence semantics, or D+3/D+7 new-context generation.
+
 ## Scenario: Practice Entry and Template Flow
 
 ### 1. Scope / Trigger

@@ -34,6 +34,11 @@ type ReviewInput = {
     title: string;
     reviewFocus: string;
     scenarioContext?: string;
+    trackGuidance?: {
+      starterPromptFocus: string;
+      reviewLens: string;
+      rewritePracticeFocus: string;
+    };
   };
   generatedPrompt?: string | null;
   userGoal?: string | null;
@@ -51,7 +56,93 @@ type ReviewInput = {
 
 v0.1 must pass the hard caps from `mvp-scope.md`.
 
-Review input must be template-aware when context exists. It should include selected template review focus, generated prompt/topic, optional user goal/topic, and writing content. It must not refer unconditionally to a `journal entry` unless the selected template is the Journal scenario.
+Review input must be template-aware when context exists. It should include selected template review focus, optional track guidance, generated prompt/topic, optional user goal/topic, and writing content. It must not refer unconditionally to a `journal entry` unless the selected template is the Journal scenario.
+
+When `trackGuidance` is present, the review prompt may use `reviewLens` to prioritize feedback and `rewritePracticeFocus` to phrase the single `rewrite_original` D+1 task. This guidance is prompt context only: it must not add review output fields, rewrite task kinds, provider calls, database fields, IPC channels, or a separate review engine.
+
+## Scenario: Track Guidance Runtime Contract
+
+### 1. Scope / Trigger
+
+- Trigger: Any task that changes built-in writing template metadata, starter prompt context, review input construction, review prompt text, or D+1 rewrite task prompt guidance.
+- Track guidance is prompt context over the shared engine. It is not a track persistence model, a separate review engine, or a new rewrite workflow.
+
+### 2. Signatures
+
+```ts
+type WritingTemplateTrackGuidance = {
+  starterPromptFocus: string;
+  reviewLens: string;
+  rewritePracticeFocus: string;
+};
+
+type WritingTemplate = {
+  id: 'journal' | 'cet4' | 'cet6' | 'free';
+  title: string;
+  description: string;
+  starterPromptBehavior: string;
+  reviewFocus: string;
+  scenarioContext?: string;
+  trackGuidance?: WritingTemplateTrackGuidance;
+};
+
+type ReviewInput['writingTemplate'] = {
+  id: 'journal' | 'cet4' | 'cet6' | 'free';
+  title: string;
+  reviewFocus: string;
+  scenarioContext?: string;
+  trackGuidance?: WritingTemplateTrackGuidance;
+};
+```
+
+### 3. Contracts
+
+- `trackGuidance` is optional at the schema boundary; older template snapshots and tests without it remain valid.
+- Built-in Journal, CET-4, CET-6, and Free Writing templates should provide all three track guidance fields.
+- Each present guidance field must be non-empty after trimming.
+- Starter prompt generation may include only `starterPromptFocus` plus existing template/user-goal context; it must not include user essay content.
+- Review input snapshots may include the selected template's full `trackGuidance`.
+- Review prompt text may include `reviewLens` and `rewritePracticeFocus` only when present; do not emit fallback lines such as `Track review lens: none`.
+- `rewritePracticeFocus` may shape wording for the single D+1 `rewrite_original` task, but must not change the review output schema or task kind enum.
+
+### 4. Validation & Error Matrix
+
+| Condition | Required Behavior |
+| --- | --- |
+| `trackGuidance` absent | Template/review input remains valid; prompts omit track guidance lines. |
+| A present guidance field is blank | Shared Zod schema rejects the template/input. |
+| Starter prompt requested | Prompt includes track starter focus when present and still forbids outlines, copyable answer sentences, timers, word-count targets, scores, and mock-exam instructions. |
+| Review starts for a built-in template | Input snapshot includes that template's `trackGuidance`. |
+| Review prompt built without guidance | Prompt does not include `Track ... none` text or unconditional track rewrite rules. |
+| Review prompt built with guidance | Prompt includes review lens, rewrite practice focus, `rewrite_original`, and no `new_context_reuse`. |
+
+### 5. Good/Base/Bad Cases
+
+- Good: CET-6 review input includes argument/coherence `reviewLens`; the review prompt tells the agent to phrase the single `rewrite_original` task around precise expression practice.
+- Base: An older Journal fixture omits `trackGuidance`; validation passes and the review prompt uses generic review focus only.
+- Bad: Track guidance adds a new review output field, a new rewrite task kind, a database column, provider configuration, UI surface, or D+3/D+7 new-context generation.
+
+### 6. Tests Required
+
+- Shared template schema test: all built-in templates parse and expose non-empty guidance; omitted guidance remains valid; blank guidance fails.
+- Starter prompt test: generated provider prompt includes `starterPromptFocus` and keeps no-essay/no-outline/no-copyable-answer guards.
+- Review input test: persisted or bounded review input includes selected template `trackGuidance`.
+- Review prompt test: guidance lines are omitted when absent; present guidance appears; prompt still requests `rewrite_original` only and does not mention `new_context_reuse`.
+- Review harness must continue to pass without review output schema changes.
+
+### 7. Wrong vs Correct
+
+#### Wrong
+
+```text
+Add a CET-specific rewrite task kind or review output field so the model can return a different task shape.
+```
+
+#### Correct
+
+```text
+Keep the review output shape unchanged and use template `trackGuidance.rewritePracticeFocus` only to phrase the existing single `rewrite_original` prompt.
+```
 
 ## Correction Categories
 

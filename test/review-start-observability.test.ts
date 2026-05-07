@@ -11,7 +11,8 @@ import type {
 import type { db as appDatabase } from '../src/main/db/client';
 import type { startReview as startReviewFunction } from '../src/main/services/review/procedures/start';
 import type { ReviewAgent } from '../src/main/services/review/types';
-import type { PatternFingerprint } from '../src/shared/review-contract';
+import { getWritingTemplate } from '../src/shared/writing/templates';
+import type { PatternFingerprint, ReviewInput } from '../src/shared/review-contract';
 import type { AiProviderDiagnostics } from '../src/shared/types/ai';
 import type { ReviewProgressEvent, ReviewRunSummary } from '../src/shared/types/review';
 
@@ -376,6 +377,11 @@ describe('startReview observability', () => {
       waiting: expect.any(Number),
       checking: expect.any(Number),
       building_preview: expect.any(Number),
+    });
+    const persistedInput = JSON.parse(database.reviewRun()?.inputSnapshotJson ?? 'null') as ReviewInput;
+    expect(persistedInput.writingTemplate).toMatchObject({
+      id: 'journal',
+      trackGuidance: getWritingTemplate('journal').trackGuidance,
     });
   });
 

@@ -557,12 +557,15 @@ function buildStarterPromptSystemPrompt(): string {
 }
 
 function buildStarterPromptUserPrompt(template: WritingAttemptSnapshot['template'], userGoal: string | null): string {
+  const trackStarterFocus = template.trackGuidance?.starterPromptFocus;
+  const trackStarterFocusLine = trackStarterFocus ? `Track starter focus: ${trackStarterFocus}\n` : '';
+
   return `Create one starter prompt/topic for an AI-assisted writing practice app.
 
 Template: ${template.title}
 Description: ${template.description}
 Starter behavior: ${template.starterPromptBehavior}
-Review focus later: ${template.reviewFocus}
+${trackStarterFocusLine}Review focus later: ${template.reviewFocus}
 Scenario context: ${template.scenarioContext ?? 'none'}
 User-provided goal/topic: ${userGoal ?? 'none'}
 
@@ -571,7 +574,7 @@ Rules:
 - The prompt/topic itself should be in English.
 - For CET-4 or CET-6, include a short Chinese helper note after the English topic if useful.
 - Do not include word-count targets, timers, scores, or mock-exam instructions.
-- Do not draft the essay or provide an outline that replaces independent writing.
+- Do not draft the essay, provide an outline, or write sentences the learner can copy as their answer.
 - Keep it concise enough to fit above a writing editor.`;
 }
 

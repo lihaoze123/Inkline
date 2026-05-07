@@ -1,5 +1,8 @@
 import { z } from 'zod';
 import { patternTypeSchema } from '../review-contract/schemas';
+import { writingTemplateTrackGuidanceSchema, type WritingTemplateTrackGuidance } from '../writing/track-guidance';
+
+export { writingTemplateTrackGuidanceSchema, type WritingTemplateTrackGuidance };
 
 export const reviewRunStatusSchema = z.enum([
   'draft',
@@ -20,6 +23,7 @@ export const writingTemplateSchema = z.object({
   starterPromptBehavior: z.string().min(1),
   reviewFocus: z.string().min(1),
   scenarioContext: z.string().optional(),
+  trackGuidance: writingTemplateTrackGuidanceSchema.optional(),
 });
 
 export const writingRevisionSchema = z.object({

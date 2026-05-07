@@ -198,6 +198,7 @@ export async function startReview(
       title: template.title,
       reviewFocus: template.reviewFocus,
       scenarioContext: template.scenarioContext,
+      trackGuidance: template.trackGuidance,
     },
     generatedPrompt: typeof generatedPrompt === 'string' ? generatedPrompt : null,
     userGoal: entry.userGoal,

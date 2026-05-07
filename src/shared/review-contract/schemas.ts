@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { writingTemplateTrackGuidanceSchema } from '../writing/track-guidance';
 
 export const correctionCategorySchema = z.enum([
   'tense',
@@ -59,6 +60,7 @@ export const reviewInputSchema = z.object({
       title: z.string().min(1),
       reviewFocus: z.string().min(1),
       scenarioContext: z.string().optional(),
+      trackGuidance: writingTemplateTrackGuidanceSchema.optional(),
     })
     .optional(),
   generatedPrompt: z.string().nullable().optional(),
