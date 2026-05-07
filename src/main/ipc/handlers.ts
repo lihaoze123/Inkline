@@ -98,7 +98,7 @@ import {
 export function registerIpcHandlers(migrationResult: MigrationResult): void {
   ipcMain.handle(IPC_CHANNELS.APP.GET_STARTUP_STATUS, (): StartupStatus => {
     return startupStatusSchema.parse({
-      databaseReady: migrationResult.success,
+      databaseReady: true,
       databaseLocation: getDatabasePath(),
       migrationsApplied: migrationResult.success,
       timeZone: getRuntimeTimeZone(),

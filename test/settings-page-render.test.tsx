@@ -10,6 +10,7 @@ import type {
 import type { AiProviderSettingsMap, SettingsSnapshot } from '../src/shared/types/settings';
 
 vi.mock('@shared/types/credentials', async () => import('../src/shared/types/credentials'));
+vi.mock('@shared/diagnostics/beta-readiness', async () => import('../src/shared/diagnostics/beta-readiness'));
 
 function providerStatus<T extends AiProviderId>(
   providerId: T,
@@ -99,8 +100,12 @@ function allProviderSettings(
 
 function makeSettings(
   defaultProviderId: AiProviderId,
-  providerModelInputs: Record<AiProviderId, string> = DEFAULT_PROVIDER_MODEL_INPUTS,
+  providerModelOverrides: Partial<Record<AiProviderId, string>> = {},
 ): SettingsSnapshot {
+  const providerModelInputs: Record<AiProviderId, string> = {
+    ...DEFAULT_PROVIDER_MODEL_INPUTS,
+    ...providerModelOverrides,
+  };
   const providers = allProviderSettings(providerModelInputs);
   const selectedProvider = providers[defaultProviderId];
 
@@ -130,9 +135,17 @@ function makeSettings(
   };
 }
 
+type RenderSettingsPageOptions = {
+  settings?: SettingsSnapshot;
+  startupOverrides?: Partial<StartupStatus>;
+  apiKeyInputOverrides?: Partial<Record<AiProviderId, string>>;
+  openAiCompatibleBaseUrlInput?: string;
+};
+
 async function renderSettingsPage(
   defaultProviderId: AiProviderId,
   providerModelOverrides: Partial<Record<AiProviderId, string>> = {},
+  options: RenderSettingsPageOptions = {},
 ): Promise<string> {
   const providerTextInputMap = {
     openai: '',
@@ -147,22 +160,28 @@ async function renderSettingsPage(
     ...DEFAULT_PROVIDER_MODEL_INPUTS,
     ...providerModelOverrides,
   };
+  const apiKeyInputs: Record<AiProviderId, string> = {
+    ...providerTextInputMap,
+    ...options.apiKeyInputOverrides,
+  };
   const startup: StartupStatus = {
     databaseReady: true,
     databaseLocation: '/tmp/Inkline.sqlite',
     migrationsApplied: true,
     timeZone: 'UTC',
     timeZoneOffsetMinutes: 0,
+    ...options.startupOverrides,
   };
+  const settings = options.settings ?? makeSettings(defaultProviderId, providerModelInputs);
   const { SettingsPage } = await import('../src/renderer/components/SettingsPage');
 
   return renderToStaticMarkup(
     <SettingsPage
-      settings={makeSettings(defaultProviderId, providerModelInputs)}
+      settings={settings}
       startup={startup}
-      openAiCompatibleBaseUrlInput="https://provider.example/v1"
+      openAiCompatibleBaseUrlInput={options.openAiCompatibleBaseUrlInput ?? 'https://provider.example/v1'}
       providerModelInputs={providerModelInputs}
-      apiKeyInputs={providerTextInputMap}
+      apiKeyInputs={apiKeyInputs}
       includeRawProviderOutputInHistoryExport={false}
       message={null}
       error={null}
@@ -183,7 +202,93 @@ async function renderSettingsPage(
   );
 }
 
+function extractReadinessSection(html: string): string {
+  const start = html.indexOf('data-e2e="settings-readiness-diagnostics"');
+  const end = html.indexOf('data-e2e="default-provider-select"', start);
+  if (start === -1 || end === -1) {
+    throw new Error('Unable to locate Settings readiness section.');
+  }
+
+  return html.slice(start, end);
+}
+
 describe('SettingsPage provider flow', () => {
+  it('renders a visible beta readiness diagnostics section', async () => {
+    const html = await renderSettingsPage('openai-compatible');
+    const readinessSection = extractReadinessSection(html);
+
+    expect(readinessSection).toContain('Beta readiness');
+    expect(readinessSection).toContain('Configuration ready');
+    expect(readinessSection).toContain('/tmp/Inkline.sqlite');
+    expect(readinessSection).toContain('Custom OpenAI-compatible');
+    expect(readinessSection).toContain('custom-model');
+    expect(readinessSection).toContain('Configured in OS keychain');
+    expect(readinessSection).toContain('Structured validation boundary is active.');
+    expect(readinessSection).toContain('No live provider request was run.');
+  });
+
+  it('renders setup actions for incomplete selected provider readiness', async () => {
+    const missingKeyStatus = providerStatus('openai-compatible', 'not-configured');
+    const settings = makeSettings('openai-compatible', {
+      'openai-compatible': '',
+    });
+    const aiModelSettings = settings.aiModelSettings;
+    const credentialStatuses = settings.providerCredentialStatuses;
+
+    if (!aiModelSettings || !credentialStatuses) {
+      throw new Error('Expected settings fixture to include AI model and credential status snapshots.');
+    }
+
+    settings.baseUrl = '';
+    settings.providerApiKeyStatus = 'not-configured';
+    settings.providerCredentialStatuses = {
+      ...credentialStatuses,
+      'openai-compatible': missingKeyStatus,
+    };
+    settings.aiModelSettings = {
+      ...aiModelSettings,
+      providers: {
+        ...aiModelSettings.providers,
+        'openai-compatible': {
+          ...aiModelSettings.providers['openai-compatible'],
+          baseUrl: '',
+          model: '',
+          apiKeyStatus: missingKeyStatus,
+        },
+      },
+    };
+
+    const html = await renderSettingsPage('openai-compatible', { 'openai-compatible': '' }, { settings });
+    const readinessSection = extractReadinessSection(html);
+
+    expect(readinessSection).toContain('Setup needed');
+    expect(readinessSection).toContain('Save a model ID for Custom OpenAI-compatible.');
+    expect(readinessSection).toContain('Add the custom OpenAI-compatible base URL.');
+    expect(readinessSection).toContain('Save an API key for Custom OpenAI-compatible.');
+  });
+
+  it('keeps diagnostics free of API keys, raw provider bodies, and writing content', async () => {
+    const settings = makeSettings('openai-compatible');
+    settings.reviewContextDescription = 'raw provider body: private essay content sk-test-secret';
+
+    const html = await renderSettingsPage(
+      'openai-compatible',
+      {},
+      {
+        settings,
+        apiKeyInputOverrides: {
+          'openai-compatible': 'sk-test-secret',
+        },
+      },
+    );
+    const readinessSection = extractReadinessSection(html);
+
+    expect(readinessSection).not.toContain('sk-test-secret');
+    expect(readinessSection).not.toContain('private essay content');
+    expect(readinessSection).not.toContain('raw provider body');
+    expect(readinessSection).toContain('Diagnostics do not run a live provider request.');
+  });
+
   it('renders only the selected hosted provider settings', async () => {
     const html = await renderSettingsPage('anthropic', {
       anthropic: 'anthropic-render-test-model',

@@ -20,16 +20,17 @@ export function useFoundationState(): FoundationState {
     queryKey: queryKeys.app.startupStatus,
     queryFn: () => window.api.app.getStartupStatus(),
   });
-  const databaseReady = startupQuery.data?.databaseReady === true && startupQuery.data.migrationsApplied === true;
+  const canLoadDatabaseBackedData =
+    startupQuery.data?.databaseReady === true && startupQuery.data.migrationsApplied === true;
   const writingQuery = useQuery({
     queryKey: queryKeys.writing.attempt('journal'),
     queryFn: () => window.api.writing.getCurrentAttempt(),
-    enabled: databaseReady,
+    enabled: canLoadDatabaseBackedData,
   });
   const settingsQuery = useQuery({
     queryKey: queryKeys.settings.snapshot,
     queryFn: () => window.api.settings.get(),
-    enabled: databaseReady,
+    enabled: canLoadDatabaseBackedData,
   });
 
   if (startupQuery.isPending) {
@@ -41,8 +42,12 @@ export function useFoundationState(): FoundationState {
     return { status: 'error', message: error instanceof Error ? error.message : 'Unable to load application state.' };
   }
 
-  if (!databaseReady) {
+  if (!startupQuery.data.databaseReady) {
     return { status: 'error', message: `Database unavailable: ${startupQuery.data.databaseLocation}` };
+  }
+
+  if (!startupQuery.data.migrationsApplied) {
+    return { status: 'error', message: `Database migrations unavailable: ${startupQuery.data.databaseLocation}` };
   }
 
   if (writingQuery.isPending || settingsQuery.isPending) {

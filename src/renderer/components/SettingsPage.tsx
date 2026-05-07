@@ -1,5 +1,11 @@
 import { aiProviderIdSchema, type AiProviderId, type ProviderKeyStatus } from '@shared/types/credentials';
-import type { SettingsSnapshot } from '@shared/types/settings';
+import {
+  deriveBetaReadinessDiagnostics,
+  resolveProviderCredentialStatus,
+  resolveSettingsProviderId,
+  type BetaReadinessDiagnostics,
+  type BetaReadinessRowStatus,
+} from '@shared/diagnostics/beta-readiness';
 import type { SettingsPageProps } from './types';
 import { formatProviderKeyStatus } from './format';
 
@@ -52,10 +58,11 @@ export function SettingsPage({
   onViewWelcomeIntro,
 }: SettingsPageProps): React.JSX.Element {
   const aiModelSettings = settings.aiModelSettings;
-  const defaultProviderId = aiModelSettings?.defaultProviderId ?? settings.providerId ?? 'openai-compatible';
+  const defaultProviderId = resolveSettingsProviderId(settings);
   const selectedProviderSettings = aiModelSettings?.providers[defaultProviderId];
   const selectedProviderTitle = PROVIDER_LABELS[defaultProviderId];
-  const selectedCredentialStatus = getCredentialStatus(settings, defaultProviderId);
+  const selectedCredentialStatus = resolveProviderCredentialStatus(settings, defaultProviderId);
+  const readinessDiagnostics = deriveBetaReadinessDiagnostics({ startup, settings });
 
   return (
     <section className="flex min-h-0 flex-col" aria-labelledby="settings-page-title">
@@ -71,6 +78,8 @@ export function SettingsPage({
 
       <div className="scrollable min-h-0 flex-1 overflow-y-auto pr-1" style={{ scrollbarGutter: 'stable' }}>
         <div className="grid max-w-4xl gap-12 pb-8">
+          <SettingsReadinessSection diagnostics={readinessDiagnostics} />
+
           <section>
             <h2 className="editorial-copy text-2xl text-base-content">AI provider</h2>
             <p className="ui-chrome mt-1 max-w-2xl text-sm leading-6 text-base-content/55">
@@ -254,7 +263,7 @@ export function SettingsPage({
               />
               <StatusRow label="Local model" value={settings.isLocalModel ? 'Yes' : 'No'} />
               <StatusRow label="Review context" value={settings.reviewContextDescription} />
-              <StatusRow label="Database" value={startup.databaseReady ? settings.databaseLocation : 'Unavailable'} />
+              <StatusRow label="Database" value={startup.databaseReady ? startup.databaseLocation : 'Unavailable'} />
               <StatusRow label="Migrations" value={startup.migrationsApplied ? 'Applied' : 'Unavailable'} />
               <StatusRow label="pi-mono" value={settings.piMonoAuthStatus} />
               <StatusRow label="AnkiConnect" value={settings.ankiConnectStatus} />
@@ -273,6 +282,45 @@ export function SettingsPage({
           ) : null}
         </div>
       </div>
+    </section>
+  );
+}
+
+function SettingsReadinessSection({ diagnostics }: { diagnostics: BetaReadinessDiagnostics }): React.JSX.Element {
+  return (
+    <section aria-labelledby="settings-readiness-title" data-e2e="settings-readiness-diagnostics">
+      <div className="flex flex-wrap items-center gap-3">
+        <h2 id="settings-readiness-title" className="editorial-copy text-2xl text-base-content">
+          Beta readiness
+        </h2>
+        <span
+          className="ui-chrome inline-flex items-center gap-2 text-sm font-medium text-base-content/65"
+          data-status={diagnostics.status}
+        >
+          <span className={`h-2.5 w-2.5 rounded-full ${statusDotClass(diagnostics.status)}`} aria-hidden="true" />
+          {diagnostics.label}
+        </span>
+      </div>
+      <p className="ui-chrome mt-2 max-w-2xl text-sm leading-6 text-base-content/55">{diagnostics.description}</p>
+      <dl className="mt-5 divide-y divide-base-300/45 border-y border-base-300/45">
+        {diagnostics.rows.map((row) => (
+          <div key={row.id} className="grid gap-2 py-3 md:grid-cols-[10rem_minmax(0,1fr)_8rem] md:items-start">
+            <dt className="text-xs font-semibold uppercase tracking-[0.14em] text-base-content/40 md:pt-1">
+              {row.label}
+            </dt>
+            <dd className="min-w-0">
+              <p className="selectable-content break-words text-sm text-base-content/76">{row.value}</p>
+              {row.detail ? <p className="mt-1 text-xs leading-5 text-base-content/48">{row.detail}</p> : null}
+              {row.action ? (
+                <p className="mt-1 text-xs font-medium leading-5 text-base-content/62">{row.action}</p>
+              ) : null}
+            </dd>
+            <dd className="ui-chrome text-xs font-semibold uppercase tracking-[0.12em] text-base-content/46 md:pt-1">
+              {rowStatusLabel(row.status)}
+            </dd>
+          </div>
+        ))}
+      </dl>
     </section>
   );
 }
@@ -410,23 +458,6 @@ function FormRow({
   );
 }
 
-function getCredentialStatus(settings: SettingsSnapshot, providerId: AiProviderId): ProviderKeyStatus {
-  const status =
-    settings.providerCredentialStatuses?.[providerId] ?? settings.aiModelSettings?.providers[providerId].apiKeyStatus;
-  if (status) {
-    return status;
-  }
-
-  return {
-    providerId,
-    status:
-      providerId === settings.providerId || (providerId === 'openai-compatible' && !settings.providerId)
-        ? settings.providerApiKeyStatus
-        : 'not-configured',
-    storage: 'os-keychain',
-  };
-}
-
 function StatusRow({ label, value }: { label: string; value: string }): React.JSX.Element {
   return (
     <div className="grid gap-2 md:grid-cols-[10rem_minmax(0,36rem)]">
@@ -434,4 +465,38 @@ function StatusRow({ label, value }: { label: string; value: string }): React.JS
       <dd className="selectable-content max-w-xl break-words text-base-content/72">{value}</dd>
     </div>
   );
+}
+
+function rowStatusLabel(status: BetaReadinessRowStatus): string {
+  switch (status) {
+    case 'ready':
+      return 'Ready';
+    case 'needs_setup':
+      return 'Setup needed';
+    case 'unavailable':
+      return 'Unavailable';
+    case 'info':
+      return 'Info';
+    default: {
+      const _exhaustive: never = status;
+      return _exhaustive;
+    }
+  }
+}
+
+function statusDotClass(status: BetaReadinessRowStatus): string {
+  switch (status) {
+    case 'ready':
+      return 'bg-success';
+    case 'needs_setup':
+      return 'bg-warning';
+    case 'unavailable':
+      return 'bg-error';
+    case 'info':
+      return 'bg-base-content/30';
+    default: {
+      const _exhaustive: never = status;
+      return _exhaustive;
+    }
+  }
 }

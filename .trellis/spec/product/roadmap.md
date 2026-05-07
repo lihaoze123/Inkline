@@ -253,6 +253,7 @@ Goal: make Inkline usable outside the development environment.
 - Reliable packaging and installer flows.
 - First-run setup that makes provider configuration clear.
 - Local diagnostics for database, provider, keychain, and model-output validation.
+  - Foundation implemented: Settings renders beta-readiness diagnostics from existing startup/settings snapshots, with database, migrations, selected provider/model/base URL, keychain/API-key status, and structured-validation boundary rows. It does not run a live provider request.
 - Test data reset/export paths for private beta users.
 - Documentation that distinguishes implemented behavior from future plans.
 

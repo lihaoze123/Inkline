@@ -6,6 +6,7 @@ import type { ReviewPreviewSnapshot, ReviewRunSnapshot } from '../src/shared/typ
 vi.mock('@shared/writing/templates', async () => import('../src/shared/writing/templates'));
 vi.mock('@shared/types/settings', async () => import('../src/shared/types/settings'));
 vi.mock('@shared/types/credentials', async () => import('../src/shared/types/credentials'));
+vi.mock('@shared/diagnostics/beta-readiness', async () => import('../src/shared/diagnostics/beta-readiness'));
 
 const reviewedContent = 'Today I go home.';
 

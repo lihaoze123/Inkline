@@ -129,9 +129,9 @@ const IPC_CHANNELS = {
 
 | Field | Type | Constraint |
 | --- | --- | --- |
-| `databaseReady` | boolean | Mirrors migration success |
+| `databaseReady` | boolean | Local SQLite file was opened and the app can report its path |
 | `databaseLocation` | string | Non-empty app-data SQLite path |
-| `migrationsApplied` | boolean | Mirrors migration success |
+| `migrationsApplied` | boolean | Startup migrations completed successfully |
 
 `SettingsSnapshot` response fields:
 
@@ -198,7 +198,8 @@ const IPC_CHANNELS = {
 | Keychain read succeeds with no password | Return `{ status: 'not-configured', storage: 'os-keychain' }` |
 | Keychain read throws | Return `{ status: 'unavailable', storage: 'os-keychain' }` |
 | Keychain write/delete throws | Return `{ success: false, error }` without echoing the submitted key |
-| Migration startup failed | Startup status reports `databaseReady: false` and `migrationsApplied: false` |
+| Migration startup failed after SQLite opens | Startup status reports `databaseReady: true` and `migrationsApplied: false` |
+| SQLite startup failed before IPC registration | App cannot provide startup status; surface the launch/startup error instead |
 
 ### 5. Good/Base/Bad Cases
 

@@ -68,6 +68,8 @@ Both disclosures also show:
 
 Settings must continue to display provider, model, database location, pi-mono auth status, raw response setting, and reserved AnkiConnect status.
 
+Settings beta-readiness diagnostics must derive from the existing safe `StartupStatus` and `SettingsSnapshot` data already available to the renderer. They may show database path, migration status, selected provider, selected model, custom base URL presence/value, provider credential status, and that structured model-output validation is active. They must not run a live provider request or imply that a live provider request succeeded.
+
 ### 4. Validation & Error Matrix
 
 | Condition | Behavior |
@@ -79,14 +81,18 @@ Settings must continue to display provider, model, database location, pi-mono au
 | Raw response storage disabled | Do not persist raw provider response JSON. |
 | Raw response storage enabled | Persist raw response locally only; Settings must warn it may contain writing content. |
 | Provider diagnostics persisted | Persist only bounded, secret-redacted metadata; do not include raw provider bodies, request bodies, Authorization headers, API keys, or model content. |
+| Settings readiness diagnostics render | Use existing safe startup/settings snapshots only; do not call a provider, access keychain directly from renderer, or display API keys/raw provider bodies/writing content. |
 | Renderer tries to access keychain/database/provider SDK directly | Contract violation; use narrow preload IPC only. |
 
 ### 5. Good/Base/Bad Cases
 
 - Good: Starter generation sends template metadata and optional goal only after starter disclosure, then persists the generated prompt with the attempt.
 - Good: Review sends writing content only after review disclosure and only from the main process.
+- Good: Settings readiness diagnostics show configuration readiness and a "no live provider request" note from safe startup/settings snapshots.
 - Base: Local-compatible provider is configured; disclosure still shows provider/model and raw-response setting.
 - Bad: Starter generation sends the current draft or active revision text.
+- Bad: Settings readiness diagnostics sends a sample review or starter request to prove provider connectivity.
+- Bad: Settings readiness diagnostics reads keychain contents or displays submitted API key text.
 - Bad: Renderer imports provider SDKs, `keytar`, `electron-store`, database modules, or `fs`.
 - Bad: API keys are stored in SQLite or returned to renderer after saving.
 
@@ -96,6 +102,7 @@ Settings must continue to display provider, model, database location, pi-mono au
 - Disclosure test: starter/review calls return `disclosureRequired` before acknowledgement and do not invoke provider.
 - Review privacy test: missing provider config/key fails before sending writing content.
 - Settings test: raw response storage defaults off and mutation responses never contain API keys.
+- Settings diagnostics test: readiness rows are derived from startup/settings snapshots, include setup actions for missing provider/model/base URL/keychain state, and never show API keys, raw provider bodies, or writing content.
 - Static/boundary test: renderer files do not import Electron main APIs, filesystem, database, keychain, or provider SDKs.
 
 ### 7. Wrong vs Correct
@@ -112,6 +119,12 @@ await provider.generateStarterPrompt({
 
 Starter generation is pre-writing scaffolding and must not receive essay content.
 
+```ts
+await provider.generateText({ prompt: 'Return OK if this provider is reachable.' });
+```
+
+Settings readiness diagnostics are configuration checks, not live provider smoke tests.
+
 #### Correct
 
 ```ts
@@ -119,6 +132,12 @@ await window.api.writing.generateStarterPrompt({ templateId, userGoal });
 ```
 
 The main process builds the provider request from template metadata and optional goal/topic only.
+
+```ts
+const diagnostics = deriveBetaReadinessDiagnostics({ startup, settings });
+```
+
+Settings diagnostics derive from existing safe snapshots and must say that no live provider request was run.
 
 ## Secret Handling
 
